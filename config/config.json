@@ -1,0 +1,42 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "displayinternal-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/newVisitor/newVisitorWebPart.js", 
+          "manifest": "./src/webparts/newVisitor/newVisitorWebPart.manifest.json"
+        },
+        {
+          "entrypoint": "./lib/webparts/viewVisitors/viewVisitorsWebPart.js",
+          "manifest": "./src/webparts/viewVisitors/viewVisitorsWebPart.manifest.json"
+        },
+        {
+          "entrypoint": "./lib/webparts/displayVisitor/displayVisitorWebPart.js", 
+          "manifest": "./src/webparts/displayVisitor/displayVisitorWebPart.manifest.json"
+        },
+        {
+          "entrypoint": "./lib/webparts/newOvertime/newOvertimeWebPart.js",  
+          "manifest": "./src/webparts/newOvertime/newOvertimeWebPart.manifest.json"
+        },
+        {
+          "entrypoint": "./lib/webparts/viewOvertime/viewOvertimeWebPart.js", 
+          "manifest": "./src/webparts/viewOvertime/viewOvertimeWebPart.manifest.json"
+        },
+        {
+          "entrypoint": "./lib/webparts/displayOvertime/displayOvertimeWebPart.js",  
+          "manifest": "./src/webparts/displayOvertime/displayOvertimeWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "localizedResources": {
+    "NewVisitorWebPartStrings": "lib/webparts/newVisitor/loc/en-us.js",
+    "ViewVisitorsWebPartStrings": "lib/webparts/viewVisitors/loc/en-us.js",
+    "DisplayVisitorWebPartStrings": "lib/webparts/displayVisitor/loc/en-us.js",
+    "NewOvertimeWebPartStrings": "lib/webparts/newOvertime/loc/en-us.js",
+    "ViewOvertimeWebPartStrings": "lib/webparts/viewOvertime/loc/en-us.js",
+    "DisplayOvertimeWebPartStrings": "lib/webparts/displayOvertime/loc/en-us.js"
+  }
+}
