@@ -2,6 +2,7 @@ import { IVisitorDetails } from "./IVisitorDetails";
 
 export interface IVisitor {
     ID: number;
+    RefNo?: string;
     Title: string;
     ExternalType: string;
     Purpose: string;

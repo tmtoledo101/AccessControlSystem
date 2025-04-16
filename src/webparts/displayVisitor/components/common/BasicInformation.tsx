@@ -50,6 +50,7 @@ interface IBasicInformationProps {
     deptList: any[];
     bldgList: any[];
     contactList: any[];
+    refNo?: string;
     onInputChange: (name: string, value: any) => void;
     onContactSelect: (event: any, value: any) => void;
     onContactSearch: (value: string) => void;
@@ -63,6 +64,7 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
     deptList,
     bldgList,
     contactList,
+    refNo,
     onInputChange,
     onContactSelect,
     onContactSearch
@@ -164,11 +166,49 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
         <>
             <Grid item xs={12} sm={6}>
                 <Paper variant="outlined" className={classes.paper}>
+                    {renderDisplayField('Request Date', data.RequestDate ? new Date(data.RequestDate).toLocaleString() : '')}
+                </Paper>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+                <Paper variant="outlined" className={classes.paper}>
+                    {renderDisplayField('Reference No.', refNo || '')}
+                </Paper>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+                <Paper variant="outlined" className={classes.paper}>
                     {isEdit ? (
+                        renderEditField('ExternalType', 'External Type', data.ExternalType, errors.ExternalType, 'select', [
+                            { Id: 'Walk-in', Title: 'Walk-in' },
+                            { Id: 'Pre-registered', Title: 'Pre-registered' }
+                        ])
+                    ) : (
+                        renderDisplayField('External Type', data.ExternalType === 'Walk-in' ? 'Walk-in' : 'Pre-registered')
+                    )}
+                </Paper>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+                <Paper variant="outlined" className={classes.paper}>
+                    {
+                    isEdit ? (
                         renderEditField('Purpose', 'Purpose', data.Purpose, errors.Purpose, 'select', purposeList)
                     ) : (
-                        renderDisplayField('Purpose', data.Purpose)
-                    )}
+                        renderDisplayField('Purpose',
+                        (function () {
+                            var i, match;
+                            for (i = 0; i < purposeList.length; i++) {
+                            if (purposeList[i].Id === data.Purpose) {
+                                match = purposeList[i];
+                                break;
+                            }
+                            }
+                            return match && match.Title ? match.Title : data.Purpose;
+                        })()
+                        )
+                    )
+                    }
                 </Paper>
             </Grid>
 
@@ -197,9 +237,12 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
             <Grid item xs={12} sm={6}>
                 <Paper variant="outlined" className={classes.paper}>
                     {isEdit ? (
-                        renderEditField('Bldg', 'Building', data.Bldg, errors.Bldg, 'select', bldgList)
+                    renderEditField('Bldg', 'Building', data.Bldg, errors.Bldg, 'select', bldgList)
                     ) : (
-                        renderDisplayField('Building', data.Bldg)
+                    renderDisplayField('Building', (function () {
+                        const matchedBldg = bldgList.find(function (b) { return b.Id === data.Bldg; });
+                        return matchedBldg ? matchedBldg.Title : data.Bldg;
+                    })())
                     )}
                 </Paper>
             </Grid>

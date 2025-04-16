@@ -110,6 +110,12 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                 throw new Error('Visitor not found');
             }
 
+            console.log('Fetched visitor:', visitor);
+            
+            // Use Title field directly as the reference number
+            const refNo = visitor.Title;
+            console.log('Using Title as refNo:', refNo);
+
             // Get visitor files and details in parallel
             const [visitorFiles, visitorDetails] = await Promise.all([
                 spService.getVisitorFiles(itemId),
@@ -149,12 +155,15 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             ]);
 
             // Initialize state with loaded data
-            setState(prev => ({
-                ...prev,
-                _itemId: itemId,
-                _sourceURL: sourceURL,
-                ...userRoles,
-                inputFields: {
+            setState(prev => {
+                console.log('Setting state with refNo:', refNo);
+                return {
+                    ...prev,
+                    _itemId: itemId,
+                    _sourceURL: sourceURL,
+                    _refno: refNo,
+                    ...userRoles,
+                    inputFields: {
                     ...visitor,
                     Files: [],
                     initFiles: visitorFiles.map(f => f.Name),
@@ -171,7 +180,8 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                 colorList,
                 modifiedDate: visitor.Modified,
                 isHidePrint: !(userRoles.isReceptionist && (visitor.StatusId === 4 || visitor.StatusId === 9))
-            }));
+                };
+            });
 
             // Load approvers if needed
             if (visitor.DeptId) {
@@ -414,6 +424,7 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                         deptList={state.deptList}
                         bldgList={state.bldgList}
                         contactList={state.contactList}
+                        refNo={state._refno}
                         onInputChange={handleInputChange}
                         onContactSelect={React.useCallback((e, value) => {
                             if (value) {
