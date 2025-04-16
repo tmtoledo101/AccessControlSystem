@@ -85,7 +85,7 @@ export class SharePointService {
     public async getPurposeList(): Promise<any[]> {
         return await sp.web.lists.getByTitle("Purpose")
             .items
-            .select("*")
+            .select("Id,Title")  // Need both Id for key and Title for value
             .filter(`Group eq 'Visitor'`)
             .get();
     }
@@ -93,7 +93,7 @@ export class SharePointService {
     public async getBuildingList(): Promise<any[]> {
         return await sp.web.lists.getByTitle("Building")
             .items
-            .select("*")
+            .select("Id,Title")  // Need both Id for key and Title for value
             .orderBy("Title", true)
             .get();
     }
@@ -165,10 +165,10 @@ export class SharePointService {
             .items.getById(inputFields.ID)
             .update({
                 Title: inputFields.Title,
-                ExternalType: inputFields.ExternalType,
-                Purpose: inputFields.Purpose,
-                DeptId: inputFields.DeptId,
-                Bldg: inputFields.Bldg,
+                ExternalType: inputFields.ExternalType, // Already a string
+                Purpose: inputFields.Purpose, // Already a string
+                DeptId: inputFields.DeptId, // This one stays as Id
+                Bldg: inputFields.Bldg, // Already a string
                 RoomNo: inputFields.RoomNo,
                 EmpNo: inputFields.EmpNo,
                 ContactName: inputFields.ContactName,

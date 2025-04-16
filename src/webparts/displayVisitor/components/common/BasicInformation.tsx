@@ -80,6 +80,20 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
         type: 'text' | 'select' | 'datetime' | 'autocomplete' = 'text',
         options?: any[]
     ) => {
+        if (type === 'select') {
+            console.log(`Rendering ${name} dropdown:`, {
+                value,
+                options: (options || []).map((item) => ({
+                    id: item.Id,
+                    title: item.Title
+                  }))
+            });
+            if (name === 'Purpose') {
+                console.log('Purpose list:', purposeList);
+            } else if (name === 'Bldg') {
+                console.log('Building list:', bldgList);
+            }
+        }
         switch (type) {
             case 'select':
                 return (
@@ -90,11 +104,22 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
                             onChange={(e) => onInputChange(name, e.target.value)}
                             name={name}
                         >
-                           {options && options.map((item) => (
-                                <MenuItem key={item.Id || item.Title} value={item.Id || item.Title}>
-                                    {item.Title}
-                                </MenuItem>
-                            ))}
+                           {options && options.map((item) => {
+                                console.log(`MenuItem for ${name}:`, { 
+                                    key: item.Id || item.Title,
+                                    value: item.Title,
+                                    title: item.Title,
+                                    fullItem: item
+                                });
+                                return (
+                                    <MenuItem 
+                                        key={item.Id || item.Title} 
+                                        value={item.Title}
+                                    >
+                                        {item.Title}
+                                    </MenuItem>
+                                );
+                            })}
                         </Select>
                         <FormHelperText>{error}</FormHelperText>
                     </FormControl>
@@ -180,11 +205,11 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
                 <Paper variant="outlined" className={classes.paper}>
                     {isEdit ? (
                         renderEditField('ExternalType', 'External Type', data.ExternalType, errors.ExternalType, 'select', [
-                            { Id: 'Walk-in', Title: 'Walk-in' },
-                            { Id: 'Pre-registered', Title: 'Pre-registered' }
+                            { Title: 'Walk-in' },
+                            { Title: 'Pre-registered' }
                         ])
                     ) : (
-                        renderDisplayField('External Type', data.ExternalType === 'Walk-in' ? 'Walk-in' : 'Pre-registered')
+                        renderDisplayField('External Type', data.ExternalType)
                     )}
                 </Paper>
             </Grid>
@@ -193,18 +218,12 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
                 <Paper variant="outlined" className={classes.paper}>
                     {
                     isEdit ? (
-                        renderEditField('Purpose', 'Purpose', data.Purpose, errors.Purpose, 'select', purposeList)
+                    renderEditField('Purpose', 'Purpose', data.Purpose, errors.Purpose, 'select', purposeList)
                     ) : (
                         renderDisplayField('Purpose',
                         (function () {
-                            var i, match;
-                            for (i = 0; i < purposeList.length; i++) {
-                            if (purposeList[i].Id === data.Purpose) {
-                                match = purposeList[i];
-                                break;
-                            }
-                            }
-                            return match && match.Title ? match.Title : data.Purpose;
+                            const match = purposeList.find(p => p.Title === data.Purpose);
+                            return match ? match.Title : data.Purpose;
                         })()
                         )
                     )
@@ -240,7 +259,7 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
                     renderEditField('Bldg', 'Building', data.Bldg, errors.Bldg, 'select', bldgList)
                     ) : (
                     renderDisplayField('Building', (function () {
-                        const matchedBldg = bldgList.find(function (b) { return b.Id === data.Bldg; });
+                        const matchedBldg = bldgList.find(b => b.Title === data.Bldg);
                         return matchedBldg ? matchedBldg.Title : data.Bldg;
                     })())
                     )}

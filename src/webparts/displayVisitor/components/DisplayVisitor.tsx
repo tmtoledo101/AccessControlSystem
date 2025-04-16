@@ -111,15 +111,36 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             }
 
             console.log('Fetched visitor:', visitor);
-            
+            console.log('ExternalType:', visitor.ExternalType);
+            console.log('Purpose:', visitor.Purpose);
+            console.log('Bldg:', visitor.Bldg);
+
             // Use Title field directly as the reference number
             const refNo = visitor.Title;
             console.log('Using Title as refNo:', refNo);
 
-            // Get visitor files and details in parallel
-            const [visitorFiles, visitorDetails] = await Promise.all([
+            // Get all data in parallel
+            console.log('Fetching reference data...');
+            const [
+                visitorFiles,
+                visitorDetails,
+                purposeList,
+                buildingList,
+                departmentList,
+                gateList,
+                idList,
+                ssdUsers,
+                colorList
+            ] = await Promise.all([
                 spService.getVisitorFiles(itemId),
-                spService.getVisitorDetails(itemId)
+                spService.getVisitorDetails(itemId),
+                spService.getPurposeList(),
+                spService.getBuildingList(),
+                spService.getDepartmentList(),
+                spService.getGateList(),
+                spService.getIDList(),
+                spService.getSSDUsers(),
+                spService.getColorList()
             ]);
 
             // Get visitor details files
@@ -135,28 +156,23 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                 })
             );
 
-            // Get reference data in parallel
-            const [
-                purposeList,
-                buildingList,
-                departmentList,
-                gateList,
-                idList,
-                ssdUsers,
-                colorList
-            ] = await Promise.all([
-                spService.getPurposeList(),
-                spService.getBuildingList(),
-                spService.getDepartmentList(),
-                spService.getGateList(),
-                spService.getIDList(),
-                spService.getSSDUsers(),
-                spService.getColorList()
-            ]);
+            console.log('Purpose List:', purposeList.map(p => ({ id: p.Id, title: p.Title })));
+            console.log('Building List:', buildingList.map(b => ({ id: b.Id, title: b.Title })));
+            console.log('Current visitor values:', {
+                externalType: visitor.ExternalType,
+                purpose: visitor.Purpose,
+                building: visitor.Bldg
+            });
 
             // Initialize state with loaded data
             setState(prev => {
                 console.log('Setting state with refNo:', refNo);
+                console.log('Setting inputFields:', {
+                    ...visitor,
+                    Files: [],
+                    initFiles: visitorFiles.map(f => f.Name),
+                    origFiles: visitorFiles
+                });
                 return {
                     ...prev,
                     _itemId: itemId,
@@ -291,12 +307,22 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
     // Event Handlers
     const handleInputChange = React.useCallback((name: string, value: any): void => {
+        console.log('handleInputChange:', { name, value });
+        if (name === 'Purpose' || name === 'Bldg' || name === 'ExternalType') {
+            console.log('Dropdown value changed:', {
+                field: name,
+                newValue: value,
+                currentValue: state.inputFields[name],
+                purposeList: state.purposeList,
+                bldgList: state.bldgList
+            });
+        }
         setState(prev => ({
             ...prev,
             inputFields: { ...prev.inputFields, [name]: value }
         }));
         validateInputs(name, value);
-    }, [validateInputs]);
+    }, [validateInputs, state.inputFields, state.purposeList, state.bldgList]);
 
     const validateVisitorDetailsInputs = React.useCallback((details: any, name: string, value: any): boolean => {
         const { isReceptionist, inputFields } = state;
@@ -382,6 +408,13 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     const handleSave = React.useCallback(async (): Promise<void> => {
         try {
             setState(prev => ({ ...prev, isProgress: true }));
+            console.log('Saving visitor data:', {
+                ExternalType: state.inputFields.ExternalType,
+                Purpose: state.inputFields.Purpose,
+                Bldg: state.inputFields.Bldg,
+                purposeList: state.purposeList,
+                bldgList: state.bldgList
+            });
             await spService.saveVisitor(state);
             setState(prev => ({ 
                 ...prev, 
