@@ -88,13 +88,11 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
                             onChange={(e) => onInputChange(name, e.target.value)}
                             name={name}
                         >
-                           {options && options.map(function(item) {
-                            return (
+                           {options && options.map((item) => (
                                 <MenuItem key={item.Id || item.Title} value={item.Id || item.Title}>
-                                {item.Title}
+                                    {item.Title}
                                 </MenuItem>
-                            );
-                            })}
+                            ))}
                         </Select>
                         <FormHelperText>{error}</FormHelperText>
                     </FormControl>
@@ -122,7 +120,7 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
                             open={isAC1Open}
                             onOpen={() => setAC1Open(true)}
                             onClose={() => setAC1Open(false)}
-                            getOptionSelected={(option, value) => option.EmpNo === value.EmpNo}
+                            getOptionSelected={(option, selectedValue) => option.EmpNo === selectedValue.EmpNo}
                             getOptionLabel={(option) => option.Name || ''}
                             options={contactList}
                             onChange={onContactSelect}

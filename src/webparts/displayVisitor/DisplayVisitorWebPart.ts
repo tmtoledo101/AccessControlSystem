@@ -8,7 +8,7 @@ import {
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 
 import * as strings from 'DisplayVisitorWebPartStrings';
-import DisplayVisitor from './components/DisplayVisitor';
+import { DisplayVisitor } from './components/DisplayVisitor';
 import { IDisplayVisitorProps } from './components/IDisplayVisitorProps';
 import { sp } from '@pnp/sp';
 import { SPComponentLoader } from '@microsoft/sp-loader';

@@ -2,9 +2,10 @@ import * as React from 'react';
 import {
     Button,
     ButtonGroup,
-    Grid
+    Grid,
+    Theme
 } from '@material-ui/core';
-import { makeStyles } from '@material-ui/core/styles';
+import { makeStyles, createStyles } from '@material-ui/core/styles';
 import SaveIcon from '@material-ui/icons/Save';
 import CancelIcon from '@material-ui/icons/Cancel';
 import SendIcon from '@material-ui/icons/Send';
@@ -12,7 +13,7 @@ import DoneIcon from '@material-ui/icons/Done';
 import ThumbUpIcon from '@material-ui/icons/ThumbUp';
 import ThumbDownIcon from '@material-ui/icons/ThumbDown';
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles((theme: Theme) => createStyles({
     paperbutton: {
         textTransform: "none",
         margin: "5px",

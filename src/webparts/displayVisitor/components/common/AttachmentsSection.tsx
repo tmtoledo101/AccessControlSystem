@@ -6,13 +6,13 @@ import {
     FormControl,
     FormHelperText
 } from '@material-ui/core';
-import { makeStyles } from '@material-ui/core/styles';
+import { withStyles } from '@material-ui/core/styles';
 import { DropzoneArea } from 'material-ui-dropzone';
 import AttachFileIcon from '@material-ui/icons/AttachFile';
 
-const useStyles = makeStyles((theme) => ({
+const styles: any = {
     paper: {
-        padding: theme.spacing(1),
+        padding: 8,
         borderColor: "transparent",
     },
     previewChip: {
@@ -24,12 +24,13 @@ const useStyles = makeStyles((theme) => ({
         justifyContent: 'flex-start',
         flexWrap: 'wrap',
         '& > *': {
-            margin: theme.spacing(0.5),
+            margin: 4,
         },
     }
-}));
+};
 
 interface IAttachmentsSectionProps {
+    classes: any;
     files: File[];
     initFiles: string[];
     isEdit: boolean;
@@ -37,16 +38,12 @@ interface IAttachmentsSectionProps {
     onFileClick: (filename: string) => void;
 }
 
-export const AttachmentsSection: React.FC<IAttachmentsSectionProps> = ({
-    files,
-    initFiles,
-    isEdit,
-    onFileChange,
-    onFileClick
-}) => {
-    const classes = useStyles();
+export const AttachmentsSection = withStyles(styles)(
+    class extends React.Component<IAttachmentsSectionProps> {
+        public render() {
+            const { classes, files, initFiles, isEdit, onFileChange, onFileClick } = this.props;
 
-    return (
+            return (
         <Grid item xs={12}>
             <Paper variant="outlined" className={classes.paper}>
                 {isEdit ? (
@@ -82,5 +79,7 @@ export const AttachmentsSection: React.FC<IAttachmentsSectionProps> = ({
                 )}
             </Paper>
         </Grid>
-    );
-};
+            );
+        }
+    }
+);

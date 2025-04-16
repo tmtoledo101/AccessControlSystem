@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Grid, Container } from '@material-ui/core';
+import { Grid, Container, Typography } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import { IDisplayVisitorProps } from './IDisplayVisitorProps';
 import { IDisplayVisitorState, initialState } from '../interfaces/IDisplayVisitorState';
@@ -27,122 +27,52 @@ const useStyles = makeStyles((theme) => ({
     }
 }));
 
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+    constructor(props: { children: React.ReactNode }) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError(_: Error) {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+        console.error('Error caught by boundary:', error, errorInfo);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <Container>
+                    <Typography variant="h6" color="error">
+                        Something went wrong. Please try refreshing the page.
+                    </Typography>
+                </Container>
+            );
+        }
+
+        return this.props.children;
+    }
+}
+
 export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     const classes = useStyles();
-    const [state, setState] = React.useState<IDisplayVisitorState>(initialState);
-    const spService = SharePointService.getInstance();
+    // Memoize spService to prevent unnecessary re-initialization
+    const spService = React.useMemo(() => SharePointService.getInstance(), []);
+    
+    const [state, setState] = React.useState<IDisplayVisitorState>(() => ({
+        ...initialState,
+        isEdit: true // Enable edit mode by default
+    }));
 
-    React.useEffect(() => {
-        initializeComponent();
-    }, []);
-
-    const initializeComponent = async () => {
-        try {
-            setState(prev => ({ ...prev, isProgress: true }));
-            spService.initialize(props.siteUrl, props.siteRelativeUrl);
-
-            // Get URL parameters and initialize data
-            const itemId = parseInt(getUrlParameter('pid'));
-            const sourceURL = document.referrer;
-            await loadInitialData(itemId, sourceURL);
-
-        } catch (error) {
-            console.error('Error initializing component:', error);
-            setState(prev => ({
-                ...prev,
-                dialogMessage: 'An error occurred while loading the form. Please try again later.'
-            }));
-        } finally {
-            setState(prev => ({ ...prev, isProgress: false }));
-        }
-    };
-
-    const loadInitialData = async (itemId: number, sourceURL: string) => {
-        // Get current user and check roles
-        const currentUser = await spService.getCurrentUser();
-        const userGroups = await spService.getCurrentUserGroups();
-        const userRoles = await determineUserRoles(currentUser, userGroups);
-
-        // Get visitor data
-        const visitor = await spService.getVisitorById(itemId);
-        const visitorFiles = await spService.getVisitorFiles(itemId);
-        const visitorDetails = await spService.getVisitorDetails(itemId);
-        const visitorDetailsWithFiles = await Promise.all(
-            visitorDetails.map(async detail => {
-                const files = await spService.getVisitorDetailsFiles(detail.ID);
-                return {
-                    ...detail,
-                    Files: [],
-                    initFiles: files.map(f => f.Name),
-                    origFiles: files
-                };
-            })
-        );
-
-        // Get reference data
-        const [
-            purposeList,
-            buildingList,
-            departmentList,
-            gateList,
-            idList,
-            ssdUsers,
-            colorList
-        ] = await Promise.all([
-            spService.getPurposeList(),
-            spService.getBuildingList(),
-            spService.getDepartmentList(),
-            spService.getGateList(),
-            spService.getIDList(),
-            spService.getSSDUsers(),
-            spService.getColorList()
-        ]);
-
-        // Initialize state with loaded data
-        setState(prev => ({
-            ...prev,
-            _itemId: itemId,
-            _sourceURL: sourceURL,
-            ...userRoles,
-            inputFields: {
-                ...visitor,
-                Files: [],
-                initFiles: visitorFiles.map(f => f.Name),
-                origFiles: visitorFiles
-            },
-            visitorDetailsList: visitorDetailsWithFiles,
-            _origVisitorDetailsList: visitorDetailsWithFiles,
-            purposeList,
-            bldgList: buildingList,
-            deptList: departmentList,
-            GateList: gateList,
-            IDList: idList,
-            SSDUsers: ssdUsers,
-            colorList,
-            modifiedDate: visitor.Modified,
-            isHidePrint: !(userRoles.isReceptionist && (visitor.StatusId === 4 || visitor.StatusId === 9))
-        }));
-
-        // Load approvers if needed
-        if (visitor.DeptId) {
-            const approvers = visitor.ExternalType === 'Walk-in'
-                ? await spService.getWalkinApprovers(visitor.DeptId)
-                : await spService.getApprovers(visitor.DeptId);
-            setState(prev => ({
-                ...prev,
-                approverList: approvers.filter(a => a.NameId !== currentUser.Id),
-                WalkinApprovers: approvers
-            }));
-        }
-
-        // Load contacts if needed
-        if (visitor.EmpNo) {
-            const contacts = await spService.getContacts(visitor.EmpNo);
-            setState(prev => ({ ...prev, contactList: contacts }));
-        }
-    };
-
-    const determineUserRoles = async (currentUser: any, userGroups: any[]) => {
+    const determineUserRoles = async (currentUser: any, userGroups: any[]): Promise<{
+        isEncoder: boolean;
+        isReceptionist: boolean;
+        isApproverUser: boolean;
+        isSSDUser: boolean;
+        isWalkinApproverUser: boolean;
+    }> => {
         const roles = {
             isEncoder: false,
             isReceptionist: false,
@@ -165,41 +95,225 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
         return roles;
     };
+    
+
+    const loadInitialData = async (itemId: number, sourceURL: string): Promise<void> => {
+        try {
+            // Get current user and check roles
+            const currentUser = await spService.getCurrentUser();
+            const userGroups = await spService.getCurrentUserGroups();
+            const userRoles = await determineUserRoles(currentUser, userGroups);
+
+            // Get visitor data
+            const visitor = await spService.getVisitorById(itemId);
+            if (!visitor) {
+                throw new Error('Visitor not found');
+            }
+
+            // Get visitor files and details in parallel
+            const [visitorFiles, visitorDetails] = await Promise.all([
+                spService.getVisitorFiles(itemId),
+                spService.getVisitorDetails(itemId)
+            ]);
+
+            // Get visitor details files
+            const visitorDetailsWithFiles = await Promise.all(
+                visitorDetails.map(async detail => {
+                    const files = await spService.getVisitorDetailsFiles(detail.ID);
+                    return {
+                        ...detail,
+                        Files: [],
+                        initFiles: files.map(f => f.Name),
+                        origFiles: files
+                    };
+                })
+            );
+
+            // Get reference data in parallel
+            const [
+                purposeList,
+                buildingList,
+                departmentList,
+                gateList,
+                idList,
+                ssdUsers,
+                colorList
+            ] = await Promise.all([
+                spService.getPurposeList(),
+                spService.getBuildingList(),
+                spService.getDepartmentList(),
+                spService.getGateList(),
+                spService.getIDList(),
+                spService.getSSDUsers(),
+                spService.getColorList()
+            ]);
+
+            // Initialize state with loaded data
+            setState(prev => ({
+                ...prev,
+                _itemId: itemId,
+                _sourceURL: sourceURL,
+                ...userRoles,
+                inputFields: {
+                    ...visitor,
+                    Files: [],
+                    initFiles: visitorFiles.map(f => f.Name),
+                    origFiles: visitorFiles
+                },
+                visitorDetailsList: visitorDetailsWithFiles,
+                _origVisitorDetailsList: visitorDetailsWithFiles,
+                purposeList,
+                bldgList: buildingList,
+                deptList: departmentList,
+                GateList: gateList,
+                IDList: idList,
+                SSDUsers: ssdUsers,
+                colorList,
+                modifiedDate: visitor.Modified,
+                isHidePrint: !(userRoles.isReceptionist && (visitor.StatusId === 4 || visitor.StatusId === 9))
+            }));
+
+            // Load approvers if needed
+            if (visitor.DeptId) {
+                const approvers = visitor.ExternalType === 'Walk-in'
+                    ? await spService.getWalkinApprovers(visitor.DeptId)
+                    : await spService.getApprovers(visitor.DeptId);
+                setState(prev => ({
+                    ...prev,
+                    approverList: approvers.filter(a => a.NameId !== currentUser.Id),
+                    WalkinApprovers: approvers
+                }));
+            }
+
+            // Load contacts if needed
+            if (visitor.EmpNo) {
+                const contacts = await spService.getContacts(visitor.EmpNo);
+                setState(prev => ({ ...prev, contactList: contacts }));
+            }
+
+        } catch (error) {
+            console.error('Error loading initial data:', error);
+            throw error; // Re-throw to be caught by initializeComponent
+        }
+    };
+
+
+    const initializeComponent = async (): Promise<void> => {
+        try {
+            setState(prev => ({ ...prev, isProgress: true }));
+            
+            if (!props.siteUrl || !props.siteRelativeUrl) {
+                throw new Error('Site URL or relative URL is missing');
+            }
+            
+            spService.initialize(props.siteUrl, props.siteRelativeUrl);
+
+            // Temporarily hardcode itemId to 4 for testing
+            const itemId = 4;
+            // Get URL parameters and initialize data
+           /* const itemId = parseInt(getUrlParameter('pid'));
+            if (isNaN(itemId)) {
+                throw new Error('Invalid visitor ID in URL parameters');
+            }*/
+
+            const sourceURL = document.referrer;
+            await loadInitialData(itemId, sourceURL);
+
+        } catch (error) {
+            console.error('Error initializing component:', error);
+            setState(prev => ({
+                ...prev,
+                dialogMessage: error instanceof Error ? error.message : 'An error occurred while loading the form. Please try again later.',
+                isEdit: false // Disable editing when there's an error
+            }));
+        } finally {
+            setState(prev => ({ ...prev, isProgress: false }));
+        }
+    };
+
+    React.useEffect(() => {
+        let mounted = true;
+
+        const init = async () => {
+            try {
+                await initializeComponent();
+            } catch (error) {
+                if (mounted) {
+                    console.error('Failed to initialize component:', error);
+                }
+            }
+        };
+
+        init();
+        
+        // Cleanup function
+        return () => {
+            mounted = false;
+        };
+    }, [props.siteUrl, props.siteRelativeUrl, spService]); // Add all dependencies
+
+
+
+    
+   
+    
+    const getUserType = React.useCallback((): string => {
+        const { isEncoder, isReceptionist, isApproverUser, isSSDUser, isWalkinApproverUser } = state;
+        if (isEncoder) return 'encoder';
+        if (isReceptionist) return 'receptionist';
+        if (isApproverUser) return 'approver';
+        if (isSSDUser) return 'ssd';
+        if (isWalkinApproverUser) return 'walkinApprover';
+        return '';
+    }, [state.isEncoder, state.isReceptionist, state.isApproverUser, state.isSSDUser, state.isWalkinApproverUser]);
+
+    
+
+    const validateInputs = React.useCallback((name: string, value: any): void => {
+        const { inputFields, errorFields } = state;
+        const newErrors = validateVisitorFields(
+            { ...inputFields, [name]: value },
+            getRequiredFields(getUserType(), inputFields.StatusId),
+            state.sAction
+        );
+        setState(prev => ({ ...prev, errorFields: newErrors }));
+    }, [getUserType, state.inputFields, state.sAction]);
 
     // Event Handlers
-    const handleInputChange = (name: string, value: any) => {
+    const handleInputChange = React.useCallback((name: string, value: any): void => {
         setState(prev => ({
             ...prev,
             inputFields: { ...prev.inputFields, [name]: value }
         }));
         validateInputs(name, value);
-    };
+    }, [validateInputs]);
 
-    const handleVisitorDetailsChange = (name: string, value: any) => {
-        setState(prev => ({
-            ...prev,
-            visitorDetails: { ...prev.visitorDetails, [name]: value }
-        }));
-        validateVisitorDetailsInputs(name, value);
-    };
+    const validateVisitorDetailsInputs = React.useCallback((details: any, name: string, value: any): boolean => {
+        const { isReceptionist, inputFields } = state;
+        const updatedDetails = { ...details, [name]: value };
+        const newErrors = validateVisitorDetails(
+            updatedDetails,
+            isReceptionist,
+            inputFields.StatusId
+        );
+        setState(prev => ({ ...prev, errorDetails: newErrors }));
+        
+        // Return true if there are no errors
+        return Object.values(newErrors).every(error => !error);
+    }, [state.isReceptionist, state.inputFields.StatusId]);
 
-    const handleFileChange = (files: File[]) => {
-        setState(prev => ({
-            ...prev,
-            inputFields: { ...prev.inputFields, Files: files }
-        }));
-        handleDeletedFiles(files);
-    };
+    const handleVisitorDetailsChange = React.useCallback((name: string, value: any): void => {
+        setState(prev => {
+            const updatedDetails = { ...prev.visitorDetails, [name]: value };
+            validateVisitorDetailsInputs(updatedDetails, name, value);
+            return {
+                ...prev,
+                visitorDetails: updatedDetails
+            };
+        });
+    }, [validateVisitorDetailsInputs]);
 
-    const handleVisitorDetailsFileChange = (files: File[]) => {
-        setState(prev => ({
-            ...prev,
-            visitorDetails: { ...prev.visitorDetails, Files: files }
-        }));
-        handleDeletedVisitorDetailsFiles(files);
-    };
-
-    const handleDeletedFiles = (files: File[]) => {
+    const handleDeletedFiles = React.useCallback((files: File[]): void => {
         const { inputFields, deleteFiles } = state;
         inputFields.origFiles.forEach(origFile => {
             const fileExists = files.some(file => file.name === origFile.Name);
@@ -210,29 +324,54 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                 }));
             }
         });
-    };
+    }, [state.inputFields.origFiles, state.deleteFiles]);
 
-    const handleDeletedVisitorDetailsFiles = (files: File[]) => {
-        const { visitorDetails, deleteFilesDetails, _itemIdDetails } = state;
-        visitorDetails.origFiles.forEach(origFile => {
-            const fileExists = files.some(file => file.name === origFile.Name);
-            if (!fileExists) {
-                const deleteRecord = { Id: _itemIdDetails, Filename: origFile.Name };
-                if (!deleteFilesDetails.some(df => 
-                    df.Id === deleteRecord.Id && df.Filename === deleteRecord.Filename
-                )) {
-                    setState(prev => ({
-                        ...prev,
-                        deleteFilesDetails: [...prev.deleteFilesDetails, deleteRecord]
-                    }));
+    const handleFileChange = React.useCallback((files: File[]): void => {
+        setState(prev => ({
+            ...prev,
+            inputFields: { ...prev.inputFields, Files: files }
+        }));
+        handleDeletedFiles(files);
+    }, [handleDeletedFiles]);
+
+    const handleDeletedVisitorDetailsFiles = React.useCallback((files: File[]): void => {
+        setState(prev => {
+            const newDeleteFilesDetails = [...prev.deleteFilesDetails];
+            prev.visitorDetails.origFiles.forEach(origFile => {
+                const fileExists = files.some(file => file.name === origFile.Name);
+                if (!fileExists) {
+                    const deleteRecord = { Id: prev._itemIdDetails, Filename: origFile.Name };
+                    if (!newDeleteFilesDetails.some(df => 
+                        df.Id === deleteRecord.Id && df.Filename === deleteRecord.Filename
+                    )) {
+                        newDeleteFilesDetails.push(deleteRecord);
+                    }
                 }
-            }
+            });
+            return {
+                ...prev,
+                deleteFilesDetails: newDeleteFilesDetails
+            };
         });
-    };
+    }, [state.visitorDetails.origFiles, state._itemIdDetails]);
 
-    const handleSave = async () => {
-        setState(prev => ({ ...prev, isProgress: true }));
+    const handleVisitorDetailsFileChange = React.useCallback((files: File[]): void => {
+        setState(prev => {
+            const updatedDetails = { ...prev.visitorDetails, Files: files };
+            return {
+                ...prev,
+                visitorDetails: updatedDetails
+            };
+        });
+        handleDeletedVisitorDetailsFiles(files);
+    }, [handleDeletedVisitorDetailsFiles]);
+
+    
+    
+
+    const handleSave = React.useCallback(async (): Promise<void> => {
         try {
+            setState(prev => ({ ...prev, isProgress: true }));
             await spService.saveVisitor(state);
             setState(prev => ({ 
                 ...prev, 
@@ -251,44 +390,19 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         } finally {
             setState(prev => ({ ...prev, isProgress: false }));
         }
-    };
+    }, [spService, state, props.siteUrl]);
+    
+    
+  
 
-    const validateInputs = (name: string, value: any) => {
-        const { inputFields, errorFields } = state;
-        const newErrors = validateVisitorFields(
-            { ...inputFields, [name]: value },
-            getRequiredFields(getUserType(), inputFields.StatusId),
-            state.sAction
-        );
-        setState(prev => ({ ...prev, errorFields: newErrors }));
-    };
+   
 
-    const validateVisitorDetailsInputs = (name: string, value: any): boolean => {
-        const { visitorDetails, errorDetails, isReceptionist, inputFields } = state;
-        const newErrors = validateVisitorDetails(
-            { ...visitorDetails, [name]: value },
-            isReceptionist,
-            inputFields.StatusId
-        );
-        setState(prev => ({ ...prev, errorDetails: newErrors }));
-        
-        // Return true if there are no errors
-        return Object.values(newErrors).every(error => !error);
-    };
-
-    const getUserType = (): string => {
-        const { isEncoder, isReceptionist, isApproverUser, isSSDUser, isWalkinApproverUser } = state;
-        if (isEncoder) return 'encoder';
-        if (isReceptionist) return 'receptionist';
-        if (isApproverUser) return 'approver';
-        if (isSSDUser) return 'ssd';
-        if (isWalkinApproverUser) return 'walkinApprover';
-        return '';
-    };
+    
 
     // Render Methods
     return (
-        <div className={classes.root}>
+        <ErrorBoundary>
+            <div className={classes.root}>
             <Container>
                 <Grid container spacing={1}>
                     {/* Basic Information Section */}
@@ -301,7 +415,7 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                         bldgList={state.bldgList}
                         contactList={state.contactList}
                         onInputChange={handleInputChange}
-                        onContactSelect={(e, value) => {
+                        onContactSelect={React.useCallback((e, value) => {
                             if (value) {
                                 setState(prev => ({
                                     ...prev,
@@ -330,15 +444,15 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                                 }));
                                 validateInputs('EmpNo', '');
                             }
-                        }}
-                        onContactSearch={async (value) => {
+                        }, [validateInputs])}
+                        onContactSearch={React.useCallback(async (value) => {
                             if (value.length > 2) {
                                 const contacts = await spService.getContacts(value);
                                 setState(prev => ({ ...prev, contactList: contacts }));
                             } else {
                                 setState(prev => ({ ...prev, contactList: [] }));
                             }
-                        }}
+                        }, [spService])}
                     />
 
                     {/* Visitor Information Section */}
@@ -355,10 +469,10 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                         initFiles={state.inputFields.initFiles}
                         isEdit={state.isEdit}
                         onFileChange={handleFileChange}
-                        onFileClick={(filename) => {
+                        onFileClick={React.useCallback((filename) => {
                             const url = `${props.siteUrl}/VisitorsLib/${state._itemId}/${filename}`;
                             window.open(url, '_blank');
-                        }}
+                        }, [props.siteUrl, state._itemId])}
                     />
 
                     {/* Visitor Details Table */}
@@ -367,7 +481,7 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                         isEdit={state.isEdit}
                         isReceptionist={state.isReceptionist}
                         hidePrint={state.isHidePrint}
-                        onView={(rowData) => {
+                        onView={React.useCallback((rowData) => {
                             setState(prev => ({
                                 ...prev,
                                 _idx: prev.visitorDetailsList.indexOf(rowData),
@@ -376,8 +490,8 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                                 visitorDetailsMode: 'edit',
                                 openDialogFab: true
                             }));
-                        }}
-                        onDelete={(rowData) => {
+                        }, [])}
+                        onDelete={React.useCallback((rowData) => {
                             const idx = state.visitorDetailsList.indexOf(rowData);
                             setState(prev => ({
                                 ...prev,
@@ -387,8 +501,8 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                                     Details: prev.visitorDetailsList.length === 1 ? "Visitor Details are required. Please add visitor names." : ""
                                 }
                             }));
-                        }}
-                        onPrint={(rowData) => {
+                        }, [state.visitorDetailsList])}
+                        onPrint={React.useCallback((rowData) => {
                             setState(prev => ({
                                 ...prev,
                                 _idx: prev.visitorDetailsList.indexOf(rowData),
@@ -396,8 +510,8 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                                 visitorDetails: rowData,
                                 openDialogIDFab: true
                             }));
-                        }}
-                        onAdd={() => {
+                        }, [])}
+                        onAdd={React.useCallback(() => {
                             setState(prev => ({
                                 ...prev,
                                 visitorDetailsMode: 'add',
@@ -420,7 +534,7 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                                 },
                                 openDialogFab: true
                             }));
-                        }}
+                        }, [])}
                     />
 
                     {/* Approval Section */}
@@ -442,49 +556,49 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                         isWalkinApprover={state.isWalkinApproverUser}
                         isSSDUser={state.isSSDUser}
                         statusId={state.inputFields.StatusId}
-                        onCancel={() => {
+                        onCancel={React.useCallback(() => {
                             setState(prev => ({
                                 ...prev,
                                 dialogMessage: "Do you want to discard changes and exit?",
                                 openDialog: true
                             }));
-                        }}
+                        }, [])}
                         onSave={handleSave}
-                        onSubmit={() => {
+                        onSubmit={React.useCallback(() => {
                             setState(prev => ({
                                 ...prev,
                                 sAction: 'submit',
                                 dialogMessage: "Do you want to submit this form?",
                                 openDialog: true
                             }));
-                        }}
-                        onApprove={() => {
+                        }, [])}
+                        onApprove={React.useCallback(() => {
                             setState(prev => ({
                                 ...prev,
                                 sAction: 'approve',
                                 dialogMessage: "Do you want to approve this request?",
                                 openDialog: true
                             }));
-                        }}
-                        onDeny={() => {
+                        }, [])}
+                        onDeny={React.useCallback(() => {
                             setState(prev => ({
                                 ...prev,
                                 sAction: 'deny',
                                 dialogMessage: "Do you want to deny this request?",
                                 openDialog: true
                             }));
-                        }}
-                        onMarkComplete={() => {
+                        }, [])}
+                        onMarkComplete={React.useCallback(() => {
                             setState(prev => ({
                                 ...prev,
                                 sAction: 'markcomplete',
                                 dialogMessage: "Do you want to complete this request?",
                                 openDialog: true
                             }));
-                        }}
-                        onClose={() => {
+                        }, [])}
+                        onClose={React.useCallback(() => {
                             window.open(props.siteUrl + '/SitePages/ViewVisitorappge.aspx', "_self");
-                        }}
+                        }, [props.siteUrl])}
                     />
                 </Grid>
             </Container>
@@ -494,7 +608,7 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                 open={state.openDialog}
                 title="Confirmation"
                 message={state.dialogMessage}
-                onClose={(confirmed) => {
+                onClose={React.useCallback((confirmed) => {
                     if (confirmed) {
                         if (state.dialogMessage.includes('discard')) {
                             window.location.href = state._sourceURL || props.siteUrl;
@@ -503,7 +617,7 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                         }
                     }
                     setState(prev => ({ ...prev, openDialog: false }));
-                }}
+                }, [handleSave, state.dialogMessage, state._sourceURL, props.siteUrl])}
             />
 
             <VisitorDetailsDialog
@@ -513,9 +627,9 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                 isEdit={state.isEdit}
                 IDList={state.IDList}
                 GateList={state.GateList}
-                onClose={() => setState(prev => ({ ...prev, openDialogFab: false }))}
-                onSave={() => {
-                    if (validateVisitorDetailsInputs('', '')) {
+                onClose={React.useCallback(() => setState(prev => ({ ...prev, openDialogFab: false })), [])}
+                onSave={React.useCallback(() => {
+                    if (validateVisitorDetailsInputs(state.visitorDetails, '', '')) {
                         if (state.visitorDetailsMode === 'add') {
                             setState(prev => ({
                                 ...prev,
@@ -536,7 +650,7 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                             }));
                         }
                     }
-                }}
+                }, [validateVisitorDetailsInputs, state.visitorDetails, state.visitorDetailsMode, state._idx])}
                 onInputChange={handleVisitorDetailsChange}
                 onFileChange={handleVisitorDetailsFileChange}
             />
@@ -548,8 +662,8 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                 visitorDetails={state.visitorDetails}
                 colorList={state.colorList}
                 colorValue={state.colorValue}
-                onClose={() => setState(prev => ({ ...prev, openDialogIDFab: false }))}
-                onColorChange={(value) => {
+                onClose={React.useCallback(() => setState(prev => ({ ...prev, openDialogIDFab: false })), [])}
+                onColorChange={React.useCallback((value) => {
                     const selectedColor = state.colorList.find(c => c.Title === value);
                     setState(prev => ({
                         ...prev,
@@ -559,7 +673,7 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                             colorAccess: value
                         }
                     }));
-                }}
+                }, [state.colorList])}
             />
 
             {/* Loading and Notifications */}
@@ -569,8 +683,9 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                 open={state.isSavingDone}
                 message="Data has been saved successfully."
                 type="success"
-                onClose={() => setState(prev => ({ ...prev, isSavingDone: false }))}
+                onClose={React.useCallback(() => setState(prev => ({ ...prev, isSavingDone: false })), [])}
             />
-        </div>
+            </div>
+        </ErrorBoundary>
     );
 };
