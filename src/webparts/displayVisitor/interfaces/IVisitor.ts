@@ -58,6 +58,7 @@ export interface IErrorFields {
     Bldg: string;
     RoomNo: string;
     EmpNo: string;
+    ContactName: string; // Added for contact person text input error handling
     Title: string;
     Position: string;
     DirectNo: string;

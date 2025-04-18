@@ -118,6 +118,7 @@ export const initialState: IDisplayVisitorState = {
         Bldg: '',
         RoomNo: '',
         EmpNo: '',
+        ContactName: '', // Added to match IErrorFields interface
         Title: '',
         Position: '',
         DirectNo: '',

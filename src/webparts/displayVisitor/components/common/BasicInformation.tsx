@@ -72,6 +72,9 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
     const classes = useStyles();
     const [isAC1Open, setAC1Open] = React.useState(false);
 
+    // Add console log for debugging
+    console.log("BasicInformation rendering. isEdit:", isEdit, "data.ContactName:", data ? data.ContactName : 'data is null/undefined');
+
     const renderEditField = (
         name: string,
         label: string,
@@ -335,7 +338,8 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
             <Grid item xs={12} sm={6}>
                 <Paper variant="outlined" className={classes.paper}>
                     {isEdit ? (
-                        renderEditField('EmpNo', 'Contact Person', data.EmpNo, errors.EmpNo, 'autocomplete')
+                        // Changed from 'autocomplete' to 'text', updated field names from EmpNo to ContactName
+                        renderEditField('ContactName', 'Contact Person', data.ContactName, errors.ContactName, 'text')
                     ) : (
                         renderDisplayField('Contact Person', data.ContactName)
                     )}
@@ -357,6 +361,13 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
             <Grid item xs={12} sm={6}>
                 <Paper variant="outlined" className={classes.paper}>
                     {renderDisplayField('Local No.', data.LocalNo)}
+                </Paper>
+            </Grid>
+
+            {/* Added Contact No. display field (using VisContactNo property) */}
+            <Grid item xs={12} sm={6}>
+                <Paper variant="outlined" className={classes.paper}>
+                    {renderDisplayField('Contact No.', data.VisContactNo)} 
                 </Paper>
             </Grid>
 

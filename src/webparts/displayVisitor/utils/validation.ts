@@ -10,6 +10,7 @@ export const validateVisitorFields = (fields: any, required: string[], action: s
         Bldg: '',
         RoomNo: '',
         EmpNo: '',
+        ContactName: '', // Added to match IErrorFields interface
         Title: '',
         Position: '',
         DirectNo: '',
