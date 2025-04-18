@@ -101,7 +101,8 @@ export class SharePointService {
     public async getDepartmentList(): Promise<any[]> {
         return await sp.web.lists.getByTitle("Departments")
             .items
-            .select("*")
+            .select("ID,Title")  // Explicitly select ID and Title like other list methods
+            .orderBy("Title", true)  // Sort by title for better UX
             .get();
     }
 

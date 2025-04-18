@@ -80,6 +80,29 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
         type: 'text' | 'select' | 'datetime' | 'autocomplete' = 'text',
         options?: any[]
     ) => {
+        // Debug logs
+        if (name === 'ExternalType') {
+            console.log('ExternalType in renderEditField:', {
+                value,
+                dataExternalType: data.ExternalType,
+                options
+            });
+        }
+        if (name === 'DeptId') {
+            console.log('DeptId in renderEditField:', {
+                value,
+                dataDeptId: data.DeptId,
+                dataDept: data.Dept,
+                deptList: deptList.map(d => ({ 
+                    id: d.ID || d.Id, 
+                    title: d.Title 
+                })),
+                options: options && options.map(o => ({
+                    id: o.ID || o.Id,
+                    title: o.Title
+                }))                
+            });
+        }
         if (type === 'select') {
             console.log(`Rendering ${name} dropdown:`, {
                 value,
@@ -100,21 +123,44 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
                     <FormControl className={classes.textField} error={!!error}>
                         <InputLabel>{label} *</InputLabel>
                         <Select
-                            value={value}
-                            onChange={(e) => onInputChange(name, e.target.value)}
+                           value={name === 'DeptId' ? ((data.Dept && data.Dept.Title) || '') : (value || '')}
+
+                            onChange={(e) => {
+                                if (name === 'DeptId') {
+                                    const selectedTitle = e.target.value as string;
+                                    const dept = deptList.find(d => d.Title === selectedTitle);
+                                    console.log('Selected department:', {
+                                        title: selectedTitle,
+                                        dept,
+                                        currentDept: data.Dept,
+                                        deptList: deptList.map(d => ({
+                                            id: d.ID,
+                                            title: d.Title
+                                        }))
+                                    });
+                                    if (dept) {
+                                        onInputChange('DeptId', dept.ID);
+                                        onInputChange('Dept', { Title: dept.Title });
+                                    }
+                                } else {
+                                    onInputChange(name, e.target.value as string);
+                                }
+                            }}
                             name={name}
                         >
                            {options && options.map((item) => {
+                                const itemId = item.ID || item.Id;
+                                const itemValue = item.Title;
                                 console.log(`MenuItem for ${name}:`, { 
-                                    key: item.Id || item.Title,
-                                    value: item.Title,
+                                    key: itemId,
+                                    value: itemValue,
                                     title: item.Title,
                                     fullItem: item
                                 });
                                 return (
                                     <MenuItem 
-                                        key={item.Id || item.Title} 
-                                        value={item.Title}
+                                        key={itemId || item.Title} 
+                                        value={itemValue}
                                     >
                                         {item.Title}
                                     </MenuItem>
@@ -205,9 +251,14 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
                 <Paper variant="outlined" className={classes.paper}>
                     {isEdit ? (
                         renderEditField('ExternalType', 'External Type', data.ExternalType, errors.ExternalType, 'select', [
+                            { Title: data.ExternalType },  // Current value from SharePoint
                             { Title: 'Walk-in' },
+                            { Title: 'Pre-arranged' },
                             { Title: 'Pre-registered' }
-                        ])
+                        ].filter((item, index, self) => 
+                            // Remove duplicates
+                            index === self.findIndex(t => t.Title === item.Title)
+                        ))
                     ) : (
                         renderDisplayField('External Type', data.ExternalType)
                     )}
@@ -246,9 +297,14 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
             <Grid item xs={12} sm={6}>
                 <Paper variant="outlined" className={classes.paper}>
                     {isEdit ? (
-                        renderEditField('DeptId', 'Department to Visit', data.DeptId, errors.DeptId, 'select', deptList)
+                        renderEditField('DeptId', 'Department to Visit', 
+                            data.DeptId,  // Pass the numeric ID
+                            errors.DeptId, 
+                            'select', 
+                            deptList
+                        )
                     ) : (
-                        renderDisplayField('Department to Visit', data.Dept && data.Dept.Title)
+                        renderDisplayField('Department to Visit', data.Dept && data.Dept.Title ? data.Dept.Title : '')
                     )}
                 </Paper>
             </Grid>

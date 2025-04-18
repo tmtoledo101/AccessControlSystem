@@ -167,11 +167,24 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             // Initialize state with loaded data
             setState(prev => {
                 console.log('Setting state with refNo:', refNo);
-                console.log('Setting inputFields:', {
+                // Find department from list and ensure both ID and Title are set
+                const dept = departmentList.find(d => d.ID === visitor.DeptId);
+                const inputFields = {
                     ...visitor,
+                    DeptId: (dept && dept.ID) ? dept.ID : visitor.DeptId,
+                    Dept: dept ? { Title: dept.Title } : visitor.Dept,
                     Files: [],
                     initFiles: visitorFiles.map(f => f.Name),
                     origFiles: visitorFiles
+                };
+                console.log('Setting inputFields:', inputFields);
+                console.log('Department data:', {
+                    deptId: inputFields.DeptId,
+                    dept: inputFields.Dept,
+                    departmentList: departmentList.map(d => ({
+                        id: d.ID,
+                        title: d.Title
+                    }))
                 });
                 return {
                     ...prev,
@@ -179,12 +192,7 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                     _sourceURL: sourceURL,
                     _refno: refNo,
                     ...userRoles,
-                    inputFields: {
-                    ...visitor,
-                    Files: [],
-                    initFiles: visitorFiles.map(f => f.Name),
-                    origFiles: visitorFiles
-                },
+                    inputFields,
                 visitorDetailsList: visitorDetailsWithFiles,
                 _origVisitorDetailsList: visitorDetailsWithFiles,
                 purposeList,
@@ -308,19 +316,71 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     // Event Handlers
     const handleInputChange = React.useCallback((name: string, value: any): void => {
         console.log('handleInputChange:', { name, value });
-        if (name === 'Purpose' || name === 'Bldg' || name === 'ExternalType') {
+        if (name === 'Purpose' || name === 'Bldg' || name === 'ExternalType' || name === 'DeptId' || name === 'Dept') {
             console.log('Dropdown value changed:', {
                 field: name,
                 newValue: value,
                 currentValue: state.inputFields[name],
+                currentDept: state.inputFields.Dept,
                 purposeList: state.purposeList,
-                bldgList: state.bldgList
+                bldgList: state.bldgList,
+                deptList: state.deptList.map(d => ({
+                    id: d.ID,
+                    title: d.Title
+                }))
             });
         }
-        setState(prev => ({
-            ...prev,
-            inputFields: { ...prev.inputFields, [name]: value }
-        }));
+        setState(prev => {
+            const newInputFields = { ...prev.inputFields };
+            
+            // Handle special case for department updates
+            if (name === 'DeptId' && value) {
+                // Find the department and update both DeptId and Dept
+                const dept = state.deptList.find(d => d.ID === value);
+                if (dept) {
+                    newInputFields.DeptId = value;
+                    newInputFields.Dept = { Title: dept.Title };
+
+                    // Load approvers asynchronously
+                    const loadApprovers = async () => {
+                        try {
+                            const approvers = newInputFields.ExternalType === 'Walk-in'
+                                ? await spService.getWalkinApprovers(value)
+                                : await spService.getApprovers(value);
+                            
+                            setState(prev => ({
+                                ...prev,
+                                approverList: approvers,
+                                WalkinApprovers: approvers
+                            }));
+                        } catch (error) {
+                            console.error('Error loading approvers:', error);
+                        }
+                    };
+                    loadApprovers();
+
+                    // Return updated state with cleared approvers
+                    return {
+                        ...prev,
+                        inputFields: newInputFields,
+                        approverList: [],
+                        WalkinApprovers: []
+                    };
+                }
+            } else if (name === 'Dept') {
+                // Update Dept object directly
+                newInputFields.Dept = value;
+            } else {
+                // Handle all other fields normally
+                newInputFields[name] = value;
+            }
+
+            // Return updated state
+            return {
+                ...prev,
+                inputFields: newInputFields
+            };
+        });
         validateInputs(name, value);
     }, [validateInputs, state.inputFields, state.purposeList, state.bldgList]);
 
