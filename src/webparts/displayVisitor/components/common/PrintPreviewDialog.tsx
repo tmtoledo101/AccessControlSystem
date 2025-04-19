@@ -113,7 +113,26 @@ export const PrintPreviewDialog: React.FC<IPrintPreviewDialogProps> = ({
                                                 whiteSpace: 'pre-wrap', 
                                                 wordWrap: 'break-word' 
                                             }}>
-                                                {`${visitorDetails.GateNo}\n${visitorData.Title}\nValidity:\n${moment(visitorData.DateTimeVisit).format('MM/DD/yyyy')}-\n${moment(visitorData.DateTimeArrival).format('MM/DD/yyyy')}`}
+                                                {(() => {
+                                                    console.log('PrintPreviewDialog date fields:', {
+                                                        DateTimeVisit: visitorData.DateTimeVisit,
+                                                        DateTimeVisitType: typeof visitorData.DateTimeVisit,
+                                                        DateTimeArrival: visitorData.DateTimeArrival,
+                                                        DateTimeArrivalType: typeof visitorData.DateTimeArrival
+                                                    });
+                                                    
+                                                    try {
+                                                        const visitDate = visitorData.DateTimeVisit ? 
+                                                            moment(new Date(visitorData.DateTimeVisit)).format('MM/DD/yyyy') : 'N/A';
+                                                        const arrivalDate = visitorData.DateTimeArrival ? 
+                                                            moment(new Date(visitorData.DateTimeArrival)).format('MM/DD/yyyy') : 'N/A';
+                                                            
+                                                        return `${visitorDetails.GateNo}\n${visitorData.Title}\nValidity:\n${visitDate}-\n${arrivalDate}`;
+                                                    } catch (error) {
+                                                        console.error('Error formatting dates in PrintPreviewDialog:', error);
+                                                        return `${visitorDetails.GateNo}\n${visitorData.Title}\nValidity:\nError formatting dates`;
+                                                    }
+                                                })()}
                                             </td>
                                         </tr>
                                     </tbody>

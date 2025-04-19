@@ -95,16 +95,38 @@ export const ApprovalSection: React.FC<IApprovalSectionProps> = ({
         </>
     );
 
-    const renderDateField = (label: string, date: Date) => (
-        date && (
-            <>
-                <Box component="span" className={classes.labeltop}>{label}</Box>
-                <Box component="span" className={classes.labelbottom}>
-                    {moment(date).format('MM/DD/yyyy HH:mm')}
-                </Box>
-            </>
-        )
-    );
+    const renderDateField = (label: string, date: Date) => {
+        console.log(`ApprovalSection renderDateField for ${label}:`, {
+            date,
+            dateType: typeof date,
+            isDate: date instanceof Date,
+            dateString: String(date)
+        });
+        
+        if (!date) return null;
+        
+        try {
+            const formattedDate = moment(new Date(date)).format('MM/DD/yyyy HH:mm');
+            return (
+                <>
+                    <Box component="span" className={classes.labeltop}>{label}</Box>
+                    <Box component="span" className={classes.labelbottom}>
+                        {formattedDate}
+                    </Box>
+                </>
+            );
+        } catch (error) {
+            console.error(`Error formatting date in ApprovalSection for ${label}:`, error, date);
+            return (
+                <>
+                    <Box component="span" className={classes.labeltop}>{label}</Box>
+                    <Box component="span" className={classes.labelbottom}>
+                        {String(date)}
+                    </Box>
+                </>
+            );
+        }
+    };
 
     return (
         <>

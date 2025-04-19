@@ -174,12 +174,29 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
                     </FormControl>
                 );
             case 'datetime':
+                console.log(`DateTimePicker for ${name}:`, {
+                    value,
+                    valueType: typeof value,
+                    isDate: value instanceof Date,
+                    valueString: String(value)
+                });
+                
+                // Try to ensure value is a valid Date object
+                let dateValue;
+                try {
+                    dateValue = value ? (value instanceof Date ? value : new Date(value)) : null;
+                    console.log(`Converted ${name} to:`, dateValue);
+                } catch (error) {
+                    console.error(`Error converting ${name} to Date:`, error);
+                    dateValue = null;
+                }
+                
                 return (
                     <FormControl className={classes.textField} error={!!error}>
                         <MuiPickersUtilsProvider utils={DateFnsUtils}>
                             <DateTimePicker
                                 label={label}
-                                value={value}
+                                value={dateValue}
                                 onChange={(date) => onInputChange(name, date)}
                                 format="MM/dd/yyyy HH:mm"
                                 error={!!error}
@@ -236,11 +253,43 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
         </>
     );
 
+    // Debug date fields
+    React.useEffect(() => {
+        console.log('BasicInformation date fields:', {
+            RequestDate: data.RequestDate,
+            RequestDateType: typeof data.RequestDate,
+            DateTimeVisit: data.DateTimeVisit,
+            DateTimeVisitType: typeof data.DateTimeVisit,
+            DateTimeArrival: data.DateTimeArrival,
+            DateTimeArrivalType: typeof data.DateTimeArrival
+        });
+        
+        try {
+            // Try to convert each date field
+            const convertedDates = {
+                RequestDate: data.RequestDate ? new Date(data.RequestDate) : null,
+                DateTimeVisit: data.DateTimeVisit ? new Date(data.DateTimeVisit) : null,
+                DateTimeArrival: data.DateTimeArrival ? new Date(data.DateTimeArrival) : null
+            };
+            console.log('Converted dates in BasicInformation:', convertedDates);
+        } catch (error) {
+            console.error('Error converting dates in BasicInformation:', error);
+        }
+    }, [data.RequestDate, data.DateTimeVisit, data.DateTimeArrival]);
+
     return (
         <>
             <Grid item xs={12} sm={6}>
                 <Paper variant="outlined" className={classes.paper}>
-                    {renderDisplayField('Request Date', data.RequestDate ? new Date(data.RequestDate).toLocaleString() : '')}
+                    {renderDisplayField('Request Date', data.RequestDate ? 
+                        (() => {
+                            try {
+                                return new Date(data.RequestDate).toLocaleString();
+                            } catch (error) {
+                                console.error('Error formatting RequestDate:', error, data.RequestDate);
+                                return String(data.RequestDate);
+                            }
+                        })() : '')}
                 </Paper>
             </Grid>
 
@@ -376,7 +425,17 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
                     {isEdit ? (
                         renderEditField('DateTimeVisit', 'Date and Time of Visit From', data.DateTimeVisit, errors.DateTimeVisit, 'datetime')
                     ) : (
-                        renderDisplayField('Date and Time of Visit From', data.DateTimeVisit)
+                        renderDisplayField('Date and Time of Visit From', 
+                            (() => {
+                                console.log('Displaying DateTimeVisit:', data.DateTimeVisit);
+                                try {
+                                    return data.DateTimeVisit ? new Date(data.DateTimeVisit).toLocaleString() : '';
+                                } catch (error) {
+                                    console.error('Error formatting DateTimeVisit:', error, data.DateTimeVisit);
+                                    return String(data.DateTimeVisit || '');
+                                }
+                            })()
+                        )
                     )}
                 </Paper>
             </Grid>
@@ -386,7 +445,17 @@ export const BasicInformation: React.FC<IBasicInformationProps> = ({
                     {isEdit ? (
                         renderEditField('DateTimeArrival', 'Date and Time of Visit To', data.DateTimeArrival, errors.DateTimeArrival, 'datetime')
                     ) : (
-                        renderDisplayField('Date and Time of Visit To', data.DateTimeArrival)
+                        renderDisplayField('Date and Time of Visit To', 
+                            (() => {
+                                console.log('Displaying DateTimeArrival:', data.DateTimeArrival);
+                                try {
+                                    return data.DateTimeArrival ? new Date(data.DateTimeArrival).toLocaleString() : '';
+                                } catch (error) {
+                                    console.error('Error formatting DateTimeArrival:', error, data.DateTimeArrival);
+                                    return String(data.DateTimeArrival || '');
+                                }
+                            })()
+                        )
                     )}
                 </Paper>
             </Grid>

@@ -1,6 +1,7 @@
 import * as React from 'react';
-import { Grid, Container, Typography } from '@material-ui/core';
-import { makeStyles } from '@material-ui/core/styles';
+import { Grid, Container, Typography, Paper, Box, Tooltip, Fab } from '@material-ui/core';
+import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
+import EditIcon from '@material-ui/icons/Edit';
 import { IDisplayVisitorProps } from './IDisplayVisitorProps';
 import { IDisplayVisitorState, initialState } from '../interfaces/IDisplayVisitorState';
 import { SharePointService } from '../services/SharePointService';
@@ -20,10 +21,21 @@ import {
     VisitorInformation
 } from './common';
 
-const useStyles = makeStyles((theme) => ({
+// Fix for TypeScript 2.9.2 compatibility
+const useStyles = makeStyles((theme: Theme) => createStyles({
     root: {
         flexGrow: 1,
         fontFamily: '"Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif'
+    },
+    paper: {
+        padding: theme.spacing(2),
+        textAlign: 'left',
+        color: theme.palette.text.secondary,
+    },
+    floatingbutton: {
+        position: 'absolute',
+        right: theme.spacing(2),
+        top: theme.spacing(2),
     }
 }));
 
@@ -63,8 +75,16 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     
     const [state, setState] = React.useState<IDisplayVisitorState>(() => ({
         ...initialState,
-        isEdit: true // Enable edit mode by default
+        isEdit: false // Start in view mode by default
     }));
+
+    // Handle Edit button click
+    const onClickFab = React.useCallback(() => {
+        setState(prev => ({
+            ...prev,
+            isEdit: true
+        }));
+    }, []);
 
     const determineUserRoles = async (currentUser: any, userGroups: any[]): Promise<{
         isEncoder: boolean;
@@ -114,6 +134,33 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             console.log('ExternalType:', visitor.ExternalType);
             console.log('Purpose:', visitor.Purpose);
             console.log('Bldg:', visitor.Bldg);
+            
+            // Debug date fields
+            console.log('Date fields in visitor:', {
+                DateTimeVisit: visitor.DateTimeVisit,
+                DateTimeArrival: visitor.DateTimeArrival,
+                RequestDate: visitor.RequestDate,
+                SSDDate: visitor.SSDDate,
+                DeptApproverDate: visitor.DeptApproverDate,
+                MarkCompleteDate: visitor.MarkCompleteDate,
+                Modified: visitor.Modified
+            });
+            
+            // Try to convert each date field to ensure they're valid
+            try {
+                const dateFields = {
+                    DateTimeVisit: visitor.DateTimeVisit ? new Date(visitor.DateTimeVisit) : null,
+                    DateTimeArrival: visitor.DateTimeArrival ? new Date(visitor.DateTimeArrival) : null,
+                    RequestDate: visitor.RequestDate ? new Date(visitor.RequestDate) : null,
+                    SSDDate: visitor.SSDDate ? new Date(visitor.SSDDate) : null,
+                    DeptApproverDate: visitor.DeptApproverDate ? new Date(visitor.DeptApproverDate) : null,
+                    MarkCompleteDate: visitor.MarkCompleteDate ? new Date(visitor.MarkCompleteDate) : null,
+                    Modified: visitor.Modified ? new Date(visitor.Modified) : null
+                };
+                console.log('Converted date fields:', dateFields);
+            } catch (dateError) {
+                console.error('Error converting date fields:', dateError);
+            }
 
             // Use Title field directly as the reference number
             const refNo = visitor.Title;
@@ -169,13 +216,32 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                 console.log('Setting state with refNo:', refNo);
                 // Find department from list and ensure both ID and Title are set
                 const dept = departmentList.find(d => d.ID === visitor.DeptId);
+                // Ensure all date fields are properly converted to Date objects
+                const safeDate = (dateValue: any) => {
+                    if (!dateValue) return null;
+                    try {
+                        return new Date(dateValue);
+                    } catch (error) {
+                        console.error('Error converting date:', error, dateValue);
+                        return null;
+                    }
+                };
+                
                 const inputFields = {
                     ...visitor,
                     DeptId: (dept && dept.ID) ? dept.ID : visitor.DeptId,
                     Dept: dept ? { Title: dept.Title } : visitor.Dept,
                     Files: [],
                     initFiles: visitorFiles.map(f => f.Name),
-                    origFiles: visitorFiles
+                    origFiles: visitorFiles,
+                    // Ensure all date fields are properly converted
+                    DateTimeVisit: safeDate(visitor.DateTimeVisit),
+                    DateTimeArrival: safeDate(visitor.DateTimeArrival),
+                    RequestDate: safeDate(visitor.RequestDate),
+                    SSDDate: safeDate(visitor.SSDDate),
+                    DeptApproverDate: safeDate(visitor.DeptApproverDate),
+                    MarkCompleteDate: safeDate(visitor.MarkCompleteDate),
+                    Modified: safeDate(visitor.Modified)
                 };
                 console.log('Setting inputFields:', inputFields);
                 console.log('Department data:', {
@@ -202,7 +268,7 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                 IDList: idList,
                 SSDUsers: ssdUsers,
                 colorList,
-                modifiedDate: visitor.Modified,
+                modifiedDate: visitor.Modified ? new Date(visitor.Modified) : null,
                 isHidePrint: !(userRoles.isReceptionist && (visitor.StatusId === 4 || visitor.StatusId === 9))
                 };
             });
@@ -508,6 +574,37 @@ export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             <div className={classes.root}>
             <Container>
                 <Grid container spacing={1}>
+                    {/* Display Visitor Title */}
+                    <Grid item xs={12}>
+                        <Paper variant="outlined" className={classes.paper}>
+                            <Box style={{ fontSize: "1.5rem" }}>
+                                Display Visitor
+                            </Box>
+                        </Paper>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <Paper variant="outlined" className={classes.paper}>
+                            {checkAccessControl({
+                                action: 'editicon',
+                                isEdit: state.isEdit,
+                                userType: getUserType(),
+                                statusId: state.inputFields.StatusId || 0,
+                                hasApprover: !!(state.approverList && state.approverList.length),
+                                hasRemarks: !!(state.inputFields && (state.inputFields.Remarks1 || state.inputFields.Remarks2)),
+                                hasFiles: !!(state.inputFields && state.inputFields.initFiles && state.inputFields.initFiles.length),
+                            }) &&
+                                <span>
+                                    <Box component="div" style={{ display: 'inline' }} className={classes.floatingbutton}>
+                                        <Tooltip title="Edit">
+                                            <Fab id='editFab' size="medium" color="primary" onClick={onClickFab}>
+                                                <EditIcon />
+                                            </Fab>
+                                        </Tooltip>
+                                    </Box>
+                                </span>
+                            }
+                        </Paper>
+                    </Grid>
                     {/* Basic Information Section */}
                     <BasicInformation
                         data={state.inputFields}
