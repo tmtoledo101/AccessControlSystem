@@ -229,13 +229,13 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         // Get current user
         const user = await sharePointService.getCurrentUser();
         setCurrentUser(user);
-        
+        console.log("User",user);
         // Check user groups
         const groups = await sharePointService.getCurrentUserGroups();
         let isUser = false;
         let isencoder = false;
         let isreceptionist = false;
-        
+        console.log("Groups:",groups);
         // Check if user is in Receptionist group
         for (let i = 0; i < groups.length; i++) {
           if (groups[i].LoginName === Receptionist_Group) {
@@ -344,6 +344,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           
           // Get SSD users
           const ssdUsers = await sharePointService.getSSDUsers();
+          console.log("SSD Users", ssdUsers);
           setSSD(ssdUsers);
           
           // Get visitor details
@@ -413,6 +414,13 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const validateInputs = (name, value) => {
     const tempProps = { ...errorFields };
     
+    // Skip validation for EmpNo field (Contact Person) - TEMPORARY FOR TESTING DELETE this Terence !!!
+    if (name === "EmpNo") {
+      tempProps[name] = "";
+      setError(tempProps);
+      return;
+    }
+    
     if (value.length === 0) {
       tempProps[name] = "This is a required input field";
       setError(tempProps);
@@ -469,7 +477,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     
     // Determine required fields based on user role and action
     if ((isEncoder) && ((inputFields.StatusId === 1) || (inputFields.StatusId === 2))) {
-      required.push("Purpose", "DeptId", "Bldg", "RoomNo", "EmpNo", "DateTimeVisit", "DateTimeArrival",
+      // Remove EmpNo from required fields - TEMPORARY FOR TESTING
+      required.push("Purpose", "DeptId", "Bldg", "RoomNo", "DateTimeVisit", "DateTimeArrival",
         'CompanyName', 'Address', 'VisContactNo', 'ApproverId'
       );
       if (inputFields.Purpose === 'Others') {
@@ -990,10 +999,14 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       
       // Check if record has been modified
       const origVisitor = await sharePointService.getVisitorById(_itemId);
-      if (origVisitor.Modified !== modifiedDate) {
-        alert("Record has been changed by another user!");
-        window.open(props.siteUrl, "_self");
-        return;
+      if (origVisitor) {
+        console.log("origVisitor", origVisitor.Modified);
+        console.log("modifiedDate", modifiedDate);
+        if (origVisitor.Modified !== modifiedDate) {
+          alert("Record has been changed by another user!");
+          window.open(props.siteUrl, "_self");
+          return;
+        }
       }
       
       // Save visitor
