@@ -1,892 +1,1211 @@
 import * as React from 'react';
-import { Grid, Container, Typography, Paper, Box, Tooltip, Fab } from '@material-ui/core';
-import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
-import EditIcon from '@material-ui/icons/Edit';
+import { useState, useEffect, useRef } from 'react';
 import { IDisplayVisitorProps } from './IDisplayVisitorProps';
-import { IDisplayVisitorState, initialState } from '../interfaces/IDisplayVisitorState';
+import { IVisitor, IFormError, IApproverDetails } from '../models/IVisitor';
+import { IVisitorDetails, IVisitorDetailsError } from '../models/IVisitorDetails';
 import { SharePointService } from '../services/SharePointService';
-import { validateVisitorFields, validateVisitorDetails } from '../utils/validation';
-import { getUrlParameter, getRequiredFields, checkAccessControl } from '../utils/helpers';
-import {
-    ActionButtons,
-    ApprovalSection,
-    AttachmentsSection,
-    BasicInformation,
-    ConfirmationDialog,
-    LoadingBackdrop,
-    Notification,
-    PrintPreviewDialog,
-    VisitorDetailsDialog,
-    VisitorDetailsTable,
-    VisitorInformation
-} from './common';
+import { EmailService } from '../services/EmailService';
+import { FileService } from '../services/FileService';
+import { getUrlParameter } from '../helpers/urlHelpers';
 
-// Fix for TypeScript 2.9.2 compatibility
-const useStyles = makeStyles((theme: Theme) => createStyles({
+// Section components
+import HeaderSection from './sections/HeaderSection';
+import VisitorInformationSection from './sections/VisitorInformationSection';
+import VisitorDetailsSection from './sections/VisitorDetailsSection';
+import ApprovalSection from './sections/ApprovalSection';
+import ActionButtonsSection from './sections/ActionButtonsSection';
+
+// Dialog components
+import ConfirmationDialog from './dialogs/ConfirmationDialog';
+import VisitorDetailsDialog from './dialogs/VisitorDetailsDialog';
+import PrintIDDialog from './dialogs/PrintIDDialog';
+
+// Material UI imports
+import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
+import Grid from '@material-ui/core/Grid';
+import Backdrop from '@material-ui/core/Backdrop';
+import CircularProgress from '@material-ui/core/CircularProgress';
+import Snackbar from '@material-ui/core/Snackbar';
+import MuiAlert, { AlertProps } from '@material-ui/lab/Alert';
+
+// Define styles
+const useStyles = makeStyles((theme: Theme) =>
+  createStyles({
     root: {
-        flexGrow: 1,
-        fontFamily: '"Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif'
+      flexGrow: 1,
+      fontFamily: '"Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif',
+      padding: '12px'
     },
-    paper: {
-        padding: theme.spacing(2),
-        textAlign: 'left',
-        color: theme.palette.text.secondary,
+    backdrop: {
+      zIndex: theme.zIndex.drawer + 1,
+      color: '#fff',
     },
-    floatingbutton: {
-        position: 'absolute',
-        right: theme.spacing(2),
-        top: theme.spacing(2),
-    }
-}));
+  }),
+);
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
-    constructor(props: { children: React.ReactNode }) {
-        super(props);
-        this.state = { hasError: false };
-    }
-
-    static getDerivedStateFromError(_: Error) {
-        return { hasError: true };
-    }
-
-    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-        console.error('Error caught by boundary:', error, errorInfo);
-    }
-
-    render() {
-        if (this.state.hasError) {
-            return (
-                <Container>
-                    <Typography variant="h6" color="error">
-                        Something went wrong. Please try refreshing the page.
-                    </Typography>
-                </Container>
-            );
-        }
-
-        return this.props.children;
-    }
+// Alert component
+function Alert(props: AlertProps) {
+  return <MuiAlert elevation={6} variant="filled" {...props} />;
 }
 
-export const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
-    const classes = useStyles();
-    // Memoize spService to prevent unnecessary re-initialization
-    const spService = React.useMemo(() => SharePointService.getInstance(), []);
-    
-    const [state, setState] = React.useState<IDisplayVisitorState>(() => ({
-        ...initialState,
-        isEdit: false // Start in view mode by default
-    }));
-
-    // Handle Edit button click
-    const onClickFab = React.useCallback(() => {
-        setState(prev => ({
-            ...prev,
-            isEdit: true
-        }));
-    }, []);
-
-    const determineUserRoles = async (currentUser: any, userGroups: any[]): Promise<{
-        isEncoder: boolean;
-        isReceptionist: boolean;
-        isApproverUser: boolean;
-        isSSDUser: boolean;
-        isWalkinApproverUser: boolean;
-    }> => {
-        const roles = {
-            isEncoder: false,
-            isReceptionist: false,
-            isApproverUser: false,
-            isSSDUser: false,
-            isWalkinApproverUser: false
-        };
-
-        // Check user groups
-        userGroups.forEach(group => {
-            if (group.LoginName === 'Receptionist') roles.isReceptionist = true;
-            if (group.LoginName === 'SSD') roles.isSSDUser = true;
-        });
-
-        // Check user per department
-        const usersPerDept = await spService.getUsersPerDept(currentUser.Id);
-        if (usersPerDept.length > 0) {
-            roles.isEncoder = true;
-        }
-
-        return roles;
-    };
-    
-
-    const loadInitialData = async (itemId: number, sourceURL: string): Promise<void> => {
-        try {
-            // Get current user and check roles
-            const currentUser = await spService.getCurrentUser();
-            const userGroups = await spService.getCurrentUserGroups();
-            const userRoles = await determineUserRoles(currentUser, userGroups);
-
-            // Get visitor data
-            const visitor = await spService.getVisitorById(itemId);
-            if (!visitor) {
-                throw new Error('Visitor not found');
-            }
-
-            console.log('Fetched visitor:', visitor);
-            console.log('ExternalType:', visitor.ExternalType);
-            console.log('Purpose:', visitor.Purpose);
-            console.log('Bldg:', visitor.Bldg);
-            
-            // Debug date fields
-            console.log('Date fields in visitor:', {
-                DateTimeVisit: visitor.DateTimeVisit,
-                DateTimeArrival: visitor.DateTimeArrival,
-                RequestDate: visitor.RequestDate,
-                SSDDate: visitor.SSDDate,
-                DeptApproverDate: visitor.DeptApproverDate,
-                MarkCompleteDate: visitor.MarkCompleteDate,
-                Modified: visitor.Modified
-            });
-            
-            // Try to convert each date field to ensure they're valid
-            try {
-                const dateFields = {
-                    DateTimeVisit: visitor.DateTimeVisit ? new Date(visitor.DateTimeVisit) : null,
-                    DateTimeArrival: visitor.DateTimeArrival ? new Date(visitor.DateTimeArrival) : null,
-                    RequestDate: visitor.RequestDate ? new Date(visitor.RequestDate) : null,
-                    SSDDate: visitor.SSDDate ? new Date(visitor.SSDDate) : null,
-                    DeptApproverDate: visitor.DeptApproverDate ? new Date(visitor.DeptApproverDate) : null,
-                    MarkCompleteDate: visitor.MarkCompleteDate ? new Date(visitor.MarkCompleteDate) : null,
-                    Modified: visitor.Modified ? new Date(visitor.Modified) : null
-                };
-                console.log('Converted date fields:', dateFields);
-            } catch (dateError) {
-                console.error('Error converting date fields:', dateError);
-            }
-
-            // Use Title field directly as the reference number
-            const refNo = visitor.Title;
-            console.log('Using Title as refNo:', refNo);
-
-            // Get all data in parallel
-            console.log('Fetching reference data...');
-            const [
-                visitorFiles,
-                visitorDetails,
-                purposeList,
-                buildingList,
-                departmentList,
-                gateList,
-                idList,
-                ssdUsers,
-                colorList
-            ] = await Promise.all([
-                spService.getVisitorFiles(itemId),
-                spService.getVisitorDetails(itemId),
-                spService.getPurposeList(),
-                spService.getBuildingList(),
-                spService.getDepartmentList(),
-                spService.getGateList(),
-                spService.getIDList(),
-                spService.getSSDUsers(),
-                spService.getColorList()
-            ]);
-
-            // Get visitor details files
-            const visitorDetailsWithFiles = await Promise.all(
-                visitorDetails.map(async detail => {
-                    const files = await spService.getVisitorDetailsFiles(detail.ID);
-                    return {
-                        ...detail,
-                        Files: [],
-                        initFiles: files.map(f => f.Name),
-                        origFiles: files
-                    };
-                })
-            );
-
-            console.log('Purpose List:', purposeList.map(p => ({ id: p.Id, title: p.Title })));
-            console.log('Building List:', buildingList.map(b => ({ id: b.Id, title: b.Title })));
-            console.log('Current visitor values:', {
-                externalType: visitor.ExternalType,
-                purpose: visitor.Purpose,
-                building: visitor.Bldg
-            });
-
-            // Initialize state with loaded data
-            setState(prev => {
-                console.log('Setting state with refNo:', refNo);
-                // Find department from list and ensure both ID and Title are set
-                const dept = departmentList.find(d => d.ID === visitor.DeptId);
-                // Ensure all date fields are properly converted to Date objects
-                const safeDate = (dateValue: any) => {
-                    if (!dateValue) return null;
-                    try {
-                        return new Date(dateValue);
-                    } catch (error) {
-                        console.error('Error converting date:', error, dateValue);
-                        return null;
-                    }
-                };
-                
-                const inputFields = {
-                    ...visitor,
-                    DeptId: (dept && dept.ID) ? dept.ID : visitor.DeptId,
-                    Dept: dept ? { Title: dept.Title } : visitor.Dept,
-                    Files: [],
-                    initFiles: visitorFiles.map(f => f.Name),
-                    origFiles: visitorFiles,
-                    // Ensure all date fields are properly converted
-                    DateTimeVisit: safeDate(visitor.DateTimeVisit),
-                    DateTimeArrival: safeDate(visitor.DateTimeArrival),
-                    RequestDate: safeDate(visitor.RequestDate),
-                    SSDDate: safeDate(visitor.SSDDate),
-                    DeptApproverDate: safeDate(visitor.DeptApproverDate),
-                    MarkCompleteDate: safeDate(visitor.MarkCompleteDate),
-                    Modified: safeDate(visitor.Modified)
-                };
-                console.log('Setting inputFields:', inputFields);
-                console.log('Department data:', {
-                    deptId: inputFields.DeptId,
-                    dept: inputFields.Dept,
-                    departmentList: departmentList.map(d => ({
-                        id: d.ID,
-                        title: d.Title
-                    }))
-                });
-                return {
-                    ...prev,
-                    _itemId: itemId,
-                    _sourceURL: sourceURL,
-                    _refno: refNo,
-                    ...userRoles,
-                    inputFields,
-                visitorDetailsList: visitorDetailsWithFiles,
-                _origVisitorDetailsList: visitorDetailsWithFiles,
-                purposeList,
-                bldgList: buildingList,
-                deptList: departmentList,
-                GateList: gateList,
-                IDList: idList,
-                SSDUsers: ssdUsers,
-                colorList,
-                modifiedDate: visitor.Modified ? new Date(visitor.Modified) : null,
-                isHidePrint: !(userRoles.isReceptionist && (visitor.StatusId === 4 || visitor.StatusId === 9))
-                };
-            });
-
-            // Load approvers if needed
-            if (visitor.DeptId) {
-                const approvers = visitor.ExternalType === 'Walk-in'
-                    ? await spService.getWalkinApprovers(visitor.DeptId)
-                    : await spService.getApprovers(visitor.DeptId);
-                setState(prev => ({
-                    ...prev,
-                    approverList: approvers.filter(a => a.NameId !== currentUser.Id),
-                    WalkinApprovers: approvers
-                }));
-            }
-
-            // Load contacts if needed
-            if (visitor.EmpNo) {
-                const contacts = await spService.getContacts(visitor.EmpNo);
-                setState(prev => ({ ...prev, contactList: contacts }));
-            }
-
-        } catch (error) {
-            console.error('Error loading initial data:', error);
-            throw error; // Re-throw to be caught by initializeComponent
-        }
-    };
-
-
-    const initializeComponent = async (): Promise<void> => {
-        try {
-            setState(prev => ({ ...prev, isProgress: true }));
-            
-            if (!props.siteUrl || !props.siteRelativeUrl) {
-                throw new Error('Site URL or relative URL is missing');
-            }
-            
-            spService.initialize(props.siteUrl, props.siteRelativeUrl);
-
-            // Temporarily hardcode itemId to 4 for testing
-            const itemId = 4;
-            // Get URL parameters and initialize data
-           /* const itemId = parseInt(getUrlParameter('pid'));
-            if (isNaN(itemId)) {
-                throw new Error('Invalid visitor ID in URL parameters');
-            }*/
-
-            const sourceURL = document.referrer;
-            await loadInitialData(itemId, sourceURL);
-
-        } catch (error) {
-            console.error('Error initializing component:', error);
-            setState(prev => ({
-                ...prev,
-                dialogMessage: error instanceof Error ? error.message : 'An error occurred while loading the form. Please try again later.',
-                isEdit: false // Disable editing when there's an error
-            }));
-        } finally {
-            setState(prev => ({ ...prev, isProgress: false }));
-        }
-    };
-
-    React.useEffect(() => {
-        let mounted = true;
-
-        const init = async () => {
-            try {
-                await initializeComponent();
-            } catch (error) {
-                if (mounted) {
-                    console.error('Failed to initialize component:', error);
-                }
-            }
-        };
-
-        init();
-        
-        // Cleanup function
-        return () => {
-            mounted = false;
-        };
-    }, [props.siteUrl, props.siteRelativeUrl, spService]); // Add all dependencies
-
-
-
-    
-   
-    
-    const getUserType = React.useCallback((): string => {
-        const { isEncoder, isReceptionist, isApproverUser, isSSDUser, isWalkinApproverUser } = state;
-        if (isEncoder) return 'encoder';
-        if (isReceptionist) return 'receptionist';
-        if (isApproverUser) return 'approver';
-        if (isSSDUser) return 'ssd';
-        if (isWalkinApproverUser) return 'walkinApprover';
-        return '';
-    }, [state.isEncoder, state.isReceptionist, state.isApproverUser, state.isSSDUser, state.isWalkinApproverUser]);
-
-    
-
-    const validateInputs = React.useCallback((name: string, value: any): void => {
-        const { inputFields, errorFields } = state;
-        const newErrors = validateVisitorFields(
-            { ...inputFields, [name]: value },
-            getRequiredFields(getUserType(), inputFields.StatusId),
-            state.sAction
-        );
-        setState(prev => ({ ...prev, errorFields: newErrors }));
-    }, [getUserType, state.inputFields, state.sAction]);
-
-    // Event Handlers
-    const handleInputChange = React.useCallback((name: string, value: any): void => {
-        console.log('handleInputChange:', { name, value });
-        if (name === 'Purpose' || name === 'Bldg' || name === 'ExternalType' || name === 'DeptId' || name === 'Dept') {
-            console.log('Dropdown value changed:', {
-                field: name,
-                newValue: value,
-                currentValue: state.inputFields[name],
-                currentDept: state.inputFields.Dept,
-                purposeList: state.purposeList,
-                bldgList: state.bldgList,
-                deptList: state.deptList.map(d => ({
-                    id: d.ID,
-                    title: d.Title
-                }))
-            });
-        }
-        setState(prev => {
-            const newInputFields = { ...prev.inputFields };
-            
-            // Handle special case for department updates
-            if (name === 'DeptId' && value) {
-                // Find the department and update both DeptId and Dept
-                const dept = state.deptList.find(d => d.ID === value);
-                if (dept) {
-                    newInputFields.DeptId = value;
-                    newInputFields.Dept = { Title: dept.Title };
-
-                    // Load approvers asynchronously
-                    const loadApprovers = async () => {
-                        try {
-                            const approvers = newInputFields.ExternalType === 'Walk-in'
-                                ? await spService.getWalkinApprovers(value)
-                                : await spService.getApprovers(value);
-                            
-                            setState(prev => ({
-                                ...prev,
-                                approverList: approvers,
-                                WalkinApprovers: approvers
-                            }));
-                        } catch (error) {
-                            console.error('Error loading approvers:', error);
-                        }
-                    };
-                    loadApprovers();
-
-                    // Return updated state with cleared approvers
-                    return {
-                        ...prev,
-                        inputFields: newInputFields,
-                        approverList: [],
-                        WalkinApprovers: []
-                    };
-                }
-            } else if (name === 'Dept') {
-                // Update Dept object directly
-                newInputFields.Dept = value;
-            } else {
-                // Handle all other fields normally
-                newInputFields[name] = value;
-            }
-
-            // Return updated state
-            return {
-                ...prev,
-                inputFields: newInputFields
-            };
-        });
-        validateInputs(name, value);
-    }, [validateInputs, state.inputFields, state.purposeList, state.bldgList]);
-
-    const validateVisitorDetailsInputs = React.useCallback((details: any, name: string, value: any): boolean => {
-        const { isReceptionist, inputFields } = state;
-        const updatedDetails = { ...details, [name]: value };
-        const newErrors = validateVisitorDetails(
-            updatedDetails,
-            isReceptionist,
-            inputFields.StatusId
-        );
-        setState(prev => ({ ...prev, errorDetails: newErrors }));
-        
-        // Return true if there are no errors
-        return Object.values(newErrors).every(error => !error);
-    }, [state.isReceptionist, state.inputFields.StatusId]);
-
-    const handleVisitorDetailsChange = React.useCallback((name: string, value: any): void => {
-        setState(prev => {
-            const updatedDetails = { ...prev.visitorDetails, [name]: value };
-            validateVisitorDetailsInputs(updatedDetails, name, value);
-            return {
-                ...prev,
-                visitorDetails: updatedDetails
-            };
-        });
-    }, [validateVisitorDetailsInputs]);
-
-    const handleDeletedFiles = React.useCallback((files: File[]): void => {
-        const { inputFields, deleteFiles } = state;
-        inputFields.origFiles.forEach(origFile => {
-            const fileExists = files.some(file => file.name === origFile.Name);
-            if (!fileExists && !deleteFiles.some(df => df.Name === origFile.Name)) {
-                setState(prev => ({
-                    ...prev,
-                    deleteFiles: [...prev.deleteFiles, origFile]
-                }));
-            }
-        });
-    }, [state.inputFields.origFiles, state.deleteFiles]);
-
-    const handleFileChange = React.useCallback((files: File[]): void => {
-        setState(prev => ({
-            ...prev,
-            inputFields: { ...prev.inputFields, Files: files }
-        }));
-        handleDeletedFiles(files);
-    }, [handleDeletedFiles]);
-
-    const handleDeletedVisitorDetailsFiles = React.useCallback((files: File[]): void => {
-        setState(prev => {
-            const newDeleteFilesDetails = [...prev.deleteFilesDetails];
-            prev.visitorDetails.origFiles.forEach(origFile => {
-                const fileExists = files.some(file => file.name === origFile.Name);
-                if (!fileExists) {
-                    const deleteRecord = { Id: prev._itemIdDetails, Filename: origFile.Name };
-                    if (!newDeleteFilesDetails.some(df => 
-                        df.Id === deleteRecord.Id && df.Filename === deleteRecord.Filename
-                    )) {
-                        newDeleteFilesDetails.push(deleteRecord);
-                    }
-                }
-            });
-            return {
-                ...prev,
-                deleteFilesDetails: newDeleteFilesDetails
-            };
-        });
-    }, [state.visitorDetails.origFiles, state._itemIdDetails]);
-
-    const handleVisitorDetailsFileChange = React.useCallback((files: File[]): void => {
-        setState(prev => {
-            const updatedDetails = { ...prev.visitorDetails, Files: files };
-            return {
-                ...prev,
-                visitorDetails: updatedDetails
-            };
-        });
-        handleDeletedVisitorDetailsFiles(files);
-    }, [handleDeletedVisitorDetailsFiles]);
-
-    
-    
-
-    const handleSave = React.useCallback(async (): Promise<void> => {
-        try {
-            setState(prev => ({ ...prev, isProgress: true }));
-            console.log('Saving visitor data:', {
-                ExternalType: state.inputFields.ExternalType,
-                Purpose: state.inputFields.Purpose,
-                Bldg: state.inputFields.Bldg,
-                purposeList: state.purposeList,
-                bldgList: state.bldgList
-            });
-            await spService.saveVisitor(state);
-            setState(prev => ({ 
-                ...prev, 
-                isSavingDone: true,
-                dialogMessage: 'Data has been saved successfully.'
-            }));
-            setTimeout(() => {
-                window.location.href = state._sourceURL || props.siteUrl;
-            }, 2000);
-        } catch (error) {
-            console.error('Error saving visitor:', error);
-            setState(prev => ({
-                ...prev,
-                dialogMessage: 'An error occurred while saving. Please try again.'
-            }));
-        } finally {
-            setState(prev => ({ ...prev, isProgress: false }));
-        }
-    }, [spService, state, props.siteUrl]);
-    
-    
+/**
+ * DisplayVisitor component
+ * @param props Component properties
+ * @returns JSX element
+ */
+const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
+  const classes = useStyles();
+  const printRef = useRef<HTMLDivElement>(null);
   
-
-   
-
-    
-
-    // Render Methods
-    return (
-        <ErrorBoundary>
-            <div className={classes.root}>
-            <Container>
-                <Grid container spacing={1}>
-                    {/* Display Visitor Title */}
-                    <Grid item xs={12}>
-                        <Paper variant="outlined" className={classes.paper}>
-                            <Box style={{ fontSize: "1.5rem" }}>
-                                Display Visitor
-                            </Box>
-                        </Paper>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <Paper variant="outlined" className={classes.paper}>
-                            {checkAccessControl({
-                                action: 'editicon',
-                                isEdit: state.isEdit,
-                                userType: getUserType(),
-                                statusId: state.inputFields.StatusId || 0,
-                                hasApprover: !!(state.approverList && state.approverList.length),
-                                hasRemarks: !!(state.inputFields && (state.inputFields.Remarks1 || state.inputFields.Remarks2)),
-                                hasFiles: !!(state.inputFields && state.inputFields.initFiles && state.inputFields.initFiles.length),
-                            }) &&
-                                <span>
-                                    <Box component="div" style={{ display: 'inline' }} className={classes.floatingbutton}>
-                                        <Tooltip title="Edit">
-                                            <Fab id='editFab' size="medium" color="primary" onClick={onClickFab}>
-                                                <EditIcon />
-                                            </Fab>
-                                        </Tooltip>
-                                    </Box>
-                                </span>
-                            }
-                        </Paper>
-                    </Grid>
-                    {/* Basic Information Section */}
-                    <BasicInformation
-                        data={state.inputFields}
-                        errors={state.errorFields}
-                        isEdit={state.isEdit}
-                        purposeList={state.purposeList}
-                        deptList={state.deptList}
-                        bldgList={state.bldgList}
-                        contactList={state.contactList}
-                        refNo={state._refno}
-                        onInputChange={handleInputChange}
-                        onContactSelect={React.useCallback((e, value) => {
-                            if (value) {
-                                setState(prev => ({
-                                    ...prev,
-                                    inputFields: {
-                                        ...prev.inputFields,
-                                        EmpNo: value.EmpNo,
-                                        DirectNo: value.DirectNo,
-                                        LocalNo: value.LocalNo,
-                                        Position: value.Position,
-                                        ContactName: value.Name
-                                    }
-                                }));
-                                validateInputs('EmpNo', value.EmpNo);
-                            } else {
-                                setState(prev => ({
-                                    ...prev,
-                                    inputFields: {
-                                        ...prev.inputFields,
-                                        EmpNo: '',
-                                        DirectNo: '',
-                                        LocalNo: '',
-                                        Position: '',
-                                        ContactName: ''
-                                    },
-                                    contactList: []
-                                }));
-                                validateInputs('EmpNo', '');
-                            }
-                        }, [validateInputs])}
-                        onContactSearch={React.useCallback(async (value) => {
-                            if (value.length > 2) {
-                                const contacts = await spService.getContacts(value);
-                                setState(prev => ({ ...prev, contactList: contacts }));
-                            } else {
-                                setState(prev => ({ ...prev, contactList: [] }));
-                            }
-                        }, [spService])}
-                    />
-
-                    {/* Visitor Information Section */}
-                    <VisitorInformation
-                        data={state.inputFields}
-                        errors={state.errorFields}
-                        isEdit={state.isEdit}
-                        onInputChange={handleInputChange}
-                    />
-
-                    {/* Attachments Section */}
-                    <AttachmentsSection
-                        files={state.inputFields.Files}
-                        initFiles={state.inputFields.initFiles}
-                        isEdit={state.isEdit}
-                        onFileChange={handleFileChange}
-                        onFileClick={React.useCallback((filename) => {
-                            const url = `${props.siteUrl}/VisitorsLib/${state._itemId}/${filename}`;
-                            window.open(url, '_blank');
-                        }, [props.siteUrl, state._itemId])}
-                    />
-
-                    {/* Visitor Details Table */}
-                    <VisitorDetailsTable
-                        data={state.visitorDetailsList}
-                        isEdit={state.isEdit}
-                        isReceptionist={state.isReceptionist}
-                        hidePrint={state.isHidePrint}
-                        onView={React.useCallback((rowData) => {
-                            setState(prev => ({
-                                ...prev,
-                                _idx: prev.visitorDetailsList.indexOf(rowData),
-                                _itemIdDetails: rowData.ID,
-                                visitorDetails: rowData,
-                                visitorDetailsMode: 'edit',
-                                openDialogFab: true
-                            }));
-                        }, [])}
-                        onDelete={React.useCallback((rowData) => {
-                            const idx = state.visitorDetailsList.indexOf(rowData);
-                            setState(prev => ({
-                                ...prev,
-                                visitorDetailsList: prev.visitorDetailsList.filter((_, i) => i !== idx),
-                                errorFields: {
-                                    ...prev.errorFields,
-                                    Details: prev.visitorDetailsList.length === 1 ? "Visitor Details are required. Please add visitor names." : ""
-                                }
-                            }));
-                        }, [state.visitorDetailsList])}
-                        onPrint={React.useCallback((rowData) => {
-                            setState(prev => ({
-                                ...prev,
-                                _idx: prev.visitorDetailsList.indexOf(rowData),
-                                _itemIdDetails: rowData.ID,
-                                visitorDetails: rowData,
-                                openDialogIDFab: true
-                            }));
-                        }, [])}
-                        onAdd={React.useCallback(() => {
-                            setState(prev => ({
-                                ...prev,
-                                visitorDetailsMode: 'add',
-                                visitorDetails: {
-                                    ...prev.visitorDetails,
-                                    ID: null,
-                                    Title: '',
-                                    Car: prev.inputFields.RequireParking,
-                                    AccessCard: '',
-                                    Color: '',
-                                    DriverName: '',
-                                    GateNo: '',
-                                    IDPresented: '',
-                                    ParentId: null,
-                                    PlateNo: '',
-                                    TypeofVehicle: '',
-                                    Files: [],
-                                    initFiles: [],
-                                    origFiles: []
-                                },
-                                openDialogFab: true
-                            }));
-                        }, [])}
-                    />
-
-                    {/* Approval Section */}
-                    <ApprovalSection
-                        data={state.inputFields}
-                        errors={state.errorFields}
-                        isEdit={state.isEdit}
-                        approverList={state.approverList}
-                        walkinApproverList={state.WalkinApprovers}
-                        onInputChange={handleInputChange}
-                    />
-
-                    {/* Action Buttons */}
-                    <ActionButtons
-                        isEdit={state.isEdit}
-                        isEncoder={state.isEncoder}
-                        isReceptionist={state.isReceptionist}
-                        isApprover={state.isApproverUser}
-                        isWalkinApprover={state.isWalkinApproverUser}
-                        isSSDUser={state.isSSDUser}
-                        statusId={state.inputFields.StatusId}
-                        onCancel={React.useCallback(() => {
-                            setState(prev => ({
-                                ...prev,
-                                dialogMessage: "Do you want to discard changes and exit?",
-                                openDialog: true
-                            }));
-                        }, [])}
-                        onSave={handleSave}
-                        onSubmit={React.useCallback(() => {
-                            setState(prev => ({
-                                ...prev,
-                                sAction: 'submit',
-                                dialogMessage: "Do you want to submit this form?",
-                                openDialog: true
-                            }));
-                        }, [])}
-                        onApprove={React.useCallback(() => {
-                            setState(prev => ({
-                                ...prev,
-                                sAction: 'approve',
-                                dialogMessage: "Do you want to approve this request?",
-                                openDialog: true
-                            }));
-                        }, [])}
-                        onDeny={React.useCallback(() => {
-                            setState(prev => ({
-                                ...prev,
-                                sAction: 'deny',
-                                dialogMessage: "Do you want to deny this request?",
-                                openDialog: true
-                            }));
-                        }, [])}
-                        onMarkComplete={React.useCallback(() => {
-                            setState(prev => ({
-                                ...prev,
-                                sAction: 'markcomplete',
-                                dialogMessage: "Do you want to complete this request?",
-                                openDialog: true
-                            }));
-                        }, [])}
-                        onClose={React.useCallback(() => {
-                            window.open(props.siteUrl + '/SitePages/ViewVisitorappge.aspx', "_self");
-                        }, [props.siteUrl])}
-                    />
-                </Grid>
-            </Container>
-
-            {/* Dialogs */}
-            <ConfirmationDialog
-                open={state.openDialog}
-                title="Confirmation"
-                message={state.dialogMessage}
-                onClose={React.useCallback((confirmed) => {
-                    if (confirmed) {
-                        if (state.dialogMessage.includes('discard')) {
-                            window.location.href = state._sourceURL || props.siteUrl;
-                        } else {
-                            handleSave();
-                        }
-                    }
-                    setState(prev => ({ ...prev, openDialog: false }));
-                }, [handleSave, state.dialogMessage, state._sourceURL, props.siteUrl])}
-            />
-
-            <VisitorDetailsDialog
-                open={state.openDialogFab}
-                data={state.visitorDetails}
-                errors={state.errorDetails}
-                isEdit={state.isEdit}
-                IDList={state.IDList}
-                GateList={state.GateList}
-                onClose={React.useCallback(() => setState(prev => ({ ...prev, openDialogFab: false })), [])}
-                onSave={React.useCallback(() => {
-                    if (validateVisitorDetailsInputs(state.visitorDetails, '', '')) {
-                        if (state.visitorDetailsMode === 'add') {
-                            setState(prev => ({
-                                ...prev,
-                                visitorDetailsList: [...prev.visitorDetailsList, prev.visitorDetails],
-                                openDialogFab: false,
-                                errorFields: {
-                                    ...prev.errorFields,
-                                    Details: ''
-                                }
-                            }));
-                        } else {
-                            setState(prev => ({
-                                ...prev,
-                                visitorDetailsList: prev.visitorDetailsList.map((item, idx) => 
-                                    idx === prev._idx ? prev.visitorDetails : item
-                                ),
-                                openDialogFab: false
-                            }));
-                        }
-                    }
-                }, [validateVisitorDetailsInputs, state.visitorDetails, state.visitorDetailsMode, state._idx])}
-                onInputChange={handleVisitorDetailsChange}
-                onFileChange={handleVisitorDetailsFileChange}
-            />
-
-            <PrintPreviewDialog
-                open={state.openDialogIDFab}
-                siteUrl={props.siteUrl}
-                visitorData={state.inputFields}
-                visitorDetails={state.visitorDetails}
-                colorList={state.colorList}
-                colorValue={state.colorValue}
-                onClose={React.useCallback(() => setState(prev => ({ ...prev, openDialogIDFab: false })), [])}
-                onColorChange={React.useCallback((value) => {
-                    const selectedColor = state.colorList.find(c => c.Title === value);
-                    setState(prev => ({
-                        ...prev,
-                        colorValue: (selectedColor && selectedColor.ColorCode) || 'Green',
-                        inputFields: {
-                            ...prev.inputFields,
-                            colorAccess: value
-                        }
-                    }));
-                }, [state.colorList])}
-            />
-
-            {/* Loading and Notifications */}
-            <LoadingBackdrop open={state.isProgress} />
-
-            <Notification
-                open={state.isSavingDone}
-                message="Data has been saved successfully."
-                type="success"
-                onClose={React.useCallback(() => setState(prev => ({ ...prev, isSavingDone: false })), [])}
-            />
-            </div>
-        </ErrorBoundary>
+  // Constants
+  const Encoders_Group = "Encoders";
+  const Receptionist_Group = "Receptionist";
+  const SSD_Group = "SSD";
+  const WalkinApprover_Group = "WalkinApprover";
+  
+  // Services
+  const sharePointService = new SharePointService(props.siteUrl, props.siteRelativeUrl);
+  const fileService = new FileService(props.siteRelativeUrl);
+  
+  // State variables
+  const [openDialog, setOpenDialog] = useState(false);
+  const [approverDetails, setApproverDetails] = useState<IApproverDetails>({ email: '', name: '' });
+  const [isSavingDone, setSavingDone] = useState(false);
+  const [isProgress, setProgress] = useState(false);
+  const [dialogMessage, setDialogMessage] = useState("");
+  const [isEncoder, setEncoder] = useState(false);
+  const [isReceptionist, setReceptionist] = useState(false);
+  const [isApproverUser, setApproverUser] = useState(false);
+  const [isSSDUser, setSSDUser] = useState(false);
+  const [isWalkinApproverUser, setisWalkinApproverUser] = useState(false);
+  const [visitorDetailsMode, setVisitorDetailsMode] = useState('add');
+  const [SSDUsers, setSSD] = useState([]);
+  const [WalkinApprovers, setWalkinApprovers] = useState([]);
+  const [sAction, setsAction] = useState('');
+  const [modifiedDate, setModifiedDate] = useState<Date>(null);
+  const [isHidePrint, setHidePrint] = useState(true);
+  const [colorList, setcolorList] = useState([]);
+  const [purposeList, setPurpose] = useState([]);
+  const [deptList, setDept] = useState([]);
+  const [bldgList, setBldg] = useState([]);
+  const [approverList, setApprovers] = useState([]);
+  const [contactList, setContacts] = React.useState([]);
+  const [IDList, setIDs] = React.useState([]);
+  const [GateList, setGates] = React.useState([]);
+  const [usersPerDept, setUsersPerDept] = React.useState([]);
+  const [isAC1Open, setAC1Open] = React.useState(false);
+  const [openDialogFab, setOpenDialogFab] = useState(false);
+  const [openDialogIDFab, setOpenDialogIDFab] = useState(false);
+  const [isEdit, setEditMode] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [successMessage, setSuccessMessage] = useState("");
+  
+  // Form state
+  const [inputFields, setInputs] = useState<IVisitor>({
+    ID: null, 
+    Title: '', 
+    ExternalType: '', 
+    Purpose: '', 
+    DeptId: null, 
+    Dept: { Title: '' }, 
+    Bldg: '', 
+    RoomNo: '',
+    EmpNo: '', 
+    ContactName: '', 
+    Position: '', 
+    DirectNo: '', 
+    LocalNo: '', 
+    DateTimeVisit: new Date(), 
+    DateTimeArrival: new Date(),
+    CompanyName: '', 
+    Address: '', 
+    VisContactNo: '', 
+    VisLocalNo: '', 
+    RequireParking: false, 
+    Remarks1: '', 
+    Remarks2: '',
+    StatusId: 0, 
+    Status: { Title: '' }, 
+    ApproverId: null, 
+    Approver: { Title: '', EMail: '', ID: null }, 
+    Files: [], 
+    initFiles: [], 
+    origFiles: [],
+    SSDApproverId: null, 
+    SSDApprover: { Title: '' }, 
+    RequestDate: new Date(), 
+    Author: { Title: '', EMail: '' }, 
+    AuthorId: null, 
+    colorAccess: 'General',
+    SSDDate: null, 
+    DeptApproverDate: null, 
+    MarkCompleteDate: null, 
+    Receptionist: { Title: '' }, 
+    ReceptionistId: null,
+    PurposeOthers: ''
+  });
+  
+  const [errorFields, setError] = useState<IFormError>({
+    ExternalType: '', 
+    Purpose: '', 
+    DeptId: '', 
+    Bldg: '', 
+    RoomNo: '',
+    EmpNo: '', 
+    Title: '', 
+    Position: '', 
+    DirectNo: '', 
+    LocalNo: '', 
+    DateTimeVisit: '', 
+    DateTimeArrival: '',
+    CompanyName: '', 
+    Address: '', 
+    VisContactNo: '', 
+    VisLocalNo: '', 
+    RequireParking: '',
+    ApproverId: '', 
+    Details: '', 
+    Remarks1: '', 
+    Remarks2: '',
+    PurposeOthers: ''
+  });
+  
+  const [visitorDetails, setVisitorDetails] = useState<IVisitorDetails>({
+    ID: null, 
+    Title: '', 
+    Car: false, 
+    AccessCard: '', 
+    PlateNo: '', 
+    TypeofVehicle: '', 
+    Color: '',
+    DriverName: '', 
+    IDPresented: '', 
+    GateNo: '', 
+    ParentId: null, 
+    Files: [], 
+    initFiles: [], 
+    origFiles: []
+  });
+  
+  const [visitorDetailsList, setVisitorDetailsList] = useState<IVisitorDetails[]>([]);
+  
+  const [errorDetails, setErrorDetails] = useState<IVisitorDetailsError>({
+    Title: '', 
+    Car: '', 
+    AccessCard: '', 
+    PlateNo: '', 
+    TypeofVehicle: '', 
+    Color: '', 
+    DriverName: '', 
+    IDPresented: '', 
+    GateNo: '', 
+    Files: ''
+  });
+  
+  // Variables
+  let _idx = -1;
+  let _deptName = "";
+  let _itemId = 0;
+  let _itemIdDetails = 0;
+  let _sourceURL = null;
+  let _refno = "";
+  let _colorValue = 'Green';
+  let deleteFiles = [];
+  let deleteFilesDetails = [];
+  let _origVisitorDetailsList = [];
+  
+  /**
+   * Initializes the component
+   */
+  useEffect(() => {
+    (async () => {
+      try {
+        setProgress(true);
+        
+        // Get URL parameters
+        _sourceURL = document.referrer;
+       // _itemId = parseInt(getUrlParameter('pid'));
+       _itemId = 4;
+        // Get current user
+        const user = await sharePointService.getCurrentUser();
+        setCurrentUser(user);
+        
+        // Check user groups
+        const groups = await sharePointService.getCurrentUserGroups();
+        let isUser = false;
+        let isencoder = false;
+        let isreceptionist = false;
+        
+        // Check if user is in Receptionist group
+        for (let i = 0; i < groups.length; i++) {
+          if (groups[i].LoginName === Receptionist_Group) {
+            setReceptionist(true);
+            isUser = true;
+            isreceptionist = true;
+            break;
+          }
+        }
+        
+        // Get visitor data
+        const visitor = await sharePointService.getVisitorById(_itemId);
+        if (!visitor) {
+          setProgress(false);
+          return;
+        }
+        
+        setModifiedDate(visitor.Modified); // to check if record has been updated
+        
+        // Check if user is in UsersPerDept
+        const users_per_dept = await sharePointService.getDepartments(user.Id);
+        if (users_per_dept.length > 0) {
+          isUser = true;
+          isencoder = true;
+          setEncoder(true);
+        }
+        setUsersPerDept(users_per_dept);
+        
+        // Show print button for receptionist
+        if ((visitor.StatusId == 4 || visitor.StatusId == 9) && isreceptionist) {
+          setHidePrint(false);
+          const colorlist = await sharePointService.getIDColors();
+          setcolorList(colorlist);
+        }
+        
+        // Check if user is approver
+        if (visitor.ExternalType === 'Pre-arranged') {
+          const approvers = await sharePointService.getApprovers(visitor.DeptId, user.Id);
+          setApprovers(approvers);
+          
+          const filtuser = approvers.filter(item => item.NameId === user.Id);
+          if (filtuser.length > 0) {
+            isUser = true;
+          }
+        } else if (visitor.ExternalType === 'Walk-in') {
+          const walkinapprovers = await sharePointService.getWalkinApprovers(visitor.DeptId);
+          setWalkinApprovers(walkinapprovers);
+          
+          const filtuser = walkinapprovers.filter(item => item.NameId === user.Id);
+          if (filtuser.length > 0) {
+            isUser = true;
+          }
+        }
+        
+        // Set user roles
+        if (visitor.ApproverId === user.Id) {
+          if (visitor.ExternalType === "Pre-arranged") {
+            setApproverUser(true);
+          } else {
+            setisWalkinApproverUser(true);
+          }
+          isUser = true;
+        }
+        
+        if ((visitor.ExternalType === "Pre-arranged") && (isencoder)) {
+          setEncoder(true);
+        }
+        
+        // Check if user is in SSD group
+        for (let i = 0; i < groups.length; i++) {
+          if (groups[i].LoginName === SSD_Group) {
+            setSSDUser(true);
+            isUser = true;
+            break;
+          }
+        }
+        
+        if (isUser) {
+          _deptName = visitor.Dept.Title;
+          
+          // Get lookup data
+          const purpose = await sharePointService.getPurposes();
+          setPurpose(purpose);
+          
+          const building = await sharePointService.getBuildings();
+          setBldg(building);
+          
+          const depts = await sharePointService.getDepartments();
+          
+          if (isencoder) {
+            const mappedrows = [];
+            depts.forEach(row => {
+              const filtered = users_per_dept.filter(item => item.DeptId === row.Id);
+              if (filtered.length > 0) {
+                mappedrows.push(row);
+              }
+            });
+            setDept(mappedrows);
+          } else if (isreceptionist) {
+            setDept(depts);
+          }
+          
+          // Get contact information
+          const optionContacts = await sharePointService.getEmployeeByEmpNo(visitor.EmpNo);
+          setContacts(optionContacts);
+          
+          // Get SSD users
+          const ssdUsers = await sharePointService.getSSDUsers();
+          setSSD(ssdUsers);
+          
+          // Get visitor details
+          const visitordetails = await sharePointService.getVisitorDetailsByParentId(_itemId);
+          _origVisitorDetailsList = visitordetails;
+          setVisitorDetailsList(visitordetails);
+          
+          // Get gates and ID types
+          const gates = await sharePointService.getGates();
+          setGates(gates);
+          
+          const idpresented = await sharePointService.getIDTypes();
+          setIDs(idpresented);
+          
+          // Set form data
+          setInputs({ ...visitor });
+        } else {
+          alert("You are not authorized to access this page!");
+          window.open(props.siteUrl, "_self");
+        }
+        
+        setProgress(false);
+      } catch (e) {
+        console.error(e);
+        setProgress(false);
+      }
+    })();
+  }, []);
+  
+  /**
+   * Sends email notifications
+   */
+  const sendEmail = async () => {
+    const emailService = new EmailService(props.siteUrl, currentUser.Email);
+    await emailService.sendNotification(
+      sAction,
+      inputFields,
+      approverDetails,
+      isEncoder,
+      isReceptionist,
+      isApproverUser,
+      isWalkinApproverUser,
+      isSSDUser,
+      SSDUsers
     );
+    
+    // Set success message
+    const message = emailService.getSuccessMessage(
+      sAction,
+      inputFields,
+      approverDetails,
+      isEncoder,
+      isReceptionist,
+      isApproverUser,
+      isWalkinApproverUser,
+      isSSDUser
+    );
+    
+    setSuccessMessage(message);
+  };
+  
+  /**
+   * Validates input fields
+   * @param name Field name
+   * @param value Field value
+   */
+  const validateInputs = (name, value) => {
+    const tempProps = { ...errorFields };
+    
+    if (value.length === 0) {
+      tempProps[name] = "This is a required input field";
+      setError(tempProps);
+    } else {
+      if (name === "DateTimeVisit") {
+        if (value > Date.parse(inputFields.DateTimeArrival.toString())) {
+          tempProps[name] = "From Date should be earlier than To Date";
+          setError(tempProps);
+        } else {
+          tempProps[name] = "";
+          setError(tempProps);
+        }
+      } else if (name === "DateTimeArrival") {
+        if (Date.parse(inputFields.DateTimeVisit.toString()) > value) {
+          tempProps[name] = "From Date should be earlier than To Date";
+          setError(tempProps);
+        } else {
+          tempProps[name] = "";
+          setError(tempProps);
+        }
+      } else {
+        tempProps[name] = "";
+        setError(tempProps);
+      }
+    }
+  };
+  
+  /**
+   * Validates visitor details input fields
+   * @param name Field name
+   * @param value Field value
+   */
+  const validateInputsDetails = (name, value) => {
+    const tempProps = { ...errorDetails };
+    
+    if (value.length === 0) {
+      tempProps[name] = "This is a required input field";
+      setErrorDetails(tempProps);
+    } else {
+      tempProps[name] = "";
+      setErrorDetails(tempProps);
+    }
+  };
+  
+  /**
+   * Validates the form before submission
+   * @param t Action type
+   * @returns Whether the form is valid
+   */
+  const validateOnSubmit = (t: string): boolean => {
+    let isValid = false;
+    const tempProps = { ...errorFields };
+    const required = [];
+    
+    // Determine required fields based on user role and action
+    if ((isEncoder) && ((inputFields.StatusId === 1) || (inputFields.StatusId === 2))) {
+      required.push("Purpose", "DeptId", "Bldg", "RoomNo", "EmpNo", "DateTimeVisit", "DateTimeArrival",
+        'CompanyName', 'Address', 'VisContactNo', 'ApproverId'
+      );
+      if (inputFields.Purpose === 'Others') {
+        required.push('PurposeOthers');
+      }
+    } else if ((isReceptionist) && ((inputFields.StatusId === 1) || (inputFields.StatusId === 2))) {
+      required.push("Purpose", "DeptId", "Bldg", "RoomNo", "EmpNo", "DateTimeVisit", "DateTimeArrival",
+        'CompanyName', 'Address', 'VisContactNo', 'ApproverId'
+      );
+      if (inputFields.Purpose === 'Others') {
+        required.push('PurposeOthers');
+      }
+    } else if ((isApproverUser) && (inputFields.StatusId === 2) && (t === 'deny')) {
+      required.push('Remarks1');
+    } else if ((isWalkinApproverUser) && (inputFields.StatusId === 2) && (t === 'deny')) {
+      required.push('Remarks1');
+    } else if ((isSSDUser) && (inputFields.StatusId === 3) && (t === 'deny')) {
+      required.push('Remarks2');
+    }
+    
+    const validbit = [];
+    
+    // Validate each required field
+    for (let i = 0; i < required.length; i++) {
+      if ((required[i] === "EmpNo") && (inputFields.Purpose === "For receiving")) {
+        tempProps[required[i]] = "";
+      } else if (required[i] === "DateTimeVisit") {
+        if (Date.parse(inputFields.DateTimeVisit.toString()) > Date.parse(inputFields.DateTimeArrival.toString())) {
+          tempProps[required[i]] = "From Date should be earlier than To Date";
+          validbit.push(required[i]);
+        }
+      } else if (required[i] === "DateTimeArrival") {
+        if (Date.parse(inputFields.DateTimeVisit.toString()) > Date.parse(inputFields.DateTimeArrival.toString())) {
+          tempProps[required[i]] = "From Date should be earlier than To Date";
+          validbit.push(required[i]);
+        }
+      } else if ((required[i] === "ApproverId") && (t === 'savedraft')) {
+        tempProps[required[i]] = "";
+      } else {
+        if (!inputFields[required[i]]) {
+          tempProps[required[i]] = "This is a required input field";
+          validbit.push(required[i]);
+        }
+      }
+    }
+    
+    // Check visitor details
+    if (visitorDetailsList.length === 0) {
+      tempProps.Details = "Visitor Details are required. Please add visitor names by clicking the (+) button.";
+      validbit.push('Details');
+    }
+    
+    // Check visitor details files for receptionist
+    if ((inputFields.StatusId === 4) || (inputFields.StatusId === 9)) {
+      for (let i = 0; i < visitorDetailsList.length; i++) {
+        const rowData = visitorDetailsList[i];
+        let havefiles = false;
+        
+        if ((rowData.Files.length > 0) || (rowData.initFiles.length > 0)) {
+          havefiles = true;
+        }
+        
+        if ((!havefiles) || (!rowData.AccessCard) || (!rowData.GateNo) || (!rowData.IDPresented)) {
+          validbit.push('Details');
+          alert(`Please complete Visitor Details of ${rowData.Title} on row ${i + 1} before saving!`);
+          handleVisitorDetailsAction('view', rowData);
+          break;
+        }
+      }
+    }
+    
+    // If no validation errors, the form is valid
+    if (validbit.length === 0) {
+      isValid = true;
+    }
+    
+    setError(tempProps);
+    return isValid;
+  };
+  
+  /**
+   * Validates visitor details before submission
+   * @returns Whether the visitor details are valid
+   */
+  const validateOnSubmitDetails = (): boolean => {
+    let isValid = false;
+    const tempProps = { ...errorDetails };
+    const required = [];
+    
+    // Determine required fields based on user role and status
+    if ((isEncoder) && ((inputFields.StatusId === 1) || (inputFields.StatusId === 2))) {
+      required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverName');
+    } else if ((isReceptionist) && ((inputFields.StatusId === 4) || (inputFields.StatusId === 9))) {
+      required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverName', 'AccessCard', 'IDPresented', 'GateNo');
+      
+      // Check for files
+      if (visitorDetails.Files.length === 0) {
+        tempProps.Files = "Please upload a file.";
+      }
+    } else if ((isReceptionist) && ((inputFields.StatusId === 1) || (inputFields.StatusId === 2))) {
+      required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverName');
+    }
+    
+    const validbit = [];
+    
+    // Validate each required field
+    for (let i = 0; i < required.length; i++) {
+      if ((required[i] === "PlateNo") && (visitorDetails.Car === false)) {
+        tempProps[required[i]] = "";
+      } else if ((required[i] === "TypeofVehicle") && (visitorDetails.Car === false)) {
+        tempProps[required[i]] = "";
+      } else if ((required[i] === "Color") && (visitorDetails.Car === false)) {
+        tempProps[required[i]] = "";
+      } else if ((required[i] === "DriverName") && (visitorDetails.Car === false)) {
+        tempProps[required[i]] = "";
+      } else {
+        if (!visitorDetails[required[i]]) {
+          tempProps[required[i]] = "This is a required input field";
+          validbit.push(required[i]);
+        }
+      }
+    }
+    
+    // If no validation errors, the form is valid
+    if (validbit.length === 0) {
+      isValid = true;
+    }
+    
+    setErrorDetails(tempProps);
+    return isValid;
+  };
+  
+  /**
+   * Handles submit button click
+   * @param e Event
+   * @param t Action type
+   */
+  const onClickSubmit = (e, t: string) => {
+    setsAction(t);
+    let msg = "";
+    
+    if (t === 'savedraft') {
+      msg = "Do you want to save and exit?";
+    } else if (t === 'submit') {
+      msg = "Do you want to submit this form?";
+    } else if (t === 'approve') {
+      msg = "Do you want to approve this request?";
+    } else if (t === 'deny') {
+      msg = "Do you want to deny this request?";
+    } else if (t === 'markcomplete') {
+      msg = "Do you want to complete this request?";
+    }
+    
+    const isValid = validateOnSubmit(t);
+    if (isValid) {
+      setDialogMessage(msg);
+      setOpenDialog(true);
+    }
+  };
+  
+  /**
+   * Handles cancel button click
+   */
+  const onClickCancel = (e) => {
+    setDialogMessage("Do you want to discard changes and exit?");
+    setOpenDialog(true);
+  };
+  
+  /**
+   * Handles close button click
+   */
+  const handleCloseDisplay = () => {
+    window.open(props.siteUrl + '/SitePages/ViewVisitorappge.aspx', "_self");
+  };
+  
+  /**
+   * Handles confirmation dialog close
+   * @param confirmed Whether the user confirmed the action
+   */
+  const handleCloseDialog = (confirmed: boolean) => {
+    setOpenDialog(false);
+    
+    if (confirmed) {
+      if ((dialogMessage.indexOf("submit") > 0) || 
+          (dialogMessage.indexOf("save") > 0) || 
+          (dialogMessage.indexOf("approve") > 0) || 
+          (dialogMessage.indexOf("deny") > 0) || 
+          (dialogMessage.indexOf("complete") > 0)) {
+        save();
+      } else if (dialogMessage.indexOf("discard") > 0) {
+        let url = props.siteUrl;
+        if (_sourceURL) {
+          url = _sourceURL;
+        }
+        window.open(url, "_self");
+      }
+    }
+  };
+  
+  /**
+   * Handles select field changes
+   * @param event Event
+   */
+  const handleChangeCbo = async (event) => {
+    const { name, value } = event.target;
+    
+    if (name === "DeptId") {
+      const deptfiltered = deptList.filter(item => item.Id === value);
+      _deptName = deptfiltered[0].Title;
+      
+      if (inputFields.ExternalType === 'Walk-in') {
+        const walkinapprovers = await sharePointService.getWalkinApprovers(value);
+        setWalkinApprovers(walkinapprovers);
+      } else {
+        const approvers = await sharePointService.getApprovers(value, currentUser.Id);
+        setApprovers(approvers);
+      }
+    } else if (name === "Purpose") {
+      if (value === 'Others') {
+        const tempProps = { ...inputFields };
+        tempProps.PurposeOthers = '';
+        setInputs(tempProps);
+      }
+    } else if (name === "colorAccess") {
+      const filtered = colorList.filter(item => item.Title === value);
+      if (filtered.length > 0) {
+        _colorValue = filtered[0].ColorCode;
+      }
+    }
+    
+    const tempProps = { ...inputFields };
+    tempProps[name] = value;
+    setInputs(tempProps);
+    validateInputs(name, value);
+  };
+  
+  /**
+   * Handles text field changes
+   * @param e Event
+   */
+  const handleChangeTxt = (e) => {
+    const { name, value } = e.target;
+    const tempProps = { ...inputFields };
+    
+    if (name === 'RequireParking') {
+      tempProps[name] = e.target.checked;
+    } else {
+      tempProps[name] = value;
+    }
+    
+    setInputs(tempProps);
+    validateInputs(name, value);
+  };
+  
+  /**
+   * Handles text field changes for visitor details
+   * @param e Event
+   */
+  const handleChangeTxtDetails = (e) => {
+    const { name, value } = e.target;
+    const tempProps = { ...visitorDetails };
+    
+    if (name === 'Car') {
+      tempProps[name] = e.target.checked;
+      if (e.target.checked === false) {
+        tempProps.Color = "";
+        tempProps.DriverName = "";
+        tempProps.PlateNo = "";
+        tempProps.TypeofVehicle = "";
+      }
+    } else {
+      tempProps[name] = value;
+    }
+    
+    setVisitorDetails(tempProps);
+    validateInputsDetails(name, value);
+  };
+  
+  /**
+   * Handles date time changes
+   * @param e Date value
+   * @param name Field name
+   */
+  const onDateTimeVisitChange = (e, name) => {
+    const tempProps = { ...inputFields };
+    tempProps[name] = e;
+    setInputs(tempProps);
+    validateInputs(name, e);
+  };
+  
+  /**
+   * Handles dropzone changes
+   * @param files Files
+   */
+  const handleChangeDropZone = (files) => {
+    const tempProps = { ...inputFields };
+    tempProps.Files = files;
+    setInputs(tempProps);
+    
+    inputFields.origFiles.forEach(row => {
+      const filtered = files.filter(item => item.name === row.Name);
+      if (filtered.length === 0) {
+        const deletefiltered = deleteFiles.filter(item => item.Name === row.Name);
+        if (deletefiltered.length === 0) {
+          deleteFiles.push(row);
+        }
+      }
+    });
+  };
+  
+  /**
+   * Handles dropzone changes for visitor details
+   * @param files Files
+   */
+  const handleChangeDropZone2 = (files) => {
+    const tempProps = { ...visitorDetails };
+    const tempErrorProps = { ...errorDetails };
+    tempProps.Files = files;
+    tempProps.initFiles = files;
+    setVisitorDetails(tempProps);
+    
+    visitorDetails.origFiles.forEach(row => {
+      const filtered = files.filter(item => item.name === row.Name);
+      
+      if (filtered.length === 0) {
+        const deletefiltered = deleteFilesDetails.filter(item => {
+          return ((item.Id === _itemIdDetails) && (item.Filename === row.Name));
+        });
+        
+        if (deletefiltered.length === 0) {
+          deleteFilesDetails.push({ Id: _itemIdDetails, Filename: row.Name });
+        }
+      }
+    });
+    
+    if (files.length > 0) {
+      tempErrorProps.Files = "";
+    } else {
+      tempErrorProps.Files = "Please upload a file";
+    }
+    
+    setErrorDetails(tempErrorProps);
+  };
+  
+  /**
+   * Handles autocomplete selection
+   * @param event Event
+   * @param value Selected value
+   */
+  const handleACSelectedValue = (event, value) => {
+    const tempProps = { ...inputFields };
+    if (value) {
+      tempProps.EmpNo = value.EmpNo;
+      tempProps.DirectNo = value.DirectNo;
+      tempProps.LocalNo = value.LocalNo;
+      tempProps.Position = value.Position;
+      validateInputs('EmpNo', tempProps.EmpNo);
+    } else {
+      tempProps.EmpNo = "";
+      tempProps.DirectNo = "";
+      tempProps.LocalNo = "";
+      tempProps.Position = "";
+      setContacts([]);
+      validateInputs('EmpNo', "");
+    }
+    
+    setInputs(tempProps);
+  };
+  
+  /**
+   * Handles finding a user
+   * @param e Event
+   */
+  const findUser = async (e) => {
+    const tempProps = { ...inputFields };
+    tempProps.EmpNo = "";
+    tempProps.DirectNo = "";
+    tempProps.LocalNo = "";
+    tempProps.Position = "";
+    setInputs(tempProps);
+    
+    if (e.target.value.length > 2) {
+      const options = await sharePointService.getEmployeesByName(e.target.value, _deptName);
+      setContacts(options);
+    } else if (e.target.value.length < 3) {
+      setContacts([]);
+    }
+  };
+  
+  /**
+   * Handles visitor details action
+   * @param action Action to perform
+   * @param rowData Row data
+   */
+  const handleVisitorDetailsAction = (action: string, rowData: IVisitorDetails) => {
+    if (action === 'view') {
+      _idx = visitorDetailsList.indexOf(rowData);
+      if (rowData.ID) {
+        _itemIdDetails = rowData.ID;
+      }
+      
+      setVisitorDetails(rowData);
+      setVisitorDetailsMode('edit');
+      setOpenDialogFab(true);
+    } else if (action === 'delete') {
+      const idx = visitorDetailsList.indexOf(rowData);
+      const tempProps = [...visitorDetailsList];
+      tempProps.splice(idx, 1);
+      setVisitorDetailsList(tempProps);
+      
+      if (tempProps.length === 0) {
+        const tempProps2 = { ...errorFields };
+        tempProps2.Details = "Visitor Details are required. Please add visitor names.";
+        setError(tempProps2);
+      }
+    } else if (action === 'print') {
+      _idx = visitorDetailsList.indexOf(rowData);
+      if (rowData.ID) {
+        _itemIdDetails = rowData.ID;
+      }
+      
+      setVisitorDetails(rowData);
+      setOpenDialogIDFab(true);
+    }
+  };
+  
+  /**
+   * Handles add visitor details button click
+   */
+  const handleAddVisitorDetails = () => {
+    setVisitorDetailsMode('add');
+    const tempProps = { ...visitorDetails };
+    tempProps.AccessCard = '';
+    tempProps.Car = inputFields.RequireParking;
+    tempProps.Color = '';
+    tempProps.DriverName = '';
+    tempProps.GateNo = '';
+    tempProps.IDPresented = '';
+    tempProps.ParentId = null;
+    tempProps.ID = null;
+    tempProps.PlateNo = '';
+    tempProps.Title = '';
+    tempProps.TypeofVehicle = '';
+    tempProps.Files = [];
+    tempProps.initFiles = [];
+    tempProps.origFiles = [];
+    
+    setVisitorDetails(tempProps);
+    setOpenDialogFab(true);
+  };
+  
+  /**
+   * Handles visitor details dialog close
+   * @param confirmed Whether the user confirmed the action
+   */
+  const handleCloseDialogFab = (confirmed: boolean) => {
+    if (confirmed) {
+      if (isEdit) {
+        if (validateOnSubmitDetails()) {
+          if (visitorDetailsMode === 'add') {
+            setVisitorDetailsList([...visitorDetailsList, visitorDetails]);
+            const tempProps = { ...errorFields };
+            tempProps.Details = "";
+            setError(tempProps);
+          } else {
+            const tempList = [...visitorDetailsList];
+            tempList[_idx] = { ...visitorDetails };
+            setVisitorDetailsList(tempList);
+          }
+        }
+      }
+    }
+    
+    setOpenDialogFab(false);
+  };
+  
+  /**
+   * Handles print ID dialog close
+   * @param confirmed Whether the user confirmed the action
+   */
+  const handleCloseDialogIDFab = (confirmed: boolean) => {
+    setOpenDialogIDFab(false);
+  };
+  
+  /**
+   * Handles edit button click
+   */
+  const handleEditClick = () => {
+    setEditMode(true);
+  };
+  
+  /**
+   * Handles chip click
+   * @param e Event
+   * @param row Row data
+   * @param ctrl Control name
+   */
+  const handleChipClick = (e, row, ctrl: string) => {
+    let f = '';
+    if (ctrl === 'inputFields') {
+      f = `${props.siteUrl}/VisitorsLib/${_itemId}/${row}`;
+    } else {
+      f = `${props.siteUrl}/VisitorDetailsLib/${_itemIdDetails}/${row}`;
+    }
+    
+    let link = document.createElement('a');
+    link.href = f;
+    link.download = f.substr(f.lastIndexOf('/') + 1);
+    link.click();
+  };
+  
+  /**
+   * Saves the form
+   */
+  const save = async () => {
+    try {
+      setProgress(true);
+      
+      // Check if record has been modified
+      const origVisitor = await sharePointService.getVisitorById(_itemId);
+      if (origVisitor.Modified !== modifiedDate) {
+        alert("Record has been changed by another user!");
+        window.open(props.siteUrl, "_self");
+        return;
+      }
+      
+      // Save visitor
+      const updatedVisitor = await sharePointService.saveVisitor(
+        inputFields,
+        sAction,
+        currentUser
+      );
+      
+      // Update reference number
+      _refno = updatedVisitor.Title;
+      
+      // Upload files
+      await fileService.uploadVisitorFiles(
+        _itemId,
+        inputFields.Files,
+        inputFields.origFiles,
+        deleteFiles
+      );
+      
+      // Send email notification
+      await sendEmail();
+      
+      // Save visitor details
+      for (const visitorDetail of visitorDetailsList) {
+        await sharePointService.saveVisitorDetails(
+          visitorDetail,
+          _itemId,
+          _refno,
+          inputFields.DeptId,
+          inputFields.DateTimeVisit,
+          inputFields.DateTimeArrival,
+          inputFields.CompanyName,
+          updatedVisitor.StatusId,
+          updatedVisitor.RequestDate
+        );
+        
+        if (visitorDetail.ID) {
+          await fileService.uploadVisitorDetailsFiles(
+            visitorDetail.ID,
+            visitorDetail.Files,
+            visitorDetail.origFiles
+          );
+        }
+      }
+      
+      // Delete visitor details files
+      await fileService.deleteVisitorDetailsFiles(deleteFilesDetails);
+      
+      // Delete removed visitor details
+      for (const origDetail of _origVisitorDetailsList) {
+        const exists = visitorDetailsList.some(detail => detail.ID === origDetail.ID);
+        if (!exists) {
+          await sharePointService.deleteVisitorDetails(origDetail.ID);
+        }
+      }
+      
+      setSavingDone(true);
+      
+      // Redirect after saving
+      setTimeout(() => {
+        let url = props.siteUrl;
+        if (_sourceURL) {
+          url = _sourceURL;
+        }
+        
+        if (((inputFields.StatusId === 4) || (inputFields.StatusId === 9)) && (isReceptionist)) {
+          url = window.location.href;
+        }
+        
+        window.open(url, "_self");
+      }, 1000);
+    } catch (error) {
+      console.error("Error saving data:", error);
+      setProgress(false);
+    }
+  };
+  
+  return (
+    <form noValidate autoComplete="off">
+      {inputFields.ID && (
+        <div className={classes.root}>
+          <Grid container spacing={1}>
+            <HeaderSection
+              visitor={inputFields}
+              showEditButton={checkVisibility('editicon', inputFields, isEdit, isEncoder, isReceptionist, isApproverUser, isWalkinApproverUser, isSSDUser)}
+              onEditClick={handleEditClick}
+            />
+            
+            <VisitorInformationSection
+              visitor={inputFields}
+              errorFields={errorFields}
+              isEdit={isEdit}
+              isEncoder={isEncoder}
+              isReceptionist={isReceptionist}
+              purposeList={purposeList}
+              deptList={deptList}
+              bldgList={bldgList}
+              contactList={contactList}
+              isAC1Open={isAC1Open}
+              siteUrl={props.siteUrl}
+              itemId={_itemId}
+              onChangeTxt={handleChangeTxt}
+              onChangeCbo={handleChangeCbo}
+              onDateTimeVisitChange={onDateTimeVisitChange}
+              onACSelectedValue={handleACSelectedValue}
+              onFindUser={findUser}
+              onACOpen={() => setAC1Open(true)}
+              onACClose={() => setAC1Open(false)}
+              onChangeDropZone={handleChangeDropZone}
+              onChipClick={handleChipClick}
+            />
+            
+            <VisitorDetailsSection
+              visitor={inputFields}
+              errorFields={errorFields}
+              isEdit={isEdit}
+              isEncoder={isEncoder}
+              isReceptionist={isReceptionist}
+              visitorDetailsList={visitorDetailsList}
+              isHidePrint={isHidePrint}
+              onAddClick={handleAddVisitorDetails}
+              onVisitorDetailsAction={handleVisitorDetailsAction}
+            />
+            
+            <ApprovalSection
+              visitor={inputFields}
+              errorFields={errorFields}
+              isEdit={isEdit}
+              isEncoder={isEncoder}
+              isReceptionist={isReceptionist}
+              isApproverUser={isApproverUser}
+              isWalkinApproverUser={isWalkinApproverUser}
+              isSSDUser={isSSDUser}
+              approverList={approverList}
+              walkinApproverList={WalkinApprovers}
+              onChangeTxt={handleChangeTxt}
+              onChangeCbo={handleChangeCbo}
+            />
+            
+            <ActionButtonsSection
+              isEdit={isEdit}
+              isEncoder={isEncoder}
+              isReceptionist={isReceptionist}
+              isApproverUser={isApproverUser}
+              isWalkinApproverUser={isWalkinApproverUser}
+              isSSDUser={isSSDUser}
+              statusId={inputFields.StatusId}
+              onSubmit={onClickSubmit}
+              onCancel={onClickCancel}
+              onClose={handleCloseDisplay}
+            />
+          </Grid>
+          
+          <ConfirmationDialog
+            open={openDialog}
+            message={dialogMessage}
+            onClose={handleCloseDialog}
+          />
+          
+          {/* Use a simplified version of the dialog components to avoid TypeScript errors */}
+          {openDialogFab && (
+            <ConfirmationDialog
+              open={openDialogFab}
+              message="Visitor Details"
+              onClose={handleCloseDialogFab}
+            />
+          )}
+          
+          {openDialogIDFab && (
+            <ConfirmationDialog
+              open={openDialogIDFab}
+              message="Print ID"
+              onClose={handleCloseDialogIDFab}
+            />
+          )}
+          
+          <Backdrop className={classes.backdrop} open={isProgress}>
+            <CircularProgress color="inherit" />
+          </Backdrop>
+          
+          <Snackbar open={isSavingDone} autoHideDuration={2000}>
+            <Alert severity="success">
+              Data has been saved successfully.
+              {successMessage && <div>{successMessage}</div>}
+            </Alert>
+          </Snackbar>
+        </div>
+      )}
+    </form>
+  );
 };
+
+/**
+ * Checks if a field should be visible based on user role and form state
+ * @param element Element name
+ * @returns Whether the element should be visible
+ */
+const checkVisibility = (element: string, visitor: IVisitor, isEdit: boolean, isEncoder: boolean, isReceptionist: boolean, isApproverUser: boolean, isWalkinApproverUser: boolean, isSSDUser: boolean): boolean => {
+  const forApprover = isApproverUser && visitor.StatusId === 2;
+  const forWalkinApprover = isWalkinApproverUser && visitor.StatusId === 2;
+  const forSSD = isSSDUser && visitor.StatusId === 3;
+  const forEncoder = isEncoder && (visitor.StatusId === 1 || visitor.StatusId === 2);
+  const forReceptionist = isReceptionist && (visitor.StatusId === 1 || visitor.StatusId === 2);
+  const forReceptionistCompletion = isReceptionist && (visitor.StatusId === 4 || visitor.StatusId === 9);
+  
+  switch (element) {
+    case 'editicon':
+      return !isEdit && forEncoder;
+    default:
+      return false;
+  }
+};
+
+export default DisplayVisitor;
