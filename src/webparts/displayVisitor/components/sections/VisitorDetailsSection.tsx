@@ -58,6 +58,11 @@ export interface IVisitorDetailsSectionProps {
   isReceptionist: boolean;
   
   /**
+   * Whether the current user is an SSD user
+   */
+  isSSDUser?: boolean;
+  
+  /**
    * Visitor details list
    */
   visitorDetailsList: IVisitorDetails[];
@@ -92,6 +97,7 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
     isEdit,
     isEncoder,
     isReceptionist,
+    isSSDUser,
     visitorDetailsList,
     isHidePrint,
     onAddClick,
@@ -154,6 +160,7 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
               visitorDetailsList={visitorDetailsList}
               isEdit={isEdit}
               isHidePrint={isHidePrint}
+              isSSDUser={isSSDUser}
               onAction={onVisitorDetailsAction}
             />
           )}

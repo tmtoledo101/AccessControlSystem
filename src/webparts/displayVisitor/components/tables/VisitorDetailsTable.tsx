@@ -22,6 +22,11 @@ export interface IVisitorDetailsTableProps {
   isHidePrint: boolean;
   
   /**
+   * Whether the current user is an SSD user
+   */
+  isSSDUser?: boolean;
+  
+  /**
    * Callback when an action is performed on a visitor details row
    * @param action Action to perform
    * @param rowData Row data
@@ -35,25 +40,49 @@ export interface IVisitorDetailsTableProps {
  * @returns JSX element
  */
 const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
-  const { visitorDetailsList, isEdit, isHidePrint, onAction } = props;
+  const { visitorDetailsList, isEdit, isHidePrint, isSSDUser, onAction } = props;
+  
+  // Define columns array
+  const columns = [
+    { title: 'Name', field: 'Title' },
+    { title: 'Access Card', field: 'AccessCard' },
+    {
+      title: 'Car',
+      field: 'Car',
+      render: rowData => <span>{rowData.Car ? 'With' : 'Without'}</span>
+    },
+    { title: 'Plate No.', field: 'PlateNo' },
+    { title: 'Type of Vehicle', field: 'TypeofVehicle' },
+    { title: "Driver's Name", field: 'DriverName' },
+    { title: 'Gate', field: 'GateNo' },
+    { title: 'ID Presented', field: 'IDPresented' },
+  ];
+  
+  // Add SSD Approve column if user is an SSD user
+  if (isSSDUser) {
+    columns.push({
+      title: 'SSD Approve?',
+      field: 'SSDApprove',
+      render: rowData => (
+        <input 
+          type="checkbox" 
+          checked={rowData.SSDApprove === 'Yes'} 
+          disabled={!isEdit}
+          onChange={(e) => {
+            // Handle checkbox change
+            const newValue = e.target.checked ? 'Yes' : 'No';
+            // Call the action to update the value
+            onAction('updateSSDApprove', { ...rowData, SSDApprove: newValue });
+          }}
+        />
+      )
+    });
+  }
   
   return (
     <MaterialTable
       title="Visitors"
-      columns={[
-        { title: 'Name', field: 'Title' },
-        { title: 'Access Card', field: 'AccessCard' },
-        {
-          title: 'Car',
-          field: 'Car',
-          render: rowData => <span>{rowData.Car ? 'With' : 'Without'}</span>
-        },
-        { title: 'Plate No.', field: 'PlateNo' },
-        { title: 'Type of Vehicle', field: 'TypeofVehicle' },
-        { title: "Driver's Name", field: 'DriverName' },
-        { title: 'Gate', field: 'GateNo' },
-        { title: 'ID Presented', field: 'IDPresented' },
-      ]}
+      columns={columns}
       data={visitorDetailsList}
       options={{
         filtering: false,

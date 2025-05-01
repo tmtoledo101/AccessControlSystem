@@ -305,13 +305,25 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         }
         
         // Check if user is in SSD group
+        console.log("groups: ", groups.length);
         for (let i = 0; i < groups.length; i++) {
           if (groups[i].LoginName === SSD_Group) {
+            console.log("Login name: ", groups[i].LoginName, " SSD Group: ", SSD_Group);
             setSSDUser(true);
             isUser = true;
             break;
           }
         }
+        
+        // Log the current user type
+        console.log("Current User Type:", {
+          "Is Encoder": isencoder,
+          "Is Receptionist": isreceptionist,
+          "Is Department Approver": isApproverUser,
+          "Is SSD Approver": isSSDUser,
+          "Is Walk-in Approver": isWalkinApproverUser,
+          "IsEdit": isEdit
+        });
         
         if (isUser) {
           _deptName = visitor.Dept.Title;
@@ -902,6 +914,14 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       
       setVisitorDetails(rowData);
       setOpenDialogIDFab(true);
+    } else if (action === 'updateSSDApprove') {
+      // Update the SSDApprove value in the visitor details list
+      const idx = visitorDetailsList.indexOf(rowData);
+      if (idx !== -1) {
+        const tempList = [...visitorDetailsList];
+        tempList[idx] = { ...rowData };
+        setVisitorDetailsList(tempList);
+      }
     }
   };
   
@@ -1126,6 +1146,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
               isEdit={isEdit}
               isEncoder={isEncoder}
               isReceptionist={isReceptionist}
+              isSSDUser={isSSDUser}
               visitorDetailsList={visitorDetailsList}
               isHidePrint={isHidePrint}
               onAddClick={handleAddVisitorDetails}
@@ -1205,7 +1226,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
  * @param element Element name
  * @returns Whether the element should be visible
  */
-const checkVisibility = (element: string, visitor: IVisitor, isEdit: boolean, isEncoder: boolean, isReceptionist: boolean, isApproverUser: boolean, isWalkinApproverUser: boolean, isSSDUser: boolean): boolean => {
+  const checkVisibility = (element: string, visitor: IVisitor, isEdit: boolean, isEncoder: boolean, isReceptionist: boolean, isApproverUser: boolean, isWalkinApproverUser: boolean, isSSDUser: boolean): boolean => {
   const forApprover = isApproverUser && visitor.StatusId === 2;
   const forWalkinApprover = isWalkinApproverUser && visitor.StatusId === 2;
   const forSSD = isSSDUser && visitor.StatusId === 3;
@@ -1215,7 +1236,7 @@ const checkVisibility = (element: string, visitor: IVisitor, isEdit: boolean, is
   
   switch (element) {
     case 'editicon':
-      return !isEdit && forEncoder;
+      return !isEdit && (forEncoder || forSSD);
     default:
       return false;
   }

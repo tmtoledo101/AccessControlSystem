@@ -82,7 +82,7 @@ export class SharePointService {
   public async getVisitorDetailsByParentId(parentId: number): Promise<any[]> {
     const visitorDetails = await sp.web.lists.getByTitle("VisitorDetails")
       .items
-      .select("*")
+      .select("*,SSDApprove")
       .top(5000)
       .filter(`ParentId eq ${parentId}`)
       .get();
@@ -99,6 +99,10 @@ export class SharePointService {
       row.Files = [];
       row.initFiles = files;
       row.origFiles = visitorDetailsLib;
+      
+      // Map SSD Approve field to SSDApprove property
+      // SharePoint Yes/No fields are returned as boolean values, so we need to convert them to 'Yes'/'No' strings
+      row.SSDApprove = row.SSDApprove === true ? 'Yes' : 'No';
     }));
     
     return visitorDetails;
@@ -507,7 +511,8 @@ export class SharePointService {
         DateFrom: toISOString(dateTimeVisit),
         DateTo: toISOString(dateTimeArrival),
         CompanyName: companyName,
-        StatusId: statusId
+        StatusId: statusId,
+      SSDApprove: visitorDetails.SSDApprove === 'Yes' ? true : false
       });
       
       return visitorDetails;
@@ -530,7 +535,8 @@ export class SharePointService {
         DateFrom: toISOString(dateTimeVisit),
         DateTo: toISOString(dateTimeArrival),
         CompanyName: companyName,
-        StatusId: statusId
+        StatusId: statusId,
+        SSDApprove: visitorDetails.SSDApprove === 'Yes' ? true : false
       });
       
       // Create folder for files
