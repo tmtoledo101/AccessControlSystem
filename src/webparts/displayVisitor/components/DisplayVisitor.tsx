@@ -916,10 +916,11 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       setOpenDialogIDFab(true);
     } else if (action === 'updateSSDApprove') {
       // Update the SSDApprove value in the visitor details list
-      const idx = visitorDetailsList.indexOf(rowData);
+      // Find the item by ID instead of using indexOf
+      const idx = visitorDetailsList.findIndex(item => item.ID === rowData.ID);
       if (idx !== -1) {
         const tempList = [...visitorDetailsList];
-        tempList[idx] = { ...rowData };
+        tempList[idx] = rowData; // Use the updated rowData directly
         setVisitorDetailsList(tempList);
       }
     }

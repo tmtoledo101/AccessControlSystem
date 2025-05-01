@@ -71,8 +71,10 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
           onChange={(e) => {
             // Handle checkbox change
             const newValue = e.target.checked ? 'Yes' : 'No';
+            // Create a copy of the row data with the updated value
+            const updatedRowData = { ...rowData, SSDApprove: newValue };
             // Call the action to update the value
-            onAction('updateSSDApprove', { ...rowData, SSDApprove: newValue });
+            onAction('updateSSDApprove', updatedRowData);
           }}
         />
       )
