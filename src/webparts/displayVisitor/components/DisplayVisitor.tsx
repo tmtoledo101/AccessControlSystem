@@ -400,7 +400,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       isApproverUser,
       isWalkinApproverUser,
       isSSDUser,
-      SSDUsers
+      SSDUsers,
+      visitorDetailsList
     );
     
     // Set success message
