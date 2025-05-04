@@ -63,6 +63,16 @@ export interface IVisitorDetailsSectionProps {
   isSSDUser?: boolean;
   
   /**
+   * Whether the current user is a department approver
+   */
+  isApproverUser?: boolean;
+  
+  /**
+   * Whether the current user is a walk-in approver
+   */
+  isWalkinApproverUser?: boolean;
+  
+  /**
    * Visitor details list
    */
   visitorDetailsList: IVisitorDetails[];
@@ -98,6 +108,8 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
     isEncoder,
     isReceptionist,
     isSSDUser,
+    isApproverUser,
+    isWalkinApproverUser,
     visitorDetailsList,
     isHidePrint,
     onAddClick,
@@ -116,14 +128,18 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
     const forReceptionist = isReceptionist && (visitor.StatusId === 1 || visitor.StatusId === 2);
     const forReceptionistCompletion = isReceptionist && (visitor.StatusId === 4 || visitor.StatusId === 9);
     
+    // Check if user is an approver or SSD user (these users should not see add button or edit options)
+    const isViewOnlyUser = isSSDUser || isApproverUser || isWalkinApproverUser;
+    
     switch (element) {
       case 'addfabdetail':
-        return isEdit && (forReceptionist || forEncoder);
+        // Hide add button for SSD users and approvers
+        return isEdit && (forReceptionist || forEncoder) && !isViewOnlyUser;
       case 'visitordetailsedit':
-        return isEdit && visitorDetailsList.length > 0 && (forReceptionist || forEncoder);
+        return isEdit && visitorDetailsList.length > 0 && (forReceptionist || forEncoder) && !isViewOnlyUser;
       case 'visitordetailsdisp':
         return (!isEdit && visitorDetailsList.length > 0) || 
-               (isEdit && visitorDetailsList.length > 0 && (!forEncoder && !forReceptionist));
+               (isEdit && visitorDetailsList.length > 0 && (!forEncoder && !forReceptionist || isViewOnlyUser));
       default:
         return false;
     }

@@ -92,6 +92,16 @@ export interface IVisitorInformationSectionProps {
   isReceptionist: boolean;
   
   /**
+   * Whether the current user is a department approver
+   */
+  isApproverUser?: boolean;
+  
+  /**
+   * Whether the current user is an SSD user
+   */
+  isSSDUser?: boolean;
+  
+  /**
    * List of purposes
    */
   purposeList: any[];
@@ -195,6 +205,8 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
     isEdit,
     isEncoder,
     isReceptionist,
+    isApproverUser,
+    isSSDUser,
     purposeList,
     deptList,
     bldgList,
@@ -536,41 +548,44 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
         </Paper>
       </Grid>
       
-      <Grid item xs={12} sm={12}>
-        <Paper variant="outlined" className={classes.paper}>
-          {checkVisibility('cedit') && (
-            <DropzoneArea
-              acceptedFiles={['.docx', '.xlsx', '.xls', 'doc', '.mov', 'image/*', 'video/*', ' application/*']}
-              showFileNames={true}
-              showPreviews={true}
-              maxFileSize={70000000}
-              onChange={onChangeDropZone}
-              filesLimit={10}
-              showPreviewsInDropzone={false}
-              useChipsForPreview
-              previewGridProps={{ container: { spacing: 1, direction: 'row' } }}
-              previewChipProps={{ classes: { root: classes.previewChip } }}
-              previewText="Selected files"
-              dropzoneText="Add an attachment"
-              initialFiles={visitor.initFiles}
-            />
-          )}
-          
-          {checkVisibility('cdisp') && (
-            <div className={classes.rootChip}>
-              {visitor.initFiles.map((row) => (
-                <Chip
-                  key={row}
-                  icon={<AttachFileIcon />}
-                  label={row}
-                  onClick={(e) => onChipClick(e, row, 'inputFields')}
-                  variant="outlined"
-                />
-              ))}
-            </div>
-          )}
-        </Paper>
-      </Grid>
+      {/* Hide the entire attachment section for SSD users and approvers */}
+      {!(isApproverUser || isSSDUser) && (
+        <Grid item xs={12} sm={12}>
+          <Paper variant="outlined" className={classes.paper}>
+            {checkVisibility('cedit') && (
+              <DropzoneArea
+                acceptedFiles={['.docx', '.xlsx', '.xls', 'doc', '.mov', 'image/*', 'video/*', ' application/*']}
+                showFileNames={true}
+                showPreviews={true}
+                maxFileSize={70000000}
+                onChange={onChangeDropZone}
+                filesLimit={10}
+                showPreviewsInDropzone={false}
+                useChipsForPreview
+                previewGridProps={{ container: { spacing: 1, direction: 'row' } }}
+                previewChipProps={{ classes: { root: classes.previewChip } }}
+                previewText="Selected files"
+                dropzoneText="Add an attachment"
+                initialFiles={visitor.initFiles}
+              />
+            )}
+            
+            {checkVisibility('cdisp') && (
+              <div className={classes.rootChip}>
+                {visitor.initFiles.map((row) => (
+                  <Chip
+                    key={row}
+                    icon={<AttachFileIcon />}
+                    label={row}
+                    onClick={(e) => onChipClick(e, row, 'inputFields')}
+                    variant="outlined"
+                  />
+                ))}
+              </div>
+            )}
+          </Paper>
+        </Grid>
+      )}
       
       <Grid item xs={12}>
         <Paper variant="outlined" className={classes.paper}>
