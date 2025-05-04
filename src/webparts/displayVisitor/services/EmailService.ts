@@ -3,6 +3,7 @@ import "@pnp/sp/sputilities";
 import { IEmailProperties } from "@pnp/sp/sputilities";
 import { IVisitor } from "../models/IVisitor";
 import { IApproverDetails } from "../models/IVisitor";
+import { IVisitorDetails } from "../models/IVisitorDetails";
 
 export class EmailService {
   private siteUrl: string;
@@ -44,6 +45,7 @@ export class EmailService {
    * @param isWalkinApproverUser Whether the current user is a walkin approver
    * @param isSSDUser Whether the current user is an SSD user
    * @param ssdUsers Array of SSD users
+   * @param visitorDetailsList List of visitor details
    */
   public async sendNotification(
     action: string,
@@ -54,7 +56,8 @@ export class EmailService {
     isApproverUser: boolean,
     isWalkinApproverUser: boolean,
     isSSDUser: boolean,
-    ssdUsers: any[]
+    ssdUsers: any[],
+    visitorDetailsList?: IVisitorDetails[]
   ): Promise<void> {
     let toEmails: string[] = [];
     let subject: string = '';
@@ -96,7 +99,34 @@ export class EmailService {
       // SSD approving a request
       toEmails.push(visitor.Author.EMail);
       subject = `BSP ACCESS CONTROL SYSTEM : Approved by SSD - ${refNo}`;
-      body = `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
+      
+      // Create visitor details table
+      let visitorTable = '';
+      if (visitorDetailsList && visitorDetailsList.length > 0) {
+        visitorTable = '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">' +
+          '<tr style="background-color: #f2f2f2;">' +
+          '<th>Visitor Name</th>' +
+          '<th>SSD Approval</th>' +
+          '</tr>';
+        
+        for (let i = 0; i < visitorDetailsList.length; i++) {
+          const visitor = visitorDetailsList[i];
+          const approvalStatus = visitor.SSDApprove === 'Yes' ? 'Approved' : 'Not Approved';
+          const rowStyle = i % 2 === 0 ? '' : 'background-color: #f9f9f9;';
+          
+          visitorTable += '<tr style="' + rowStyle + '">' +
+            '<td>' + visitor.Title + '</td>' +
+            '<td>' + approvalStatus + '</td>' +
+            '</tr>';
+        }
+        
+        visitorTable += '</table>';
+      }
+      
+      body = `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>` +
+        `<p><strong>Visitor Details:</strong></p>` +
+        `${visitorTable}` +
+        `</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
     } else if ((isApproverUser) && (action === 'deny') && (visitor.StatusId === 2)) {
       // Department approver denying a request
       toEmails.push(visitor.Author.EMail);
