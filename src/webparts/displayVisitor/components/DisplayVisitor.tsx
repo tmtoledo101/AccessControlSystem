@@ -225,7 +225,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         // Get URL parameters
         _sourceURL = document.referrer;
        // _itemId = parseInt(getUrlParameter('pid'));
-       _itemId = 4;
+       _itemId = 5;
         // Get current user
         const user = await sharePointService.getCurrentUser();
         setCurrentUser(user);
@@ -956,8 +956,12 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
    * @param confirmed Whether the user confirmed the action
    */
   const handleCloseDialogFab = (confirmed: boolean) => {
+    // Check if the user is an approver or SSD user (view-only mode)
+    const isViewOnly = isApproverUser || isSSDUser;
+    
     if (confirmed) {
-      if (isEdit) {
+      // Only allow edits if the user is not in view-only mode
+      if (isEdit && !isViewOnly) {
         if (validateOnSubmitDetails()) {
           if (visitorDetailsMode === 'add') {
             setVisitorDetailsList([...visitorDetailsList, visitorDetails]);
@@ -978,9 +982,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   
   /**
    * Handles print ID dialog close
-   * @param confirmed Whether the user confirmed the action
    */
-  const handleCloseDialogIDFab = (confirmed: boolean) => {
+  const handleCloseDialogIDFab = () => {
     setOpenDialogIDFab(false);
   };
   
@@ -1117,29 +1120,31 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
               onEditClick={handleEditClick}
             />
             
-            <VisitorInformationSection
-              visitor={inputFields}
-              errorFields={errorFields}
-              isEdit={isEdit}
-              isEncoder={isEncoder}
-              isReceptionist={isReceptionist}
-              purposeList={purposeList}
-              deptList={deptList}
-              bldgList={bldgList}
-              contactList={contactList}
-              isAC1Open={isAC1Open}
-              siteUrl={props.siteUrl}
-              itemId={_itemId}
-              onChangeTxt={handleChangeTxt}
-              onChangeCbo={handleChangeCbo}
-              onDateTimeVisitChange={onDateTimeVisitChange}
-              onACSelectedValue={handleACSelectedValue}
-              onFindUser={findUser}
-              onACOpen={() => setAC1Open(true)}
-              onACClose={() => setAC1Open(false)}
-              onChangeDropZone={handleChangeDropZone}
-              onChipClick={handleChipClick}
-            />
+          <VisitorInformationSection
+            visitor={inputFields}
+            errorFields={errorFields}
+            isEdit={isEdit}
+            isEncoder={isEncoder}
+            isReceptionist={isReceptionist}
+            isApproverUser={isApproverUser}
+            isSSDUser={isSSDUser}
+            purposeList={purposeList}
+            deptList={deptList}
+            bldgList={bldgList}
+            contactList={contactList}
+            isAC1Open={isAC1Open}
+            siteUrl={props.siteUrl}
+            itemId={_itemId}
+            onChangeTxt={handleChangeTxt}
+            onChangeCbo={handleChangeCbo}
+            onDateTimeVisitChange={onDateTimeVisitChange}
+            onACSelectedValue={handleACSelectedValue}
+            onFindUser={findUser}
+            onACOpen={() => setAC1Open(true)}
+            onACClose={() => setAC1Open(false)}
+            onChangeDropZone={handleChangeDropZone}
+            onChipClick={handleChipClick}
+          />
             
             <VisitorDetailsSection
               visitor={inputFields}
@@ -1148,6 +1153,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
               isEncoder={isEncoder}
               isReceptionist={isReceptionist}
               isSSDUser={isSSDUser}
+              isApproverUser={isApproverUser}
+              isWalkinApproverUser={isWalkinApproverUser}
               visitorDetailsList={visitorDetailsList}
               isHidePrint={isHidePrint}
               onAddClick={handleAddVisitorDetails}
@@ -1189,19 +1196,35 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             onClose={handleCloseDialog}
           />
           
-          {/* Use a simplified version of the dialog components to avoid TypeScript errors */}
+          {/* Visitor Details Dialog */}
           {openDialogFab && (
-            <ConfirmationDialog
+            <VisitorDetailsDialog
               open={openDialogFab}
-              message="Visitor Details"
+              visitorDetails={visitorDetails}
+              errorDetails={errorDetails}
+              isEdit={isEdit}
+              idList={IDList}
+              gateList={GateList}
+              isApproverUser={isApproverUser}
+              isSSDUser={isSSDUser}
               onClose={handleCloseDialogFab}
+              onChangeTxt={handleChangeTxtDetails}
+              onChangeCbo={handleChangeCbo}
+              onChangeDropZone={handleChangeDropZone2}
+              onChipClick={handleChipClick}
             />
           )}
           
           {openDialogIDFab && (
-            <ConfirmationDialog
+            <PrintIDDialog
               open={openDialogIDFab}
-              message="Print ID"
+              visitorDetails={visitorDetails}
+              visitor={inputFields}
+              colorValue={_colorValue}
+              itemId={_itemId}
+              itemIdDetails={_itemIdDetails}
+              siteUrl={props.siteUrl}
+              printRef={printRef}
               onClose={handleCloseDialogIDFab}
             />
           )}

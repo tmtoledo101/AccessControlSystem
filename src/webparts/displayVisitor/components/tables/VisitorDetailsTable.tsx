@@ -27,6 +27,16 @@ export interface IVisitorDetailsTableProps {
   isSSDUser?: boolean;
   
   /**
+   * Whether the current user is a department approver
+   */
+  isApproverUser?: boolean;
+  
+  /**
+   * Whether the current user is a walk-in approver
+   */
+  isWalkinApproverUser?: boolean;
+  
+  /**
    * Callback when an action is performed on a visitor details row
    * @param action Action to perform
    * @param rowData Row data
@@ -40,7 +50,18 @@ export interface IVisitorDetailsTableProps {
  * @returns JSX element
  */
 const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
-  const { visitorDetailsList, isEdit, isHidePrint, isSSDUser, onAction } = props;
+  const { 
+    visitorDetailsList, 
+    isEdit, 
+    isHidePrint, 
+    isSSDUser, 
+    isApproverUser, 
+    isWalkinApproverUser, 
+    onAction 
+  } = props;
+  
+  // Check if user is an approver or SSD user (these users should not see print button)
+  const isViewOnlyUser = isSSDUser || isApproverUser || isWalkinApproverUser;
   
   // Define columns array
   const columns = [
@@ -109,7 +130,7 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
           icon: () => <PrintIcon />,
           tooltip: 'Print Preview',
           onClick: (event, rowData) => onAction('print', rowData as IVisitorDetails),
-          hidden: isHidePrint
+          hidden: isHidePrint || isViewOnlyUser
         },
       ]}
     />

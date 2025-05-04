@@ -96,6 +96,16 @@ export interface IVisitorDetailsDialogProps {
   gateList: any[];
   
   /**
+   * Whether the current user is a department approver
+   */
+  isApproverUser?: boolean;
+  
+  /**
+   * Whether the current user is an SSD user
+   */
+  isSSDUser?: boolean;
+  
+  /**
    * Callback when the dialog is closed
    * @param confirmed Whether the user confirmed the action
    */
@@ -141,6 +151,8 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
     isEdit,
     idList,
     gateList,
+    isApproverUser,
+    isSSDUser,
     onClose,
     onChangeTxt,
     onChangeCbo,
@@ -158,29 +170,32 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
    * @returns Whether the element should be visible
    */
   const checkVisibility = (element: string): boolean => {
+    // For approvers and SSD users, we want to show display mode even if isEdit is true
+    const isViewOnly = isApproverUser || isSSDUser;
+    
     switch (element) {
       case 'cedit':
-        return isEdit;
+        return isEdit && !isViewOnly;
       case 'cdisp':
-        return !isEdit;
+        return !isEdit || isViewOnly;
       case 'detailscaredit':
-        return isEdit;
+        return isEdit && !isViewOnly;
       case 'detailsidpresentededit':
-        return isEdit;
+        return isEdit && !isViewOnly;
       case 'detailsidpresenteddisp':
-        return !isEdit && !!visitorDetails.IDPresented;
+        return (!isEdit || isViewOnly) && !!visitorDetails.IDPresented;
       case 'detailsgateedit':
-        return isEdit;
+        return isEdit && !isViewOnly;
       case 'detailsgatedisp':
-        return !isEdit && !!visitorDetails.GateNo;
+        return (!isEdit || isViewOnly) && !!visitorDetails.GateNo;
       case 'detailsaccesscardedit':
-        return isEdit;
+        return isEdit && !isViewOnly;
       case 'detailsaccesscarddisp':
-        return !isEdit && !!visitorDetails.AccessCard;
+        return (!isEdit || isViewOnly) && !!visitorDetails.AccessCard;
       case 'dropzone2edit':
-        return isEdit;
+        return isEdit && !isViewOnly;
       case 'dropzone2disp':
-        return !isEdit && visitorDetails.initFiles && visitorDetails.initFiles.length > 0;
+        return (!isEdit || isViewOnly) && visitorDetails.initFiles && visitorDetails.initFiles.length > 0;
       default:
         return false;
     }
@@ -481,45 +496,48 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                 </Paper>
               </Grid>
               
-              <Grid item xs={12} sm={6}>
-                <Paper variant="outlined" className={classes.paper}>
-                  {checkVisibility('dropzone2edit') && (
-                    <DropzoneArea
-                      acceptedFiles={['image/*']}
-                      showFileNames={true}
-                      showPreviews={true}
-                      maxFileSize={70000000}
-                      onChange={onChangeDropZone}
-                      filesLimit={10}
-                      showPreviewsInDropzone={false}
-                      useChipsForPreview
-                      previewGridProps={{ container: { spacing: 1, direction: 'row' } }}
-                      previewChipProps={{ classes: { root: classes.previewChip } }}
-                      previewText="Selected files"
-                      dropzoneText="Add a picture"
-                      initialFiles={visitorDetails.initFiles}
-                    />
-                  )}
-                  
-                  {checkVisibility('dropzone2disp') && (
-                    <div className={classes.rootChip}>
-                      {visitorDetails.initFiles.map((row) => (
-                        <Chip
-                          key={row}
-                          icon={<AttachFileIcon />}
-                          label={row}
-                          onClick={(e) => onChipClick(e, row, 'visitorDetails')}
-                          variant="outlined"
-                        />
-                      ))}
-                    </div>
-                  )}
-                  
-                  <FormControl error>
-                    <FormHelperText>{errorDetails.Files}</FormHelperText>
-                  </FormControl>
-                </Paper>
-              </Grid>
+              {/* Hide the entire attachment section for SSD users and approvers */}
+              {!(isApproverUser || isSSDUser) && (
+                <Grid item xs={12} sm={6}>
+                  <Paper variant="outlined" className={classes.paper}>
+                    {checkVisibility('dropzone2edit') && (
+                      <DropzoneArea
+                        acceptedFiles={['image/*']}
+                        showFileNames={true}
+                        showPreviews={true}
+                        maxFileSize={70000000}
+                        onChange={onChangeDropZone}
+                        filesLimit={10}
+                        showPreviewsInDropzone={false}
+                        useChipsForPreview
+                        previewGridProps={{ container: { spacing: 1, direction: 'row' } }}
+                        previewChipProps={{ classes: { root: classes.previewChip } }}
+                        previewText="Selected files"
+                        dropzoneText="Add a picture"
+                        initialFiles={visitorDetails.initFiles}
+                      />
+                    )}
+                    
+                    {checkVisibility('dropzone2disp') && (
+                      <div className={classes.rootChip}>
+                        {visitorDetails.initFiles.map((row) => (
+                          <Chip
+                            key={row}
+                            icon={<AttachFileIcon />}
+                            label={row}
+                            onClick={(e) => onChipClick(e, row, 'visitorDetails')}
+                            variant="outlined"
+                          />
+                        ))}
+                      </div>
+                    )}
+                    
+                    <FormControl error>
+                      <FormHelperText>{errorDetails.Files}</FormHelperText>
+                    </FormControl>
+                  </Paper>
+                </Grid>
+              )}
             </Grid>
           </div>
         </form>
