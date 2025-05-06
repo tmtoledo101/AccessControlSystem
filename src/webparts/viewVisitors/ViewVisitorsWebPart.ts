@@ -12,7 +12,6 @@ import ViewVisitors from './components/ViewVisitors';
 import { IViewVisitorsProps } from './components/IViewVisitorsProps';
 import { sp } from '@pnp/sp';
 import { SPComponentLoader } from '@microsoft/sp-loader';
-
 export interface IViewVisitorsWebPartProps {
   description: string;
 }
