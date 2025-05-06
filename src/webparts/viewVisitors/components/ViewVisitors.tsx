@@ -87,102 +87,146 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
   };
 
   const handleTabChange = (event, newValue) => {
+    const tabContent = event.target.textContent;
     let from = moment(new Date()).subtract(15, 'days');
     let to = moment(new Date()).endOf('day');
     
-    setState(prevState => ({
-      ...prevState,
-      selectedFromDate: from,
-      selectedToDate: to,
-      tabvalue: newValue
-    }));
+    setCookie('ViewVisitorTab', tabContent, 1800);
     
-    setCookie('ViewVisitorTab', event.target.textContent, 1800);
-    
-    if (event.target.textContent === 'By Request') {
-      if (state.isEncoder || state.isApprover || state.isWalkinApprover) {
-        mapUser(from, to, 1);
-      } else if (state.isReceptionist || state.isSSDUser) {
-        mapUser(from, to, 2);
-      }
-    } else if (event.target.textContent === 'By Visitor Details') {
-      from = moment(new Date()).subtract(1, 'days');
-      to = moment(new Date()).add(5, 'days');
-      
-      setState(prevState => ({
+    // First update the state with new dates and tab value
+    setState(prevState => {
+      const newState = {
         ...prevState,
         selectedFromDate: from,
-        selectedToDate: to
-      }));
+        selectedToDate: to,
+        tabvalue: newValue
+      };
       
-      if (state.isEncoder || state.isApprover || state.isWalkinApprover) {
-        mapUser(from, to, 3);
-      } else if (state.isReceptionist || state.isSSDUser) {
-        mapUser(from, to, 4);
+      // For visitor details tab, adjust the date range
+      if (tabContent === 'By Visitor Details') {
+        newState.selectedFromDate = moment(new Date()).subtract(1, 'days');
+        newState.selectedToDate = moment(new Date()).add(5, 'days');
+        from = newState.selectedFromDate;
+        to = newState.selectedToDate;
       }
-    } else if (event.target.textContent === 'Search by Visitor Name') {
-      if (state.isEncoder || state.isApprover || state.isWalkinApprover || state.isReceptionist || state.isSSDUser) {
-        setState(prevState => ({
-          ...prevState,
-          dirListItems: [],
-          vwid: 9
-        }));
+      
+      // For search by visitor name, clear the list and set vwid
+      if (tabContent === 'Search by Visitor Name') {
+        if (prevState.isEncoder || prevState.isApprover || prevState.isWalkinApprover || 
+            prevState.isReceptionist || prevState.isSSDUser) {
+          newState.dirListItems = [];
+          newState.vwid = 9;
+        }
       }
-    } else if (event.target.textContent === 'Dept. Approver') {
-      if (state.isApprover) {
-        mapUser(from, to, 5);
-      } else if (state.isWalkinApprover) {
-        mapUser(from, to, 7);
+      
+      return newState;
+    });
+    
+    // Use setTimeout to ensure state has been updated before calling mapUser
+    setTimeout(() => {
+      // Use the current state values for role checks
+      if (tabContent === 'By Request') {
+        if (state.isEncoder || state.isApprover || state.isWalkinApprover) {
+          mapUser(from, to, 1);
+        } else if (state.isReceptionist || state.isSSDUser) {
+          mapUser(from, to, 2);
+        }
+      } else if (tabContent === 'By Visitor Details') {
+        if (state.isEncoder || state.isApprover || state.isWalkinApprover) {
+          mapUser(from, to, 3);
+        } else if (state.isReceptionist || state.isSSDUser) {
+          mapUser(from, to, 4);
+        }
+      } else if (tabContent === 'Dept. Approver') {
+        if (state.isApprover) {
+          mapUser(from, to, 5);
+        } else if (state.isWalkinApprover) {
+          mapUser(from, to, 7);
+        }
+      } else if ((tabContent === 'SSD') && (state.isSSDUser)) {
+        mapUser(from, to, 6);
       }
-    } else if ((event.target.textContent === 'SSD') && (state.isSSDUser)) {
-      mapUser(from, to, 6);
-    }
+    }, 0);
   };
 
   const onFromDateChange = (e) => {
     const newFromDate = moment(e).startOf('day');
-    setState(prevState => ({
-      ...prevState,
-      selectedFromDate: newFromDate
-    }));
-    mapUser(newFromDate, state.selectedToDate, state.vwid);
+    
+    // Update state with the new from date
+    setState(prevState => {
+      const newState = {
+        ...prevState,
+        selectedFromDate: newFromDate
+      };
+      
+      // Use setTimeout to ensure state has been updated before calling mapUser
+      setTimeout(() => {
+        mapUser(newFromDate, prevState.selectedToDate, prevState.vwid);
+      }, 0);
+      
+      return newState;
+    });
   };
 
   const onToDateChange = (e) => {
     const newToDate = moment(e).endOf('day');
-    setState(prevState => ({
-      ...prevState,
-      selectedToDate: newToDate
-    }));
-    mapUser(state.selectedFromDate, newToDate, state.vwid);
+    
+    // Update state with the new to date
+    setState(prevState => {
+      const newState = {
+        ...prevState,
+        selectedToDate: newToDate
+      };
+      
+      // Use setTimeout to ensure state has been updated before calling mapUser
+      setTimeout(() => {
+        mapUser(prevState.selectedFromDate, newToDate, prevState.vwid);
+      }, 0);
+      
+      return newState;
+    });
   };
 
   const handleChangeTxt = async (e) => {
     try {
       const searchText = e.target.value;
-      setState(prevState => ({
-        ...prevState,
-        txtSearch: searchText
-      }));
+      
+      // Update state with the new search text
+      setState(prevState => {
+        const newState = {
+          ...prevState,
+          txtSearch: searchText
+        };
+        
+        // Clear results if search text is too short
+        if (searchText.length < 3) {
+          newState.dirListItems = [];
+        }
+        
+        return newState;
+      });
 
+      // Only search if we have enough characters
       if (searchText.length > 2) {
+        // Get current state for role checks
+        const currentState = { ...state };
         const visitors = await SharePointService.searchVisitorsByName(searchText);
         
-        if (state.isReceptionist || state.isSSDUser) {
+        if (currentState.isReceptionist || currentState.isSSDUser) {
           setState(prevState => ({
             ...prevState,
             dirListItems: visitors
           }));
-        } else if (state.isEncoder || state.isApprover || state.isWalkinApprover) {
+        } else if (currentState.isEncoder || currentState.isApprover || currentState.isWalkinApprover) {
           let mappedrows = [];
 
           visitors.map(row => {
             let filtered = [];
-            if (state.isEncoder) {
+            if (currentState.isEncoder) {
               filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
-            } else if (state.isApprover) {
+            } else if (currentState.isApprover) {
               filtered = approversPerDept.filter((item) => item.DeptId === row.DeptId);
-            } else if (state.isWalkinApprover) {
+            } else if (currentState.isWalkinApprover) {
               filtered = walkinapprovers.filter((item) => item.DeptId === row.DeptId);
             }
 
@@ -196,11 +240,6 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
             dirListItems: mappedrows
           }));
         }
-      } else if (searchText.length < 3) {
-        setState(prevState => ({
-          ...prevState,
-          dirListItems: []
-        }));
       }
     } catch (e) {
       console.log(e);
@@ -217,6 +256,9 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
   // Helper function to map users and load data
   async function mapUser(from, to, action) {
+    // Get current state for role checks
+    const currentState = { ...state };
+    
     if ((action == 1)) {
       const visitors = await SharePointService.loadVisitorRequests(from, to);
       let mappedrows = [];
@@ -224,11 +266,11 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       visitors.map(row => {
         let filtered = [];
 
-        if (state.isEncoder) {
+        if (currentState.isEncoder) {
           filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
-        } else if (state.isApprover) {
+        } else if (currentState.isApprover) {
           filtered = approversPerDept.filter((item) => item.DeptId === row.DeptId);
-        } else if (state.isWalkinApprover) {
+        } else if (currentState.isWalkinApprover) {
           filtered = walkinapprovers.filter((item) => item.DeptId === row.DeptId);
         }
         
@@ -256,11 +298,11 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       visitors.map(row => {
         let filtered = [];
 
-        if (state.isEncoder) {
+        if (currentState.isEncoder) {
           filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
-        } else if (state.isApprover) {
+        } else if (currentState.isApprover) {
           filtered = approversPerDept.filter((item) => item.DeptId === row.DeptId);
-        } else if (state.isWalkinApprover) {
+        } else if (currentState.isWalkinApprover) {
           filtered = walkinapprovers.filter((item) => item.DeptId === row.DeptId);
         }
         
@@ -370,35 +412,23 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         // Get users per department
         usersPerDept = await SharePointService.getUsersPerDept(user.Id);
         
-        setState(prevState => ({
-          ...prevState,
-          viewName: "Visitor Views"
-        }));
-        
-        if (usersPerDept.length > 0) {
-          setState(prevState => ({
-            ...prevState,
-            isEncoder: true
-          }));
-        }
-
         // Get approvers
         approversPerDept = await SharePointService.getApprovers(user.Id);
         
-        if (approversPerDept.length > 0) {
-          setState(prevState => ({
-            ...prevState,
-            isApprover: true
-          }));
-        }
-
+        // Get walkin approvers
+        walkinapprovers = await SharePointService.getWalkinApprovers(user.Id);
+        
+        // Prepare state updates
+        let isEncoder = usersPerDept.length > 0;
+        let isApprover = approversPerDept.length > 0;
+        let isReceptionist = false;
+        let isSSDUser = false;
+        let isWalkinApprover = walkinapprovers.length > 0;
+        
         // Check if user is in Receptionist group
         for (let i = 0; i < groups.length; i++) {
           if (groups[i].LoginName === Receptionist_Group) {
-            setState(prevState => ({
-              ...prevState,
-              isReceptionist: true
-            }));
+            isReceptionist = true;
             break;
           }
         }
@@ -406,57 +436,55 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         // Check if user is in SSD group
         for (let i = 0; i < groups.length; i++) {
           if (groups[i].LoginName === SSD_Group) {
-            setState(prevState => ({
-              ...prevState,
-              isSSDUser: true
-            }));
+            isSSDUser = true;
             break;
           }
         }
-
-        // Get walkin approvers
-        walkinapprovers = await SharePointService.getWalkinApprovers(user.Id);
         
-        if (walkinapprovers.length > 0) {
-          setState(prevState => ({
-            ...prevState,
-            isWalkinApprover: true,
-            WalkinApprovers: walkinapprovers
-          }));
-        }
-
         // Set up tabs based on user roles
         let temptabs = [];
         
-        if (state.isEncoder || state.isReceptionist || state.isSSDUser || state.isApprover || state.isWalkinApprover) {
+        if (isEncoder || isReceptionist || isSSDUser || isApprover || isWalkinApprover) {
           temptabs = ['By Request', 'By Visitor Details', 'Search by Visitor Name'];
         }
         
-        if (state.isApprover || state.isWalkinApprover) {
+        if (isApprover || isWalkinApprover) {
           temptabs.push('Dept. Approver');
         }
         
-        if (state.isSSDUser) {
+        if (isSSDUser) {
           temptabs.push('SSD');
         }
         
+        // Update state with all changes at once
         setState(prevState => ({
           ...prevState,
+          viewName: "Visitor Views",
+          isEncoder,
+          isApprover,
+          isReceptionist,
+          isSSDUser,
+          isWalkinApprover,
+          WalkinApprovers: isWalkinApprover ? walkinapprovers : [],
           menuTabs: temptabs
         }));
 
-        // Check for saved tab in cookie
+        // Check for saved tab in cookie after state has been updated
         const cookietab = getCookie('ViewVisitorTab');
         
         if (cookietab) {
           const index = temptabs.indexOf(cookietab);
-          setState(prevState => ({
-            ...prevState,
-            tabvalue: index
-          }));
           
-          const oev = { target: { textContent: cookietab } };
-          handleTabChange(oev, index);
+          // Update tab value in a separate setState to ensure it happens after the previous update
+          setTimeout(() => {
+            setState(prevState => ({
+              ...prevState,
+              tabvalue: index
+            }));
+            
+            const oev = { target: { textContent: cookietab } };
+            handleTabChange(oev, index);
+          }, 0);
         }
       } catch (e) {
         console.log(e);
