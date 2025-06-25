@@ -28,6 +28,7 @@ export interface IVisitor {
     Title: string;
     EMail: string;
   };
+  Bldg: string;
 }
 
 export interface IVisitorDetail {

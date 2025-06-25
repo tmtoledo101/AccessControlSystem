@@ -102,7 +102,7 @@ export default class SharePointService {
     try {
       return await sp.web.lists.getByTitle("Visitors")
         .items
-        .select("*,Approver/Title,Approver/EMail, Status/Title,Dept/Title,SSDApprover/Title,Author/Title,Author/EMail")
+        .select("*,Approver/Title,Approver/EMail, Status/Title,Dept/Title,SSDApprover/Title,Author/Title,Author/EMail,Bldg")
         .expand('Approver,Dept,Status,SSDApprover,Author')
         .top(5000)
         .orderBy("Modified", false)

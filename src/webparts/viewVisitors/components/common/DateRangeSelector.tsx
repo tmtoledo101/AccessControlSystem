@@ -10,6 +10,11 @@ const useStyles = makeStyles((theme: Theme) =>
     paper: {
       padding: theme.spacing(1),
       borderColor: "transparent",
+    },
+    container: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: theme.spacing(2)
     }
   }),
 );
@@ -27,8 +32,9 @@ const DateRangeSelector: React.FC<IDateRangeSelectorProps> = (props) => {
 
   return (
     <>
-      <Paper variant="outlined" className={classes.paper}>
-        <MuiPickersUtilsProvider utils={DateFnsUtils}>
+     <MuiPickersUtilsProvider utils={DateFnsUtils}>
+      <div className={classes.container}>
+        <Paper variant="outlined" className={classes.paper}>
           <DatePicker
             format="MM/dd/yyyy"
             label="From"
@@ -36,10 +42,8 @@ const DateRangeSelector: React.FC<IDateRangeSelectorProps> = (props) => {
             onChange={onFromDateChange}
             name='fromdate'
           />
-        </MuiPickersUtilsProvider>
-      </Paper>
-      <Paper variant="outlined" className={classes.paper}>
-        <MuiPickersUtilsProvider utils={DateFnsUtils}>
+        </Paper>
+        <Paper variant="outlined" className={classes.paper}>
           <DatePicker
             format="MM/dd/yyyy"
             label="To"
@@ -47,8 +51,9 @@ const DateRangeSelector: React.FC<IDateRangeSelectorProps> = (props) => {
             onChange={onToDateChange}
             name='todate'
           />
-        </MuiPickersUtilsProvider>
-      </Paper>
+        </Paper>
+      </div>
+    </MuiPickersUtilsProvider>
     </>
   );
 };

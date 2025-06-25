@@ -40,12 +40,16 @@ const Encoders_Group = "Encoders";
 const Receptionist_Group = "Receptionist";
 const SSD_Group = "SSD";
 const WalkinApprover_Group = "WalkinApprover";
+const HOUsers_Group = "HOUsers";
+const SPCUsers_Group = "SPCUsers";
 
 // Global variables
 let usersPerDept: IUserDept[] = [];
 let approversPerDept: IUserDept[] = [];
 let walkinapprovers: IUserDept[] = [];
 let user = null;
+let isHOUser = false;
+let isSPCUser = false;
 
 export default function ViewVisitors(props: IViewVisitorsProps) {
   const classes = useStyles();
@@ -210,17 +214,45 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       if (searchText.length > 2) {
         // Get current state for role checks
         const currentState = { ...state };
-        const visitors = await SharePointService.searchVisitorsByName(searchText);
+        const visitorDetails = await SharePointService.searchVisitorsByName(searchText);
+        
+        // If user is in HOUsers or SPCUsers group, we need to filter by building
+        let filteredDetails = visitorDetails;
+        
+        if (isHOUser || isSPCUser) {
+          // Get all visitor requests to check building info
+          const visitorRequests = await SharePointService.loadVisitorRequests(
+            state.selectedFromDate, 
+            state.selectedToDate
+          );
+          
+          // Create a map of visitor ID to building
+          const visitorBldgMap = {};
+          visitorRequests.forEach(visitor => {
+            visitorBldgMap[visitor.ID] = visitor.Bldg;
+          });
+          
+          // Filter visitor details based on parent visitor's building
+          filteredDetails = visitorDetails.filter(detail => {
+            const parentBldg = visitorBldgMap[detail.ParentId];
+            if (isHOUser) {
+              return parentBldg === "(HO) 5-Storey Building";
+            } else if (isSPCUser) {
+              return parentBldg === "SPC";
+            }
+            return true;
+          });
+        }
         
         if (currentState.isReceptionist || currentState.isSSDUser) {
           setState(prevState => ({
             ...prevState,
-            dirListItems: visitors
+            dirListItems: filteredDetails
           }));
         } else if (currentState.isEncoder || currentState.isApprover || currentState.isWalkinApprover) {
           let mappedrows = [];
 
-          visitors.map(row => {
+          filteredDetails.map(row => {
             let filtered = [];
             if (currentState.isEncoder) {
               filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
@@ -265,7 +297,9 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
       visitors.map(row => {
         let filtered = [];
+        let includeRow = true;
 
+        // Filter by department
         if (currentState.isEncoder) {
           filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
         } else if (currentState.isApprover) {
@@ -274,7 +308,14 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           filtered = walkinapprovers.filter((item) => item.DeptId === row.DeptId);
         }
         
-        if ((filtered.length > 0)) {
+        // Filter by building based on user group
+        if (isHOUser && row.Bldg !== "(HO) 5-Storey Building") {
+          includeRow = false;
+        } else if (isSPCUser && row.Bldg !== "SPC") {
+          includeRow = false;
+        }
+        
+        if ((filtered.length > 0) && includeRow) {
           mappedrows.push(row);
         }
       });
@@ -286,16 +327,58 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       }));
     } else if ((action == 2)) {
       const visitors = await SharePointService.loadVisitorRequests(from, to);
+      let filteredVisitors = visitors;
+      
+      // Filter by building based on user group
+      if (isHOUser || isSPCUser) {
+        filteredVisitors = visitors.filter(row => {
+          if (isHOUser) {
+            return row.Bldg === "(HO) 5-Storey Building";
+          } else if (isSPCUser) {
+            return row.Bldg === "SPC";
+          }
+          return true;
+        });
+      }
+      
       setState(prevState => ({
         ...prevState,
-        dirListItems: visitors,
+        dirListItems: filteredVisitors,
         vwid: action
       }));
     } else if ((action == 3)) {
-      const visitors = await SharePointService.loadVisitorDetails(from, to);
+      // For visitor details, we need to handle building filtering differently
+      // since the building info is in the parent visitor record
+      const visitorDetails = await SharePointService.loadVisitorDetails(from, to);
+      
+      // If user is in HOUsers or SPCUsers group, we need to filter by building
+      let filteredDetails = visitorDetails;
+      
+      if (isHOUser || isSPCUser) {
+        // Get all visitor requests to check building info
+        const visitorRequests = await SharePointService.loadVisitorRequests(from, to);
+        
+        // Create a map of visitor ID to building
+        const visitorBldgMap = {};
+        visitorRequests.forEach(visitor => {
+          visitorBldgMap[visitor.ID] = visitor.Bldg;
+        });
+        
+        // Filter visitor details based on parent visitor's building
+        filteredDetails = visitorDetails.filter(detail => {
+          const parentBldg = visitorBldgMap[detail.ParentId];
+          if (isHOUser) {
+            return parentBldg === "(HO) 5-Storey Building";
+          } else if (isSPCUser) {
+            return parentBldg === "SPC";
+          }
+          return true;
+        });
+      }
+      
+      // Now apply department filtering
       let mappedrows = [];
-
-      visitors.map(row => {
+      filteredDetails.map(row => {
         let filtered = [];
 
         if (currentState.isEncoder) {
@@ -317,10 +400,38 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         vwid: action
       }));
     } else if ((action == 4)) {
-      const visitors = await SharePointService.loadVisitorDetails(from, to);
+      // For visitor details, we need to handle building filtering differently
+      // since the building info is in the parent visitor record
+      const visitorDetails = await SharePointService.loadVisitorDetails(from, to);
+      
+      // If user is in HOUsers or SPCUsers group, we need to filter by building
+      let filteredDetails = visitorDetails;
+      
+      if (isHOUser || isSPCUser) {
+        // Get all visitor requests to check building info
+        const visitorRequests = await SharePointService.loadVisitorRequests(from, to);
+        
+        // Create a map of visitor ID to building
+        const visitorBldgMap = {};
+        visitorRequests.forEach(visitor => {
+          visitorBldgMap[visitor.ID] = visitor.Bldg;
+        });
+        
+        // Filter visitor details based on parent visitor's building
+        filteredDetails = visitorDetails.filter(detail => {
+          const parentBldg = visitorBldgMap[detail.ParentId];
+          if (isHOUser) {
+            return parentBldg === "(HO) 5-Storey Building";
+          } else if (isSPCUser) {
+            return parentBldg === "SPC";
+          }
+          return true;
+        });
+      }
+      
       setState(prevState => ({
         ...prevState,
-        dirListItems: visitors,
+        dirListItems: filteredDetails,
         vwid: action
       }));
     } else if ((action == 5)) {
@@ -330,12 +441,20 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       visitors.map(row => {
         let filtered = approversPerDept.filter((item) => item.NameId === row.ApproverId);
         let isvalid = false;
+        let includeRow = true;
 
         if ((row.StatusId == 2)) {
           isvalid = true;
         }
         
-        if ((filtered.length > 0) && (isvalid)) {
+        // Filter by building based on user group
+        if (isHOUser && row.Bldg !== "(HO) 5-Storey Building") {
+          includeRow = false;
+        } else if (isSPCUser && row.Bldg !== "SPC") {
+          includeRow = false;
+        }
+        
+        if ((filtered.length > 0) && (isvalid) && includeRow) {
           mappedrows.push(row);
         }
       });
@@ -351,11 +470,20 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
       visitors.map(row => {
         let isvalid = false;
+        let includeRow = true;
+        
         if ((row.StatusId == 3)) {
           isvalid = true;
         }
         
-        if ((isvalid)) {
+        // Filter by building based on user group
+        if (isHOUser && row.Bldg !== "(HO) 5-Storey Building") {
+          includeRow = false;
+        } else if (isSPCUser && row.Bldg !== "SPC") {
+          includeRow = false;
+        }
+        
+        if ((isvalid) && includeRow) {
           mappedrows.push(row);
         }
       });
@@ -372,12 +500,20 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       visitors.map(row => {
         let filtered = walkinapprovers.filter((item) => item.NameId === row.ApproverId);
         let isvalid = false;
+        let includeRow = true;
 
         if ((row.StatusId == 2)) {
           isvalid = true;
         }
         
-        if ((filtered.length > 0) && (isvalid)) {
+        // Filter by building based on user group
+        if (isHOUser && row.Bldg !== "(HO) 5-Storey Building") {
+          includeRow = false;
+        } else if (isSPCUser && row.Bldg !== "SPC") {
+          includeRow = false;
+        }
+        
+        if ((filtered.length > 0) && (isvalid) && includeRow) {
           mappedrows.push(row);
         }
       });
@@ -438,6 +574,15 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           if (groups[i].LoginName === SSD_Group) {
             isSSDUser = true;
             break;
+          }
+        }
+        
+        // Check if user is in HOUsers or SPCUsers group
+        for (let i = 0; i < groups.length; i++) {
+          if (groups[i].LoginName === HOUsers_Group) {
+            isHOUser = true;
+          } else if (groups[i].LoginName === SPCUsers_Group) {
+            isSPCUser = true;
           }
         }
         

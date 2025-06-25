@@ -869,8 +869,8 @@ export default function Approval(props: IDisplayOvertimeProps) {
 
       try {
         _sourceURL = document.referrer;
-        _itemId = parseInt(getUrlParameter('pid'));
-
+       // _itemId = parseInt(getUrlParameter('pid'));
+        _itemId = 1;
         _user = await sp.web.currentUser();
 
 
