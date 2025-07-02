@@ -1,12 +1,26 @@
 import { SPHttpClient } from '@microsoft/sp-http';
-import { WebPartContext } from '@microsoft/sp-webpart-base';
 
 /**
- * Interface for DisplayOvertime component properties
+ * Interface for DisplayOvertime component props
  */
 export interface IDisplayOvertimeProps {
-  description: string;
-  context: WebPartContext;
+  /**
+   * The site URL
+   */
   siteUrl: string;
+  
+  /**
+   * The site relative URL
+   */
   siteRelativeUrl: string;
+  
+  /**
+   * The context
+   */
+  context?: any;
+  
+  /**
+   * The SP HTTP client
+   */
+  spHttpClient?: SPHttpClient;
 }

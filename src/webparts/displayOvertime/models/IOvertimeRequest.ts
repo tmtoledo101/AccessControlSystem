@@ -1,60 +1,208 @@
+import { IDepartment } from './IDepartment';
+import { IStatus } from './IStatus';
+import { IUser } from './IUser';
+
 /**
- * Error fields interface
+ * Interface for overtime request
  */
-export interface IErrorFields {
-  Purpose: string;
-  DeptId: string;
-  Bldg: string;
-  Others: string;
-  DateFrom: string;
-  DateTo: string;
+export interface IOvertimeRequest {
+  /**
+   * The ID
+   */
+  ID: number;
+  
+  /**
+   * The reference number
+   */
   Title: string;
-  ApproverId: string;
-  Details: string;
+  
+  /**
+   * The purpose
+   */
+  Purpose: string;
+  
+  /**
+   * The department ID
+   */
+  DeptId: number;
+  
+  /**
+   * The department
+   */
+  Dept: IDepartment;
+  
+  /**
+   * The building
+   */
+  Bldg: string;
+  
+  /**
+   * The others (for purpose = Others)
+   */
+  Others: string;
+  
+  /**
+   * The date from
+   */
+  DateFrom: Date;
+  
+  /**
+   * The date to
+   */
+  DateTo: Date;
+  
+  /**
+   * The department approver remarks
+   */
   Remarks1: string;
+  
+  /**
+   * The SSD approver remarks
+   */
   Remarks2: string;
+  
+  /**
+   * The SSD approval date
+   */
+  SSDDate: Date;
+  
+  /**
+   * The department approval date
+   */
+  DeptApproverDate: Date;
+  
+  /**
+   * The status ID
+   */
+  StatusId: number;
+  
+  /**
+   * The status
+   */
+  Status: IStatus;
+  
+  /**
+   * The approver ID
+   */
+  ApproverId: number;
+  
+  /**
+   * The approver
+   */
+  Approver: IUser;
+  
+  /**
+   * The files
+   */
+  Files: any[];
+  
+  /**
+   * The initial files
+   */
+  initFiles: string[];
+  
+  /**
+   * The original files
+   */
+  origFiles: any[];
+  
+  /**
+   * The SSD approver ID
+   */
+  SSDApproverId: number;
+  
+  /**
+   * The SSD approver
+   */
+  SSDApprover: IUser;
+  
+  /**
+   * The request date
+   */
+  RequestDate: Date;
+  
+  /**
+   * The author
+   */
+  Author: IUser;
+  
+  /**
+   * The author ID
+   */
+  AuthorId: number;
+  
+  /**
+   * The modified date
+   */
+  Modified?: Date;
+  
+  /**
+   * Additional properties
+   */
+  [key: string]: any;
 }
 
 /**
- * Overtime request interface
+ * Interface for overtime request validation errors
  */
-export interface IOvertimeRequest {
-  ID: number;
-  Title: string;
+export interface IOvertimeRequestErrors {
+  /**
+   * Purpose error
+   */
   Purpose: string;
-  DeptId: number;
-  Dept?: {
-    Title: string;
-  };
+  
+  /**
+   * Department ID error
+   */
+  DeptId: string;
+  
+  /**
+   * Building error
+   */
   Bldg: string;
-  Others?: string;
-  DateFrom: Date;
-  DateTo: Date;
-  Remarks1?: string;
-  Remarks2?: string;
-  SSDDate?: Date;
-  DeptApproverDate?: Date;
-  StatusId: number;
-  Status?: {
-    Title: string;
-  };
-  ApproverId?: number;
-  Approver?: {
-    Title: string;
-    EMail: string;
-  };
-  SSDApproverId?: number;
-  SSDApprover?: {
-    Title: string;
-  };
-  RequestDate: Date;
-  Author?: {
-    Title: string;
-    EMail: string;
-  };
-  AuthorId?: number;
-  Files?: File[];
-  initFiles?: string[];
-  origFiles?: any[];
-  Modified?: string;
+  
+  /**
+   * Others error
+   */
+  Others: string;
+  
+  /**
+   * Date from error
+   */
+  DateFrom: string;
+  
+  /**
+   * Date to error
+   */
+  DateTo: string;
+  
+  /**
+   * Title error
+   */
+  Title: string;
+  
+  /**
+   * Approver ID error
+   */
+  ApproverId: string;
+  
+  /**
+   * Details error
+   */
+  Details: string;
+  
+  /**
+   * Remarks1 error
+   */
+  Remarks1: string;
+  
+  /**
+   * Remarks2 error
+   */
+  Remarks2: string;
+  
+  /**
+   * Additional properties
+   */
+  [key: string]: string;
 }

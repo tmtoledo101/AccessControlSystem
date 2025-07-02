@@ -1,19 +1,12 @@
 import * as React from 'react';
-import Box from '@material-ui/core/Box';
-import Paper from '@material-ui/core/Paper';
-import Grid from '@material-ui/core/Grid';
-import FormControl from '@material-ui/core/FormControl';
-import FormHelperText from '@material-ui/core/FormHelperText';
-import InputLabel from '@material-ui/core/InputLabel';
-import Select from '@material-ui/core/Select';
-import MenuItem from '@material-ui/core/MenuItem';
-import TextField from '@material-ui/core/TextField';
+import { Grid, Paper, Box, TextField, FormControl, InputLabel, Select, MenuItem, FormHelperText } from '@material-ui/core';
 import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
 import moment from 'moment';
-import { IOvertimeRequest, IErrorFields } from '../../models/IOvertimeRequest';
-import { checkComponentVisibility } from '../../helpers/uiHelpers';
-import { IUserRoles } from '../../models/IEmployeeDetails';
+import { IUserPermissions } from '../../utils/permissionUtils';
+import { IOvertimeRequest, IOvertimeRequestErrors } from '../../models/IOvertimeRequest';
+import { STATUS } from '../../constants/status';
 
+// Styles
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     paper: {
@@ -35,50 +28,119 @@ const useStyles = makeStyles((theme: Theme) =>
       marginLeft: theme.spacing(1),
       marginRight: theme.spacing(1),
       fontSize: '18px',
-    },
+      fontWeight: 500,
+      whiteSpace: 'pre-wrap',
+      wordWrap: 'break-word'
+    }
   }),
 );
 
-export interface IApprovalSectionProps {
-  isEdit: boolean;
+interface IApprovalSectionProps {
+  /**
+   * The form data
+   */
   formData: IOvertimeRequest;
-  errorFields: IErrorFields;
-  userRoles: IUserRoles;
+  
+  /**
+   * The form validation errors
+   */
+  errors: IOvertimeRequestErrors;
+  
+  /**
+   * User permissions
+   */
+  permissions: IUserPermissions;
+  
+  /**
+   * The request status ID
+   */
+  statusId: number;
+  
+  /**
+   * Whether the form is in edit mode
+   */
+  isEditMode: boolean;
+  
+  /**
+   * The approver list
+   */
   approverList: any[];
-  onDropdownChange: (e: React.ChangeEvent<{ name?: string; value: unknown }>) => void;
-  onTextChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  
+  /**
+   * Text change handler
+   */
+  handleChangeTxt: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  
+  /**
+   * Combo box change handler
+   */
+  handleChangeCbo: (e: React.ChangeEvent<{ name?: string; value: any }>) => void;
 }
 
 /**
- * Approval section component
- * @param props Component properties
- * @returns JSX element
+ * Approval Section component
  */
-const ApprovalSection: React.FC<IApprovalSectionProps> = (props) => {
-  const { 
-    isEdit, 
-    formData, 
-    errorFields, 
-    userRoles, 
-    approverList, 
-    onDropdownChange, 
-    onTextChange 
-  } = props;
-  
+export const ApprovalSection: React.FC<IApprovalSectionProps> = ({
+  formData,
+  errors,
+  permissions,
+  statusId,
+  isEditMode,
+  approverList,
+  handleChangeTxt,
+  handleChangeCbo
+}) => {
   const classes = useStyles();
-
+  
+  /**
+   * Checks if a component should be visible in display mode
+   */
+  const isVisibleInDisplayMode = (component: string): boolean => {
+    if (component === 'approver') {
+      return !isEditMode && !!formData.ApproverId;
+    } else if (component === 'remarks1') {
+      return !isEditMode && !!formData.Remarks1;
+    } else if (component === 'remarks2') {
+      return !isEditMode && !!formData.Remarks2;
+    } else if (component === 'ssdApprover') {
+      return !isEditMode && !!formData.SSDApproverId;
+    } else if (component === 'ssdDate') {
+      return !isEditMode && !!formData.SSDDate;
+    } else if (component === 'deptDate') {
+      return !isEditMode && !!formData.DeptApproverDate;
+    }
+    
+    return false;
+  };
+  
+  /**
+   * Checks if a component should be visible in edit mode
+   */
+  const isVisibleInEditMode = (component: string): boolean => {
+    if (component === 'approver') {
+      return isEditMode && permissions.isEncoder && statusId === STATUS.DRAFT;
+    } else if (component === 'remarks1') {
+      return isEditMode && permissions.isApproverUser;
+    } else if (component === 'remarks2') {
+      return isEditMode && permissions.isSSDUser;
+    }
+    
+    return false;
+  };
+  
   return (
     <>
+      {/* Approver */}
       <Grid item xs={12} sm={12}>
         <Paper variant="outlined" className={classes.paper}>
-          {checkComponentVisibility('approverSelect', isEdit, userRoles, { statusId: formData.StatusId }) && (
-            <FormControl className={classes.textField} error={errorFields.ApproverId.length > 0}>
+          {isVisibleInEditMode('approver') && (
+            <FormControl className={classes.textField} error={errors.ApproverId ? true : false}>
               <InputLabel id="approversLabel">Forward for Approval *</InputLabel>
               <Select
                 labelId="approversLabel"
                 id="ApproverId"
                 value={formData.ApproverId || ''}
-                onChange={onDropdownChange}
+                onChange={handleChangeCbo}
                 name="ApproverId"
               >
                 {approverList.map((item) => (
@@ -87,61 +149,52 @@ const ApprovalSection: React.FC<IApprovalSectionProps> = (props) => {
                   </MenuItem>
                 ))}
               </Select>
-              <FormHelperText>{errorFields.ApproverId}</FormHelperText>
+              <FormHelperText>{errors.ApproverId}</FormHelperText>
             </FormControl>
           )}
           
-          {checkComponentVisibility('approverDisplay', isEdit, userRoles, { statusId: formData.StatusId }) && (
+          {isVisibleInDisplayMode('approver') && (
             <>
               <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
                 Approver
               </Box>
-              <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
-                {formData.Approver?.Title}
+              <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labelbottom}>
+                {formData.Approver && formData.Approver.Title}
               </Box>
+              
+              {isVisibleInDisplayMode('deptDate') && (
+                <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labelbottom}>
+                  {moment(formData.DeptApproverDate).format('MM/DD/yyyy HH:mm')}
+                </Box>
+              )}
             </>
-          )}
-          
-          {checkComponentVisibility('deptDateDisplay', isEdit, userRoles, { statusId: formData.StatusId }) && (
-            <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
-              {moment(formData.DeptApproverDate).format('MM/DD/yyyy HH:mm')}
-            </Box>
           )}
         </Paper>
       </Grid>
       
+      {/* Department Approver Remarks */}
       <Grid item xs={12} sm={12}>
         <Paper variant="outlined" className={classes.paper}>
-          {checkComponentVisibility('remarks1Input', isEdit, userRoles, { statusId: formData.StatusId }) && (
+          {isVisibleInEditMode('remarks1') && (
             <TextField
-              error={errorFields.Remarks1.length > 0}
+              error={errors.Remarks1 ? true : false}
               multiline
               label="Approver's Remarks"
               name="Remarks1"
-              onChange={onTextChange}
+              onChange={handleChangeTxt}
               value={formData.Remarks1 || ''}
               variant="standard"
               className={classes.textField}
-              helperText={errorFields.Remarks1}
+              helperText={errors.Remarks1}
             />
           )}
           
-          {checkComponentVisibility('remarks1Display', isEdit, userRoles, { statusId: formData.StatusId }) && (
+          {isVisibleInDisplayMode('remarks1') && (
             <>
               <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
                 Approver's Remarks
               </Box>
-              <Box 
-                component="span" 
-                style={{ 
-                  display: 'block', 
-                  fontWeight: 500, 
-                  margin: '4px', 
-                  whiteSpace: 'pre-wrap', 
-                  wordWrap: 'break-word' 
-                }} 
-                className={classes.labelbottom}
-              >
+              <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labelbottom}>
                 {formData.Remarks1}
               </Box>
             </>
@@ -149,18 +202,21 @@ const ApprovalSection: React.FC<IApprovalSectionProps> = (props) => {
         </Paper>
       </Grid>
       
+      {/* SSD Approver */}
       <Grid item xs={12} sm={12}>
         <Paper variant="outlined" className={classes.paper}>
-          {checkComponentVisibility('ssdApproverDisplay', isEdit, userRoles, { statusId: formData.StatusId }) && (
+          {isVisibleInDisplayMode('ssdApprover') && (
             <>
               <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
                 SSD Approver
               </Box>
-              <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
-                {formData.SSDApprover?.Title}
+              <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labelbottom}>
+                {formData.SSDApprover && formData.SSDApprover.Title}
+
               </Box>
-              {formData.SSDDate && (
-                <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
+              
+              {isVisibleInDisplayMode('ssdDate') && (
+                <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labelbottom}>
                   {moment(formData.SSDDate).format('MM/DD/yyyy HH:mm')}
                 </Box>
               )}
@@ -169,38 +225,29 @@ const ApprovalSection: React.FC<IApprovalSectionProps> = (props) => {
         </Paper>
       </Grid>
       
+      {/* SSD Remarks */}
       <Grid item xs={12} sm={12}>
         <Paper variant="outlined" className={classes.paper}>
-          {checkComponentVisibility('remarks2Input', isEdit, userRoles, { statusId: formData.StatusId }) && (
+          {isVisibleInEditMode('remarks2') && (
             <TextField
-              error={errorFields.Remarks2.length > 0}
+              error={errors.Remarks2 ? true : false}
               multiline
               label="SSD Remarks"
               name="Remarks2"
-              onChange={onTextChange}
+              onChange={handleChangeTxt}
               value={formData.Remarks2 || ''}
               variant="standard"
               className={classes.textField}
-              helperText={errorFields.Remarks2}
+              helperText={errors.Remarks2}
             />
           )}
           
-          {checkComponentVisibility('remarks2Display', isEdit, userRoles, { statusId: formData.StatusId }) && (
+          {isVisibleInDisplayMode('remarks2') && (
             <>
               <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
                 SSD Remarks
               </Box>
-              <Box 
-                component="span" 
-                style={{ 
-                  display: 'block', 
-                  fontWeight: 500, 
-                  margin: '4px', 
-                  whiteSpace: 'pre-wrap', 
-                  wordWrap: 'break-word' 
-                }} 
-                className={classes.labelbottom}
-              >
+              <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labelbottom}>
                 {formData.Remarks2}
               </Box>
             </>
@@ -210,5 +257,3 @@ const ApprovalSection: React.FC<IApprovalSectionProps> = (props) => {
     </>
   );
 };
-
-export default ApprovalSection;

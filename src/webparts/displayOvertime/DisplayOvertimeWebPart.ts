@@ -23,7 +23,6 @@ export default class DisplayOvertimeWebPart extends BaseClientSideWebPart<IDispl
     const element: React.ReactElement<IDisplayOvertimeProps> = React.createElement(
       DisplayOvertime,
       {
-        description: this.properties.description,
         context: this.context,
         siteUrl: this.context.pageContext.web.absoluteUrl,
         siteRelativeUrl: this.context.pageContext.web.serverRelativeUrl

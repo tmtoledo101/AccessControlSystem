@@ -1,48 +1,32 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogActions, 
+  Button,
+  Grid,
+  Paper,
+  Box,
+  FormControl,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText,
+  TextField
+} from '@material-ui/core';
 import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
-import Dialog from '@material-ui/core/Dialog';
-import DialogActions from '@material-ui/core/DialogActions';
-import DialogContent from '@material-ui/core/DialogContent';
-import DialogTitle from '@material-ui/core/DialogTitle';
-import Button from '@material-ui/core/Button';
-import Grid from '@material-ui/core/Grid';
-import Paper from '@material-ui/core/Paper';
-import Box from '@material-ui/core/Box';
-import FormControl from '@material-ui/core/FormControl';
-import FormHelperText from '@material-ui/core/FormHelperText';
-import InputLabel from '@material-ui/core/InputLabel';
-import Select from '@material-ui/core/Select';
-import MenuItem from '@material-ui/core/MenuItem';
-import TextField from '@material-ui/core/TextField';
-import Radio from '@material-ui/core/Radio';
-import RadioGroup from '@material-ui/core/RadioGroup';
-import FormControlLabel from '@material-ui/core/FormControlLabel';
-import Autocomplete from '@material-ui/lab/Autocomplete';
-import { TimePicker, MuiPickersUtilsProvider } from '@material-ui/pickers';
+import { MuiPickersUtilsProvider, TimePicker } from '@material-ui/pickers';
 import DateFnsUtils from '@date-io/date-fns';
+import Autocomplete from '@material-ui/lab/Autocomplete';
+import { IEmployeeDetails, IEmployeeDetailsErrors } from '../../models/IEmployeeDetails';
 
-import { IEmployeeDetails, IErrorDetails, EMPLOYEE_TYPES } from '../../models/IEmployeeDetails';
-import { validateEmployeeDetailsInput, validateEmployeeDetailsSubmit } from '../../validations/formValidation';
-import { formatDateTime } from '../../helpers/dateHelpers';
-
-export interface IEmployeeDetailsDialogProps {
-  open: boolean;
-  mode: 'add' | 'edit';
-  employeeDetails: IEmployeeDetails;
-  departmentId: number;
-  departmentName: string;
-  personnelTypeList: any[];
-  onClose: (confirmed: boolean, employeeDetails?: IEmployeeDetails) => void;
-  onSearch: (searchTerm: string, employeeType: string, otherSource: string) => Promise<any[]>;
-}
-
+// Styles
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
-    root: {
-      flexGrow: 1,
-      fontFamily: '"Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif'
-    },
     paper: {
       padding: theme.spacing(1),
       borderColor: "transparent",
@@ -55,171 +39,129 @@ const useStyles = makeStyles((theme: Theme) =>
     dateField: {
       width: 300,
     },
-    labeltop: {
-      marginLeft: theme.spacing(1),
-      marginRight: theme.spacing(1),
-      fontSize: '12px',
-      color: '#0000008A',
-    },
-    labelbottom: {
-      marginLeft: theme.spacing(1),
-      marginRight: theme.spacing(1),
-      fontSize: '18px',
-    },
     datelabel: {
       marginLeft: theme.spacing(1),
       marginRight: theme.spacing(1),
-    },
+    }
   }),
 );
 
+interface IEmployeeDetailsDialogProps {
+  /**
+   * Whether the dialog is open
+   */
+  open: boolean;
+  
+  /**
+   * The dialog mode (add or edit)
+   */
+  mode: string;
+  
+  /**
+   * The employee details data
+   */
+  detailsData: IEmployeeDetails;
+  
+  /**
+   * The employee details validation errors
+   */
+  errors: IEmployeeDetailsErrors;
+  
+  /**
+   * The contact list for BSP employees
+   */
+  contactList: any[];
+  
+  /**
+   * The outsource list for non-BSP employees
+   */
+  outsourceList: any[];
+  
+  /**
+   * The personnel type list
+   */
+  personnelTypeList: any[];
+  
+  /**
+   * Whether the autocomplete is open
+   */
+  isAutocompleteOpen: boolean;
+  
+  /**
+   * Set autocomplete open state
+   */
+  setAutocompleteOpen: (isOpen: boolean) => void;
+  
+  /**
+   * Text change handler
+   */
+  handleChangeTxt: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  
+  /**
+   * Combo box change handler
+   */
+  handleChangeCbo: (e: React.ChangeEvent<{ name?: string; value: any }>) => void;
+  
+  /**
+   * Time change handler
+   */
+  onTimeChange: (date: Date, name: string) => void;
+  
+  /**
+   * Autocomplete selection handler
+   */
+  handleAutocompleteSelection: (event: any, value: any) => void;
+  
+  /**
+   * Find user handler
+   */
+  findUser: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  
+  /**
+   * Dialog close handler
+   * @param save Whether to save the data
+   */
+  onClose: (save: boolean) => void;
+}
+
 /**
- * Employee details dialog component
- * @param props Component properties
- * @returns JSX element
+ * Employee Details Dialog component
  */
-const EmployeeDetailsDialog: React.FC<IEmployeeDetailsDialogProps> = (props) => {
+export const EmployeeDetailsDialog: React.FC<IEmployeeDetailsDialogProps> = ({
+  open,
+  mode,
+  detailsData,
+  errors,
+  contactList,
+  outsourceList,
+  personnelTypeList,
+  isAutocompleteOpen,
+  setAutocompleteOpen,
+  handleChangeTxt,
+  handleChangeCbo,
+  onTimeChange,
+  handleAutocompleteSelection,
+  findUser,
+  onClose
+}) => {
   const classes = useStyles();
-  const { 
-    open, 
-    mode, 
-    employeeDetails: initialEmployeeDetails, 
-    departmentId,
-    departmentName,
-    personnelTypeList,
-    onClose, 
-    onSearch 
-  } = props;
-  
-  const [employeeDetails, setEmployeeDetails] = useState<IEmployeeDetails>(initialEmployeeDetails);
-  const [errorDetails, setErrorDetails] = useState<IErrorDetails>({});
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isAutocompleteOpen, setAutocompleteOpen] = useState(false);
-  
-  useEffect(() => {
-    setEmployeeDetails(initialEmployeeDetails);
-    setErrorDetails({});
-    setSearchResults([]);
-  }, [initialEmployeeDetails, open]);
-  
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
-    const { name, value } = e.target;
-    const updatedEmployeeDetails = { ...employeeDetails, [name]: value };
-    
-    if (name === 'Etype') {
-      updatedEmployeeDetails.EmpNo = '';
-      updatedEmployeeDetails.Title = '';
-      updatedEmployeeDetails.OtherSource = '';
-      setSearchResults([]);
-    }
-    
-    setEmployeeDetails(updatedEmployeeDetails);
-    
-    const updatedErrorDetails = validateEmployeeDetailsInput(
-      name as string, 
-      value as string, 
-      updatedEmployeeDetails, 
-      errorDetails
-    );
-    
-    setErrorDetails(updatedErrorDetails);
-  };
-  
-  const handleTimeChange = (date: Date, name: string) => {
-    const updatedEmployeeDetails = { ...employeeDetails, [name]: date };
-    setEmployeeDetails(updatedEmployeeDetails);
-    
-    const updatedErrorDetails = validateEmployeeDetailsInput(
-      name, 
-      date, 
-      updatedEmployeeDetails, 
-      errorDetails
-    );
-    
-    setErrorDetails(updatedErrorDetails);
-  };
-  
-  const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const searchTerm = e.target.value;
-    
-    if (searchTerm.length > 2) {
-      const results = await onSearch(
-        searchTerm, 
-        employeeDetails.Etype, 
-        employeeDetails.OtherSource
-      );
-      setSearchResults(results);
-    } else {
-      setSearchResults([]);
-    }
-  };
-  
-  const handleAutocompleteChange = (event: React.ChangeEvent<{}>, value: any) => {
-    const updatedEmployeeDetails = { ...employeeDetails };
-    
-    if (value) {
-      if (employeeDetails.Etype === 'BSP') {
-        updatedEmployeeDetails.EmpNo = value.EmpNo;
-        updatedEmployeeDetails.Title = value.Name;
-      } else {
-        updatedEmployeeDetails.EmpNo = value.Id.toString();
-        updatedEmployeeDetails.Title = value.Title;
-      }
-      
-      const updatedErrorDetails = validateEmployeeDetailsInput(
-        'EmpNo', 
-        updatedEmployeeDetails.EmpNo, 
-        updatedEmployeeDetails, 
-        errorDetails
-      );
-      
-      setErrorDetails(updatedErrorDetails);
-    } else {
-      updatedEmployeeDetails.EmpNo = '';
-      updatedEmployeeDetails.Title = '';
-      
-      const updatedErrorDetails = validateEmployeeDetailsInput(
-        'EmpNo', 
-        '', 
-        updatedEmployeeDetails, 
-        errorDetails
-      );
-      
-      setErrorDetails(updatedErrorDetails);
-      setSearchResults([]);
-    }
-    
-    setEmployeeDetails(updatedEmployeeDetails);
-  };
-  
-  const handleCancel = () => {
-    onClose(false);
-  };
-  
-  const handleSave = () => {
-    const { isValid, errors } = validateEmployeeDetailsSubmit(employeeDetails, errorDetails);
-    
-    if (isValid) {
-      onClose(true, employeeDetails);
-    } else {
-      setErrorDetails(errors);
-    }
-  };
   
   return (
     <Dialog
       open={open}
-      onClose={handleCancel}
-      aria-labelledby="employee-details-dialog-title"
+      onClose={() => onClose(false)}
+      aria-labelledby="employee-dialog-title"
       fullWidth
       maxWidth="md"
     >
-      <DialogTitle id="employee-details-dialog-title">
+      <DialogTitle id="employee-dialog-title">
         {mode === 'add' ? 'Add Employee Details' : 'Edit Employee Details'}
       </DialogTitle>
+      
       <DialogContent>
-        <div className={classes.root}>
+        <form noValidate autoComplete="off">
           <Grid container spacing={1}>
+            {/* Employee Type */}
             <Grid item xs={12} sm={6}>
               <Paper variant="outlined" className={classes.paper}>
                 <div className={classes.datelabel}>
@@ -228,33 +170,31 @@ const EmployeeDetailsDialog: React.FC<IEmployeeDetailsDialogProps> = (props) => 
                       row 
                       aria-label="Etype" 
                       name="Etype" 
-                      value={employeeDetails.Etype || 'BSP'} 
-                      onChange={handleInputChange}
+                      value={detailsData.Etype} 
+                      onChange={handleChangeTxt}
                     >
-                      {EMPLOYEE_TYPES.map(type => (
-                        <FormControlLabel 
-                          key={type.value} 
-                          value={type.value} 
-                          control={<Radio color="primary" />} 
-                          label={type.label} 
-                        />
-                      ))}
+                      <FormControlLabel value="BSP" control={<Radio color="primary" />} label="BSP" />
+                      <FormControlLabel value="Others" control={<Radio color="primary" />} label="Others" />
                     </RadioGroup>
                   </FormControl>
                 </div>
               </Paper>
             </Grid>
             
-            {employeeDetails.Etype === 'Others' && (
-              <Grid item xs={12} sm={6}>
-                <Paper variant="outlined" className={classes.paper}>
-                  <FormControl className={classes.textField} error={!!errorDetails.OtherSource}>
+            {/* Other Source (for non-BSP employees) */}
+            <Grid item xs={12} sm={6}>
+              <Paper variant="outlined" className={classes.paper}>
+                {detailsData.Etype === 'Others' && (
+                  <FormControl 
+                    className={classes.textField} 
+                    error={errors.OtherSource ? true : false}
+                  >
                     <InputLabel id="othersOutsourceLabel">Others *</InputLabel>
                     <Select
                       labelId="othersOutsourceLabel"
                       id="OtherSource"
-                      value={employeeDetails.OtherSource || ''}
-                      onChange={handleInputChange}
+                      value={detailsData.OtherSource}
+                      onChange={handleChangeCbo}
                       name="OtherSource"
                     >
                       {personnelTypeList.map((item) => (
@@ -263,101 +203,127 @@ const EmployeeDetailsDialog: React.FC<IEmployeeDetailsDialogProps> = (props) => 
                         </MenuItem>
                       ))}
                     </Select>
-                    <FormHelperText>{errorDetails.OtherSource}</FormHelperText>
+                    <FormHelperText>{errors.OtherSource}</FormHelperText>
                   </FormControl>
-                </Paper>
-              </Grid>
-            )}
+                )}
+              </Paper>
+            </Grid>
             
-            <Grid item xs={12}>
+            {/* Employee Name */}
+            <Grid item xs={12} sm={12}>
               <Paper variant="outlined" className={classes.paper}>
-                <FormControl className={classes.textField} error={!!errorDetails.EmpNo}>
-                  <Autocomplete
-                    freeSolo
-                    id="employee-search"
-                    style={{ width: 300 }}
-                    open={isAutocompleteOpen}
-                    onChange={handleAutocompleteChange}
-                    onOpen={() => setAutocompleteOpen(true)}
-                    onClose={() => setAutocompleteOpen(false)}
-                    getOptionSelected={(option, value) => {
-                      if (employeeDetails.Etype === 'BSP') {
-                        return option.EmpNo === value.EmpNo;
-                      } else {
-                        return option.Id === value.Id;
-                      }
-                    }}
-                    getOptionLabel={(option) => {
-                      if (employeeDetails.Etype === 'BSP') {
-                        return option.Name || '';
-                      } else {
-                        return option.Title || '';
-                      }
-                    }}
-                    options={searchResults}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        onChange={handleSearch}
-                        label={employeeDetails.Etype === 'BSP' ? 'Employee Name' : `${employeeDetails.OtherSource || 'Personnel'} Name`}
-                        variant="standard"
-                        helperText={errorDetails.EmpNo}
-                        error={!!errorDetails.EmpNo}
-                      />
-                    )}
-                  />
+                <FormControl 
+                  className={classes.textField} 
+                  error={errors.EmpNo ? true : false}
+                >
+                  {detailsData.Etype === 'BSP' ? (
+                    <Autocomplete
+                      freeSolo={true}
+                      id="Contact"
+                      style={{ width: 300 }}
+                      open={isAutocompleteOpen}
+                      onChange={handleAutocompleteSelection}
+                      onOpen={() => setAutocompleteOpen(true)}
+                      onClose={() => setAutocompleteOpen(false)}
+                      getOptionSelected={(option, value) => option.EmpNo === value.EmpNo}
+                      getOptionLabel={(option) => option.Name || ''}
+                      options={contactList}
+                      defaultValue={{ EmpNo: detailsData.EmpNo, Name: detailsData.Title }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          onChange={findUser}
+                          label="Employee Name"
+                          variant="standard"
+                          helperText={errors.EmpNo}
+                          error={errors.EmpNo ? true : false}
+                        />
+                      )}
+                    />
+                  ) : (
+                    <Autocomplete
+                      freeSolo={true}
+                      id="OutsourceList"
+                      style={{ width: 300 }}
+                      open={isAutocompleteOpen}
+                      onChange={handleAutocompleteSelection}
+                      onOpen={() => setAutocompleteOpen(true)}
+                      onClose={() => setAutocompleteOpen(false)}
+                      getOptionSelected={(option, value) => option.Id === value.Id}
+                      getOptionLabel={(option) => option.Title || ''}
+                      options={outsourceList}
+                      defaultValue={{ Id: detailsData.EmpNo, Title: detailsData.Title }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          onChange={findUser}
+                          label={`${detailsData.OtherSource || 'Employee'} Name`}
+                          variant="standard"
+                          helperText={errors.EmpNo}
+                          error={errors.EmpNo ? true : false}
+                        />
+                      )}
+                    />
+                  )}
                 </FormControl>
               </Paper>
             </Grid>
             
+            {/* Time From */}
             <Grid item xs={12} sm={6}>
               <Paper variant="outlined" className={classes.paper}>
-                <FormControl className={classes.textField} error={!!errorDetails.TimeFrom}>
+                <FormControl 
+                  className={classes.textField} 
+                  error={errors.TimeFrom ? true : false}
+                >
                   <MuiPickersUtilsProvider utils={DateFnsUtils}>
                     <TimePicker
-                      error={!!errorDetails.TimeFrom}
+                      error={errors.TimeFrom ? true : false}
                       format="MM/dd/yyyy HH:mm"
                       label="Time From"
-                      value={employeeDetails.TimeFrom}
-                      onChange={(date) => handleTimeChange(date as Date, 'TimeFrom')}
+                      value={detailsData.TimeFrom}
+                      onChange={(d) => onTimeChange(d, 'TimeFrom')}
                       InputProps={{ className: classes.dateField }}
                     />
                   </MuiPickersUtilsProvider>
-                  <FormHelperText>{errorDetails.TimeFrom}</FormHelperText>
+                  <FormHelperText>{errors.TimeFrom}</FormHelperText>
                 </FormControl>
               </Paper>
             </Grid>
             
+            {/* Time To */}
             <Grid item xs={12} sm={6}>
               <Paper variant="outlined" className={classes.paper}>
-                <FormControl className={classes.textField} error={!!errorDetails.TimeTo}>
+                <FormControl 
+                  className={classes.textField} 
+                  error={errors.TimeTo ? true : false}
+                >
                   <MuiPickersUtilsProvider utils={DateFnsUtils}>
                     <TimePicker
-                      error={!!errorDetails.TimeTo}
+                      error={errors.TimeTo ? true : false}
                       format="MM/dd/yyyy HH:mm"
                       label="Time To"
-                      value={employeeDetails.TimeTo}
-                      onChange={(date) => handleTimeChange(date as Date, 'TimeTo')}
+                      value={detailsData.TimeTo}
+                      onChange={(d) => onTimeChange(d, 'TimeTo')}
                       InputProps={{ className: classes.dateField }}
                     />
                   </MuiPickersUtilsProvider>
-                  <FormHelperText>{errorDetails.TimeTo}</FormHelperText>
+                  <FormHelperText>{errors.TimeTo}</FormHelperText>
                 </FormControl>
               </Paper>
             </Grid>
           </Grid>
-        </div>
+        </form>
       </DialogContent>
+      
       <DialogActions>
-        <Button onClick={handleCancel} color="default">
+        <Button onClick={() => onClose(false)} color="default">
           Cancel
         </Button>
-        <Button onClick={handleSave} color="primary">
-          Save
+        <Button onClick={() => onClose(true)} color="primary" autoFocus>
+          OK
         </Button>
       </DialogActions>
     </Dialog>
   );
 };
-
-export default EmployeeDetailsDialog;

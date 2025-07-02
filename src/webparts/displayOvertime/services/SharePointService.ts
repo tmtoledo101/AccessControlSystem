@@ -5,52 +5,51 @@ import "@pnp/sp/items";
 import "@pnp/sp/site-users/web";
 import "@pnp/sp/site-groups";
 import "@pnp/sp/profiles";
+import "@pnp/sp/files";
+import "@pnp/sp/folders";
 import { IItemAddResult } from "@pnp/sp/items";
 import moment from 'moment';
 
 import { IOvertimeRequest } from "../models/IOvertimeRequest";
 import { IEmployeeDetails } from "../models/IEmployeeDetails";
-import { toISOString } from "../helpers/dateHelpers";
+import { IUser } from "../models/IUser";
+import { IDepartment } from "../models/IDepartment";
+import { STATUS } from "../constants/status";
+import { toISOString } from "../utils/dateUtils";
+import { FileService } from "./FileService";
 
 /**
- * SharePoint service class
+ * Service for SharePoint operations
  */
 export class SharePointService {
-  private readonly ENCODERS_GROUP = "Encoders";
-  private readonly RECEPTIONIST_GROUP = "Receptionist";
-  private readonly SSD_GROUP = "SSD";
-  private readonly WALKIN_APPROVER_GROUP = "WalkinApprover";
-  
   /**
-   * Gets current user
-   * @returns Current user
+   * Gets the current user
+   * @returns The current user
    */
-  public async getCurrentUser(): Promise<any> {
-    return await sp.web.currentUser();
+  public static async getCurrentUser(): Promise<IUser> {
+    const user = await sp.web.currentUser();
+    return {
+      Id: user.Id,
+      Title: user.Title,
+      EMail: user.Email || user.UserPrincipalName
+    };
   }
   
   /**
-   * Gets user groups
-   * @returns User groups
+   * Gets the user's groups
+   * @returns The user's groups
    */
-  public async getUserGroups(): Promise<any[]> {
+  public static async getUserGroups(): Promise<any[]> {
     return await sp.web.currentUser.groups();
   }
   
   /**
-   * Gets user roles
-   * @param userId User ID
-   * @returns User roles
+   * Gets the user's departments
+   * @param userId The user ID
+   * @returns The user's departments
    */
-  public async getUserRoles(userId: number): Promise<{
-    isEncoder: boolean;
-    isReceptionist: boolean;
-    isApproverUser: boolean;
-    isSSDUser: boolean;
-    isWalkinApproverUser: boolean;
-  }> {
-    const groups = await this.getUserGroups();
-    const usersPerDept = await sp.web.lists.getByTitle("UsersPerDept")
+  public static async getUserDepartments(userId: number): Promise<any[]> {
+    return await sp.web.lists.getByTitle("UsersPerDept")
       .items
       .select("*,Name/Title,Dept/Title")
       .expand('Name,Dept')
@@ -58,98 +57,68 @@ export class SharePointService {
       .orderBy("Modified", true)
       .filter(`NameId eq ${userId}`)
       .get();
-    
-    let isEncoder = usersPerDept.length > 0;
-    let isReceptionist = false;
-    let isSSDUser = false;
-    let isWalkinApproverUser = false;
-    
-    for (const group of groups) {
-      if (group.LoginName === this.RECEPTIONIST_GROUP) {
-        isReceptionist = true;
-      } else if (group.LoginName === this.SSD_GROUP) {
-        isSSDUser = true;
-      } else if (group.LoginName === this.WALKIN_APPROVER_GROUP) {
-        isWalkinApproverUser = true;
-      }
-    }
-    
-    return {
-      isEncoder,
-      isReceptionist,
-      isApproverUser: false, // This will be set later based on the request
-      isSSDUser,
-      isWalkinApproverUser
-    };
   }
   
   /**
-   * Gets overtime request
-   * @param itemId Item ID
-   * @returns Overtime request
+   * Gets an overtime request
+   * @param id The request ID
+   * @param siteRelativeUrl The site relative URL
+   * @returns The overtime request
    */
-  public async getOvertimeRequest(itemId: number): Promise<IOvertimeRequest> {
-    const items = await sp.web.lists.getByTitle("Overtime")
+  public static async getOvertimeRequest(id: number, siteRelativeUrl: string): Promise<IOvertimeRequest> {
+    // Get the request
+    const requests = await sp.web.lists.getByTitle("Overtime")
       .items
       .select("*,Approver/Title,Approver/EMail,Status/Title,Dept/Title,SSDApprover/Title,Author/Title,Author/EMail")
       .expand('Approver,Dept,Status,SSDApprover,Author')
       .top(5000)
-      .filter(`ID eq ${itemId}`)
+      .filter(`ID eq ${id}`)
       .get();
     
-    if (items.length === 0) {
-      throw new Error(`Overtime request with ID ${itemId} not found`);
+    if (requests.length === 0) {
+      return null;
     }
     
-    return items[0] as IOvertimeRequest;
-  }
-  
-  /**
-   * Gets employee details
-   * @param parentId Parent ID
-   * @returns Employee details
-   */
-  public async getEmployeeDetails(parentId: number): Promise<IEmployeeDetails[]> {
-    const items = await sp.web.lists.getByTitle("OvertimeDetails")
-      .items
+    const request = requests[0];
+    
+    // Get the files
+    const files = await sp.web.getFolderByServerRelativeUrl(`${siteRelativeUrl}/OvertimeLib/${id}`)
+      .files
       .select("*")
       .top(5000)
-      .filter(`ParentId eq ${parentId}`)
+      .expand('ListItemAllFields')
       .get();
     
-    return items as IEmployeeDetails[];
+    const fileNames = files.map(file => file.Name);
+    
+    // Return the request with files
+    return {
+      ...request,
+      Files: [],
+      initFiles: fileNames,
+      origFiles: files
+    };
   }
   
   /**
-   * Gets departments
-   * @returns Departments
+   * Gets employee details for a request
+   * @param requestId The request ID
+   * @returns The employee details
    */
-  public async getDepartments(): Promise<any[]> {
-    return await sp.web.lists.getByTitle("Departments")
+  public static async getEmployeeDetails(requestId: number): Promise<IEmployeeDetails[]> {
+    return await sp.web.lists.getByTitle("OvertimeDetails")
       .items
       .select("*")
       .top(5000)
+      .filter(`ParentId eq ${requestId}`)
       .get();
   }
   
   /**
-   * Gets buildings
-   * @returns Buildings
+   * Gets purpose options
+   * @returns The purpose options
    */
-  public async getBuildings(): Promise<any[]> {
-    return await sp.web.lists.getByTitle("Building")
-      .items
-      .select("*")
-      .top(5000)
-      .orderBy("Title", true)
-      .get();
-  }
-  
-  /**
-   * Gets purposes
-   * @returns Purposes
-   */
-  public async getPurposes(): Promise<any[]> {
+  public static async getPurposeOptions(): Promise<any[]> {
     return await sp.web.lists.getByTitle("Purpose")
       .items
       .select("*")
@@ -159,12 +128,43 @@ export class SharePointService {
   }
   
   /**
-   * Gets approvers
-   * @param departmentId Department ID
-   * @param currentUserId Current user ID
-   * @returns Approvers
+   * Gets building options
+   * @returns The building options
    */
-  public async getApprovers(departmentId: number, currentUserId: number): Promise<any[]> {
+  public static async getBuildingOptions(): Promise<any[]> {
+    return await sp.web.lists.getByTitle("Building")
+      .items
+      .select("*")
+      .top(5000)
+      .orderBy("Title", true)
+      .get();
+  }
+  
+  /**
+   * Gets department options
+   * @param userDepartments The user's departments
+   * @returns The department options
+   */
+  public static async getDepartmentOptions(userDepartments: any[]): Promise<IDepartment[]> {
+    const departments = await sp.web.lists.getByTitle("Departments")
+      .items
+      .select("*")
+      .top(5000)
+      .get();
+    
+    // Filter departments based on user's departments
+    return departments.filter(department => 
+      userDepartments.some(userDept => userDept.DeptId === department.Id)
+    );
+  }
+  
+  /**
+   * Gets approver options
+   * @param departmentId The department ID
+   * @param userId The user ID
+   * @returns The approver options
+   */
+  public static async getApproverOptions(departmentId: number, userId: number): Promise<any[]> {
     const approvers = await sp.web.lists.getByTitle("Approvers")
       .items
       .select("*,Name/Title,Name/EMail,Dept/Title")
@@ -173,15 +173,35 @@ export class SharePointService {
       .filter(`DeptId eq ${departmentId}`)
       .get();
     
-    // Filter out current user from approvers
-    return approvers.filter(approver => approver.NameId !== currentUserId);
+    // Filter out the current user
+    return approvers.filter(approver => approver.NameId !== userId);
   }
   
   /**
-   * Gets personnel types
-   * @returns Personnel types
+   * Gets SSD users
+   * @returns The SSD users
    */
-  public async getPersonnelTypes(): Promise<any[]> {
+  public static async getSSDUsers(): Promise<IUser[]> {
+    const siteGroups = await sp.web.siteGroups();
+    const ssdGroup = siteGroups.find(group => group.LoginName === 'SSD');
+    
+    if (ssdGroup) {
+      const users = await sp.web.siteGroups.getById(ssdGroup.Id).users();
+      return users.map(user => ({
+        Id: user.Id,
+        Title: user.Title,
+        EMail: user.Email || user.UserPrincipalName
+      }));
+    }
+    
+    return [];
+  }
+  
+  /**
+   * Gets personnel type options
+   * @returns The personnel type options
+   */
+  public static async getPersonnelTypeOptions(): Promise<any[]> {
     return await sp.web.lists.getByTitle("PersonnelType")
       .items
       .select("*")
@@ -190,65 +210,80 @@ export class SharePointService {
   }
   
   /**
-   * Gets SSD users
-   * @returns SSD users
+   * Gets employees
+   * @param searchText The search text
+   * @param departmentName The department name
+   * @returns The employees
    */
-  public async getSSDUsers(): Promise<any[]> {
-    const siteGroups = await sp.web.siteGroups();
-    let ssdUsers = [];
-    
-    for (const group of siteGroups) {
-      if (group.LoginName === this.SSD_GROUP) {
-        ssdUsers = await sp.web.siteGroups.getById(group.Id).users();
-        break;
-      }
+  public static async getEmployees(searchText: string, departmentName: string): Promise<any[]> {
+    if (searchText.length <= 2) {
+      return [];
     }
     
-    return ssdUsers;
-  }
-  
-  /**
-   * Searches employees
-   * @param searchTerm Search term
-   * @param departmentName Department name
-   * @returns Employees
-   */
-  public async searchEmployees(searchTerm: string, departmentName: string): Promise<any[]> {
     return await sp.web.lists.getByTitle("Employees")
       .items
       .select("*")
       .top(5000)
-      .filter(`substringof('${searchTerm}', Name) and Dept eq '${departmentName}'`)
+      .filter(`substringof('${searchText}', Name) and Dept eq '${departmentName}'`)
       .get();
   }
   
   /**
-   * Searches outsource personnel
-   * @param searchTerm Search term
-   * @param departmentId Department ID
-   * @param personnelType Personnel type
-   * @returns Outsource personnel
+   * Searches for employees
+   * @param searchText The search text
+   * @param departmentName The department name
+   * @returns The employees
    */
-  public async searchOutsourcePersonnel(
-    searchTerm: string,
+  public static async searchEmployees(searchText: string, departmentName: string): Promise<any[]> {
+    return this.getEmployees(searchText, departmentName);
+  }
+  
+  /**
+   * Gets outsource personnel
+   * @param searchText The search text
+   * @param departmentId The department ID
+   * @param personnelType The personnel type
+   * @returns The outsource personnel
+   */
+  public static async getOutsourcePersonnel(
+    searchText: string,
     departmentId: number,
     personnelType: string
   ): Promise<any[]> {
+    if (searchText.length <= 2) {
+      return [];
+    }
+    
     return await sp.web.lists.getByTitle("Outsource")
       .items
       .select("*,PersonnelType/Title,Dept/Title")
       .expand('PersonnelType,Dept')
       .top(5000)
-      .filter(`substringof('${searchTerm}', Title) and DeptId eq ${departmentId} and PersonnelType/Title eq '${personnelType}'`)
+      .filter(`substringof('${searchText}', Title) and DeptId eq ${departmentId} and PersonnelType/Title eq '${personnelType}'`)
       .get();
   }
   
   /**
-   * Creates request number
-   * @param locationCode Location code
-   * @returns Request number
+   * Searches for outsource personnel
+   * @param searchText The search text
+   * @param departmentId The department ID
+   * @param personnelType The personnel type
+   * @returns The outsource personnel
    */
-  public async createRequestNumber(locationCode: string): Promise<string> {
+  public static async searchOutsource(
+    searchText: string,
+    departmentId: number,
+    personnelType: string
+  ): Promise<any[]> {
+    return this.getOutsourcePersonnel(searchText, departmentId, personnelType);
+  }
+  
+  /**
+   * Creates a request number
+   * @param locationCode The location code
+   * @returns The request number
+   */
+  public static async createRequestNumber(locationCode: string): Promise<string> {
     const refNoCountList = sp.web.lists.getByTitle("RefNoCount");
     const refNoCounts = await refNoCountList
       .items
@@ -261,126 +296,170 @@ export class SharePointService {
     
     if (refNoCounts.length > 0) {
       const refNoCount = refNoCounts[0];
-      const dateRef = moment(refNoCount.DateRef).endOf('day').toISOString();
-      const today = moment().endOf('day').toISOString();
+      const refNoDate = moment(refNoCount.DateRef).endOf('day');
+      const today = moment().endOf('day');
       
-      if (dateRef === today) {
+      if (refNoDate.isSame(today)) {
         lastNumber = parseInt(refNoCount.LastNum) + 1;
-        
-        await refNoCountList.items.getById(refNoCount.ID).update({
-          LastNum: lastNumber,
-          DateRef: moment().endOf('day').toISOString()
-        });
       } else {
         lastNumber = 1;
-        
-        await refNoCountList.items.getById(refNoCount.ID).update({
-          LastNum: lastNumber,
-          DateRef: moment().endOf('day').toISOString()
-        });
       }
+      
+      await refNoCountList.items.getById(refNoCount.ID).update({
+        LastNum: lastNumber,
+        DateRef: moment().endOf('day').toISOString()
+      });
     }
     
-    const paddedNumber = lastNumber.toString().padStart(3, '0');
+    // Format the request number
+    const lastNumberString = lastNumber.toString();
+    const pad = "000";
+    const paddedNumber = pad.substring(0, pad.length - lastNumberString.length) + lastNumberString;
+    
     return `${locationCode}-${moment().format('YYYYMMDD')}-${paddedNumber}`;
   }
   
   /**
-   * Updates overtime request
-   * @param overtimeRequest Overtime request
-   * @returns Updated overtime request
+   * Saves an overtime request
+   * @param request The request
+   * @param action The action
+   * @param siteRelativeUrl The site relative URL
+   * @param employeeDetails The employee details
+   * @param originalEmployeeDetails The original employee details
+   * @returns The saved request
    */
-  public async updateOvertimeRequest(overtimeRequest: IOvertimeRequest): Promise<IOvertimeRequest> {
-    const { ID, Files, initFiles, origFiles, ...updateData } = overtimeRequest;
+  public static async saveOvertimeRequest(
+    request: IOvertimeRequest,
+    action: string,
+    siteRelativeUrl: string,
+    employeeDetails: IEmployeeDetails[],
+    originalEmployeeDetails: IEmployeeDetails[]
+  ): Promise<IOvertimeRequest> {
+    // Check if the request has been modified
+    const originalRequest = await sp.web.lists.getByTitle("Overtime").items.getById(request.ID).get();
     
-    // Create a new object for the update data
-    const updatePayload: any = { ...updateData };
-    
-    // Convert dates to ISO strings
-    if (updatePayload.DateFrom) {
-      updatePayload.DateFrom = toISOString(updatePayload.DateFrom);
+    if (originalRequest.Modified !== request.Modified) {
+      throw new Error("Record has been changed by another user!");
     }
     
-    if (updatePayload.DateTo) {
-      updatePayload.DateTo = toISOString(updatePayload.DateTo);
+    // Get building for reference number
+    const buildings = await this.getBuildingOptions();
+    const building = buildings.find(b => b.Title === request.Bldg);
+    
+    // Set request properties based on action
+    let refNo = request.Title;
+    let statusId = request.StatusId;
+    let requestDate = request.RequestDate;
+    let ssdDate = request.SSDDate;
+    let deptApproverDate = request.DeptApproverDate;
+    let ssdApproverId = request.SSDApproverId;
+    
+    if (action === "submit") {
+      refNo = await this.createRequestNumber(building.LocationCode);
+      requestDate = new Date();
+      statusId = STATUS.PENDING_DEPT_APPROVAL;
+    } 
+    else if (action === "approve") {
+      if (request.StatusId === STATUS.PENDING_DEPT_APPROVAL) {
+        statusId = STATUS.PENDING_SSD_APPROVAL;
+        deptApproverDate = new Date();
+      } 
+      else if (request.StatusId === STATUS.PENDING_SSD_APPROVAL) {
+        statusId = STATUS.APPROVED;
+        ssdApproverId = request.SSDApproverId;
+        ssdDate = new Date();
+      }
+    } 
+    else if (action === "deny") {
+      if (request.StatusId === STATUS.PENDING_DEPT_APPROVAL) {
+        statusId = STATUS.DENIED_BY_DEPT;
+      } 
+      else if (request.StatusId === STATUS.PENDING_SSD_APPROVAL) {
+        statusId = STATUS.DENIED_BY_SSD;
+      }
     }
     
-    if (updatePayload.RequestDate) {
-      updatePayload.RequestDate = toISOString(updatePayload.RequestDate);
-    }
+    // Update the request
+    await sp.web.lists.getByTitle("Overtime").items.getById(request.ID).update({
+      Title: refNo,
+      Purpose: request.Purpose,
+      DeptId: request.DeptId,
+      Bldg: request.Bldg,
+      Others: request.Purpose === 'Others' ? request.Others : null,
+      DateFrom: toISOString(request.DateFrom),
+      DateTo: toISOString(request.DateTo),
+      ApproverId: request.ApproverId,
+      StatusId: statusId,
+      RequestDate: toISOString(requestDate),
+      Remarks1: request.Remarks1,
+      Remarks2: request.Remarks2,
+      SSDApproverId: ssdApproverId,
+      SSDDate: ssdDate ? toISOString(ssdDate) : null,
+      DeptApproverDate: deptApproverDate ? toISOString(deptApproverDate) : null,
+    });
     
-    if (updatePayload.SSDDate) {
-      updatePayload.SSDDate = toISOString(updatePayload.SSDDate);
-    }
+    // Upload files
+    const folderPath = `${siteRelativeUrl}/OvertimeLib/${request.ID}`;
+    const deletedFiles = await FileService.uploadFiles(folderPath, request.Files, request.origFiles);
     
-    if (updatePayload.DeptApproverDate) {
-      updatePayload.DeptApproverDate = toISOString(updatePayload.DeptApproverDate);
-    }
+    // Delete files
+    await FileService.deleteFiles(folderPath, deletedFiles);
     
-    await sp.web.lists.getByTitle("Overtime").items.getById(ID).update(updatePayload);
+    // Update employee details
+    const detailsList = sp.web.lists.getByTitle("OvertimeDetails");
     
-    return await this.getOvertimeRequest(ID);
-  }
-  
-  /**
-   * Updates employee details
-   * @param employeeDetails Employee details
-   * @returns Updated employee details
-   */
-  public async updateEmployeeDetails(employeeDetails: IEmployeeDetails): Promise<IEmployeeDetails> {
-    const { ID, Files, initFiles, origFiles, ...updateData } = employeeDetails;
+    // Update existing details
+    await Promise.all(employeeDetails.map(async (detail) => {
+      if (detail.ID) {
+        await detailsList.items.getById(detail.ID).update({
+          ParentId: request.ID,
+          Title: detail.Title,
+          RequestDate: toISOString(requestDate),
+          DeptId: request.DeptId,
+          RefNo: refNo,
+          TimeFrom: toISOString(detail.TimeFrom),
+          TimeTo: toISOString(detail.TimeTo),
+          Etype: detail.Etype,
+          OtherSource: detail.Etype === 'Others' ? detail.OtherSource : null,
+          EmpNo: detail.EmpNo.toString(),
+          StatusId: statusId
+        });
+      } else {
+        // Add new details
+        await detailsList.items.add({
+          ParentId: request.ID,
+          Title: detail.Title,
+          RequestDate: toISOString(requestDate),
+          DeptId: request.DeptId,
+          RefNo: refNo,
+          TimeFrom: toISOString(detail.TimeFrom),
+          TimeTo: toISOString(detail.TimeTo),
+          Etype: detail.Etype,
+          OtherSource: detail.Etype === 'Others' ? detail.OtherSource : null,
+          EmpNo: detail.EmpNo.toString(),
+          StatusId: statusId
+        });
+      }
+    }));
     
-    // Create a new object for the update data
-    const updatePayload: any = { ...updateData };
+    // Delete removed details
+    await Promise.all(originalEmployeeDetails.map(async (originalDetail) => {
+      const detailExists = employeeDetails.some(detail => detail.ID === originalDetail.ID);
+      
+      if (!detailExists) {
+        await detailsList.items.getById(originalDetail.ID).delete();
+      }
+    }));
     
-    // Convert dates to ISO strings
-    if (updatePayload.TimeFrom) {
-      updatePayload.TimeFrom = toISOString(updatePayload.TimeFrom);
-    }
-    
-    if (updatePayload.TimeTo) {
-      updatePayload.TimeTo = toISOString(updatePayload.TimeTo);
-    }
-    
-    await sp.web.lists.getByTitle("OvertimeDetails").items.getById(ID).update(updatePayload);
-    
-    return employeeDetails;
-  }
-  
-  /**
-   * Creates employee details
-   * @param employeeDetails Employee details
-   * @returns Created employee details
-   */
-  public async createEmployeeDetails(employeeDetails: IEmployeeDetails): Promise<IEmployeeDetails> {
-    const { Files, initFiles, origFiles, ...createData } = employeeDetails;
-    
-    // Create a new object for the create data
-    const createPayload: any = { ...createData };
-    
-    // Convert dates to ISO strings
-    if (createPayload.TimeFrom) {
-      createPayload.TimeFrom = toISOString(createPayload.TimeFrom);
-    }
-    
-    if (createPayload.TimeTo) {
-      createPayload.TimeTo = toISOString(createPayload.TimeTo);
-    }
-    
-    const result: IItemAddResult = await sp.web.lists.getByTitle("OvertimeDetails").items.add(createPayload);
-    
+    // Return the updated request
     return {
-      ...employeeDetails,
-      ID: result.data.ID
+      ...request,
+      Title: refNo,
+      StatusId: statusId,
+      RequestDate: requestDate,
+      SSDDate: ssdDate,
+      DeptApproverDate: deptApproverDate,
+      SSDApproverId: ssdApproverId
     };
-  }
-  
-  /**
-   * Deletes employee details
-   * @param id Employee details ID
-   * @returns Promise
-   */
-  public async deleteEmployeeDetails(id: number): Promise<void> {
-    await sp.web.lists.getByTitle("OvertimeDetails").items.getById(id).delete();
   }
 }

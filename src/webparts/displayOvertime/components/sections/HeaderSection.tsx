@@ -1,34 +1,13 @@
 import * as React from 'react';
+import { Grid, Paper, Box, Tooltip, Fab } from '@material-ui/core';
 import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
-import Box from '@material-ui/core/Box';
-import Paper from '@material-ui/core/Paper';
-import Grid from '@material-ui/core/Grid';
-import Tooltip from '@material-ui/core/Tooltip';
-import Fab from '@material-ui/core/Fab';
 import EditIcon from '@material-ui/icons/Edit';
+import { IUserPermissions } from '../../utils/permissionUtils';
+import { STATUS } from '../../constants/status';
 
-import { IOvertimeRequest } from '../../models/IOvertimeRequest';
-import { checkComponentVisibility } from '../../helpers/uiHelpers';
-
-export interface IHeaderSectionProps {
-  overtimeRequest: IOvertimeRequest;
-  isEdit: boolean;
-  userRoles: {
-    isEncoder: boolean;
-    isReceptionist: boolean;
-    isApproverUser: boolean;
-    isSSDUser: boolean;
-    isWalkinApproverUser: boolean;
-  };
-  onEditClick: () => void;
-}
-
+// Styles
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
-    root: {
-      flexGrow: 1,
-      fontFamily: '"Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif'
-    },
     paper: {
       padding: theme.spacing(1),
       borderColor: "transparent",
@@ -37,34 +16,85 @@ const useStyles = makeStyles((theme: Theme) =>
       padding: theme.spacing(1),
       borderColor: "transparent",
     },
-    labeltop: {
-      marginLeft: theme.spacing(1),
-      marginRight: theme.spacing(1),
-      fontSize: '12px',
-      color: '#0000008A',
+    title: {
+      fontSize: "1.5rem"
     },
-    labelbottom: {
-      marginLeft: theme.spacing(1),
-      marginRight: theme.spacing(1),
+    refNo: {
+      display: 'block',
+      margin: '4px',
       fontSize: '18px',
-    },
+      fontWeight: 500
+    }
   }),
 );
 
+interface IHeaderSectionProps {
+  /**
+   * The request title (reference number)
+   */
+  title: string;
+  
+  /**
+   * User permissions
+   */
+  permissions: IUserPermissions;
+  
+  /**
+   * The request status ID
+   */
+  statusId: number;
+  
+  /**
+   * Whether the form is in edit mode
+   */
+  isEditMode: boolean;
+  
+  /**
+   * Edit button click handler
+   */
+  onEditClick: () => void;
+}
+
 /**
- * Header section component
- * @param props Component properties
- * @returns JSX element
+ * Header Section component
  */
-const HeaderSection: React.FC<IHeaderSectionProps> = (props) => {
+export const HeaderSection: React.FC<IHeaderSectionProps> = ({
+  title,
+  permissions,
+  statusId,
+  isEditMode,
+  onEditClick
+}) => {
   const classes = useStyles();
-  const { overtimeRequest, isEdit, userRoles, onEditClick } = props;
+  
+  /**
+   * Checks if the edit button should be visible
+   */
+  const shouldShowEditButton = (): boolean => {
+    if (isEditMode) {
+      return false;
+    }
+    
+    if (permissions.isEncoder && (statusId === STATUS.DRAFT || statusId === STATUS.PENDING_DEPT_APPROVAL)) {
+      return true;
+    }
+    
+    if (permissions.isApproverUser && statusId === STATUS.PENDING_DEPT_APPROVAL) {
+      return true;
+    }
+    
+    if (permissions.isSSDUser && statusId === STATUS.PENDING_SSD_APPROVAL) {
+      return true;
+    }
+    
+    return false;
+  };
   
   return (
     <>
       <Grid item xs={12}>
         <Paper variant="outlined" className={classes.paper}>
-          <Box style={{ fontSize: "1.5rem" }}>
+          <Box className={classes.title}>
             Display Overtime / Overstay
           </Box>
         </Paper>
@@ -72,7 +102,7 @@ const HeaderSection: React.FC<IHeaderSectionProps> = (props) => {
       
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
-          {checkComponentVisibility('editIcon', isEdit, userRoles, { statusId: overtimeRequest.StatusId }) && (
+          {shouldShowEditButton() && (
             <Box component="div" style={{ display: 'inline' }} className={classes.floatingbutton}>
               <Tooltip title="Edit">
                 <Fab id="editFab" size="medium" color="primary" onClick={onEditClick}>
@@ -86,20 +116,13 @@ const HeaderSection: React.FC<IHeaderSectionProps> = (props) => {
       
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
-          {overtimeRequest.Title && (
-            <>
-              <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
-                Reference No.
-              </Box>
-              <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
-                {overtimeRequest.Title}
-              </Box>
-            </>
+          {title && (
+            <Box component="span" className={classes.refNo}>
+              Reference No.: {title}
+            </Box>
           )}
         </Paper>
       </Grid>
     </>
   );
 };
-
-export default HeaderSection;

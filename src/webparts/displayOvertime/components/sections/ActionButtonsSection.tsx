@@ -1,88 +1,145 @@
 import * as React from 'react';
-import Grid from '@material-ui/core/Grid';
-import Button from '@material-ui/core/Button';
-import ButtonGroup from '@material-ui/core/ButtonGroup';
+import { Grid, Button, ButtonGroup } from '@material-ui/core';
+import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
 import SaveIcon from '@material-ui/icons/Save';
 import CancelIcon from '@material-ui/icons/Cancel';
 import SendIcon from '@material-ui/icons/Send';
 import ThumbDownIcon from '@material-ui/icons/ThumbDown';
 import ThumbUpIcon from '@material-ui/icons/ThumbUp';
-import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
-import { checkComponentVisibility } from '../../helpers/uiHelpers';
-import { IUserRoles } from '../../models/IEmployeeDetails';
+import { IUserPermissions } from '../../utils/permissionUtils';
+import { STATUS } from '../../constants/status';
 
+// Styles
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     paperbutton: {
       textTransform: "none",
       margin: "5px",
-    },
+    }
   }),
 );
 
-export interface IActionButtonsSectionProps {
-  isEdit: boolean;
-  userRoles: IUserRoles;
+interface IActionButtonsSectionProps {
+  /**
+   * User permissions
+   */
+  permissions: IUserPermissions;
+  
+  /**
+   * The request status ID
+   */
   statusId: number;
-  onCancel: () => void;
+  
+  /**
+   * Whether the form is in edit mode
+   */
+  isEditMode: boolean;
+  
+  /**
+   * Save button click handler
+   */
   onSave: () => void;
+  
+  /**
+   * Submit button click handler
+   */
   onSubmit: () => void;
+  
+  /**
+   * Approve button click handler
+   */
   onApprove: () => void;
+  
+  /**
+   * Deny button click handler
+   */
   onDeny: () => void;
+  
+  /**
+   * Cancel button click handler
+   */
+  onCancel: () => void;
+  
+  /**
+   * Close button click handler
+   */
   onClose: () => void;
 }
 
 /**
- * Action buttons section component
- * @param props Component properties
- * @returns JSX element
+ * Action Buttons Section component
  */
-const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
-  const { 
-    isEdit, 
-    userRoles, 
-    statusId, 
-    onCancel, 
-    onSave, 
-    onSubmit, 
-    onApprove, 
-    onDeny, 
-    onClose 
-  } = props;
-  
+export const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = ({
+  permissions,
+  statusId,
+  isEditMode,
+  onSave,
+  onSubmit,
+  onApprove,
+  onDeny,
+  onCancel,
+  onClose
+}) => {
   const classes = useStyles();
-
+  
+  /**
+   * Checks if the save/submit buttons should be visible
+   */
+  const shouldShowSaveSubmitButtons = (): boolean => {
+    return isEditMode && (permissions.isEncoder || permissions.isReceptionist);
+  };
+  
+  /**
+   * Checks if the submit button should be visible
+   */
+  const shouldShowSubmitButton = (): boolean => {
+    return isEditMode && 
+           (permissions.isEncoder || permissions.isReceptionist) && 
+           statusId === STATUS.DRAFT;
+  };
+  
+  /**
+   * Checks if the approval buttons should be visible
+   */
+  const shouldShowApprovalButtons = (): boolean => {
+    return isEditMode && 
+           ((permissions.isApproverUser && statusId === STATUS.PENDING_DEPT_APPROVAL) || 
+            (permissions.isSSDUser && statusId === STATUS.PENDING_SSD_APPROVAL));
+  };
+  
+  /**
+   * Checks if the close button should be visible
+   */
+  const shouldShowCloseButton = (): boolean => {
+    return !isEditMode;
+  };
+  
   return (
     <Grid container justify="flex-end">
-      {isEdit && (
+      {shouldShowSaveSubmitButtons() && (
         <ButtonGroup>
-          {checkComponentVisibility('saveButton', isEdit, userRoles, { statusId }) && (
-            <>
-              <Button 
-                className={classes.paperbutton} 
-                startIcon={<CancelIcon />} 
-                variant="contained" 
-                color="secondary" 
-                onClick={onCancel}
-              >
-                Close
-              </Button>
-              <Button 
-                name="savedraft" 
-                className={classes.paperbutton} 
-                startIcon={<SaveIcon />} 
-                variant="contained" 
-                color="default" 
-                onClick={onSave}
-              >
-                Save
-              </Button>
-            </>
-          )}
+          <Button 
+            className={classes.paperbutton} 
+            startIcon={<CancelIcon />} 
+            variant="contained" 
+            color="secondary" 
+            onClick={onCancel}
+          >
+            Close
+          </Button>
           
-          {checkComponentVisibility('submitButton', isEdit, userRoles, { statusId }) && (
+          <Button 
+            className={classes.paperbutton} 
+            startIcon={<SaveIcon />} 
+            variant="contained" 
+            color="default" 
+            onClick={onSave}
+          >
+            Save
+          </Button>
+          
+          {shouldShowSubmitButton() && (
             <Button 
-              name="submit" 
               className={classes.paperbutton} 
               endIcon={<SendIcon />} 
               variant="contained" 
@@ -95,7 +152,7 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
         </ButtonGroup>
       )}
       
-      {checkComponentVisibility('approvalButtons', isEdit, userRoles, { statusId }) && (
+      {shouldShowApprovalButtons() && (
         <ButtonGroup>
           <Button 
             className={classes.paperbutton} 
@@ -106,8 +163,8 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
           >
             Close
           </Button>
+          
           <Button 
-            name="deny" 
             className={classes.paperbutton} 
             startIcon={<ThumbDownIcon />} 
             variant="contained" 
@@ -116,8 +173,8 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
           >
             Deny
           </Button>
+          
           <Button 
-            name="approve" 
             className={classes.paperbutton} 
             startIcon={<ThumbUpIcon />} 
             variant="contained" 
@@ -129,7 +186,7 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
         </ButtonGroup>
       )}
       
-      {checkComponentVisibility('closeButton', isEdit, userRoles, { statusId }) && (
+      {shouldShowCloseButton() && (
         <ButtonGroup>
           <Button 
             className={classes.paperbutton} 
@@ -144,5 +201,3 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
     </Grid>
   );
 };
-
-export default ActionButtonsSection;

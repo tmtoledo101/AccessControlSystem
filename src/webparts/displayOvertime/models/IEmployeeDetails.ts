@@ -1,61 +1,104 @@
 /**
- * Error details interface
- */
-export interface IErrorDetails {
-  TimeFrom: string;
-  TimeTo: string;
-  OtherSource: string;
-  EmpNo: string;
-  Etype: string;
-  Title: string;
-}
-
-/**
- * Employee details interface
+ * Interface for employee details
  */
 export interface IEmployeeDetails {
-  ID: number | null;
+  /**
+   * The ID
+   */
+  ID: number;
+  
+  /**
+   * The parent ID (overtime request ID)
+   */
+  ParentId: number;
+  
+  /**
+   * The employee name
+   */
   Title: string;
-  ParentId?: number | null;
-  TimeFrom: Date;
-  TimeTo: Date;
-  OtherSource?: string;
+  
+  /**
+   * The employee number
+   */
   EmpNo: string;
+  
+  /**
+   * The employee type (BSP or Others)
+   */
   Etype: string;
-  Files?: File[];
-  initFiles?: string[];
-  origFiles?: any[];
-  RefNo?: string;
-  RequestDate?: Date;
-  DeptId?: number;
-  StatusId?: number;
+  
+  /**
+   * The other source (for non-BSP employees)
+   */
+  OtherSource: string;
+  
+  /**
+   * The time from
+   */
+  TimeFrom: Date;
+  
+  /**
+   * The time to
+   */
+  TimeTo: Date;
+  
+  /**
+   * The files
+   */
+  Files: any[];
+  
+  /**
+   * The initial files
+   */
+  initFiles: string[];
+  
+  /**
+   * The original files
+   */
+  origFiles: any[];
+  
+  /**
+   * Additional properties
+   */
+  [key: string]: any;
 }
 
 /**
- * User roles interface
+ * Interface for employee details validation errors
  */
-export interface IUserRoles {
-  isEncoder: boolean;
-  isReceptionist: boolean;
-  isApproverUser: boolean;
-  isSSDUser: boolean;
-  isWalkinApproverUser: boolean;
+export interface IEmployeeDetailsErrors {
+  /**
+   * Time from error
+   */
+  TimeFrom: string;
+  
+  /**
+   * Time to error
+   */
+  TimeTo: string;
+  
+  /**
+   * Other source error
+   */
+  OtherSource: string;
+  
+  /**
+   * Employee number error
+   */
+  EmpNo: string;
+  
+  /**
+   * Employee type error
+   */
+  Etype: string;
+  
+  /**
+   * Employee name error
+   */
+  Title: string;
+  
+  /**
+   * Additional properties
+   */
+  [key: string]: string;
 }
-
-/**
- * Employee details dialog state interface
- */
-export interface IEmployeeDetailsDialogState {
-  open: boolean;
-  mode: 'add' | 'edit';
-  currentIndex: number;
-  employeeDetails: IEmployeeDetails;
-}
-
-/**
- * Employee types
- */
-export const EMPLOYEE_TYPES = [
-  { value: 'BSP', label: 'BSP' },
-  { value: 'Others', label: 'Others' }
-];

@@ -1,38 +1,61 @@
 import * as React from 'react';
-import Dialog from '@material-ui/core/Dialog';
-import DialogActions from '@material-ui/core/DialogActions';
-import DialogContent from '@material-ui/core/DialogContent';
-import DialogContentText from '@material-ui/core/DialogContentText';
-import DialogTitle from '@material-ui/core/DialogTitle';
-import Button from '@material-ui/core/Button';
+import { 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogContentText, 
+  DialogActions, 
+  Button 
+} from '@material-ui/core';
 
-export interface IConfirmationDialogProps {
+interface IConfirmationDialogProps {
+  /**
+   * Whether the dialog is open
+   */
   open: boolean;
+  
+  /**
+   * The dialog title
+   */
   title: string;
+  
+  /**
+   * The dialog message
+   */
   message: string;
+  
+  /**
+   * The cancel button text
+   */
+  cancelText?: string;
+  
+  /**
+   * The confirm button text
+   */
+  confirmText?: string;
+  
+  /**
+   * The dialog close handler
+   * @param confirmed Whether the dialog was confirmed
+   */
   onClose: (confirmed: boolean) => void;
 }
 
 /**
- * Confirmation dialog component
- * @param props Component properties
- * @returns JSX element
+ * Confirmation Dialog component
  */
-const ConfirmationDialog: React.FC<IConfirmationDialogProps> = (props) => {
-  const { open, title, message, onClose } = props;
-  
-  const handleCancel = () => {
-    onClose(false);
-  };
-  
-  const handleConfirm = () => {
-    onClose(true);
-  };
-  
+export const ConfirmationDialog: React.FC<IConfirmationDialogProps> = ({
+  open,
+  title,
+  message,
+  cancelText = 'Cancel',
+  confirmText = 'OK',
+  onClose
+}) => {
   return (
     <Dialog
       open={open}
-      onClose={handleCancel}
+      onClose={() => onClose(false)}
       aria-labelledby="alert-dialog-title"
       aria-describedby="alert-dialog-description"
     >
@@ -43,15 +66,13 @@ const ConfirmationDialog: React.FC<IConfirmationDialogProps> = (props) => {
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleCancel} color="default">
-          Cancel
+        <Button onClick={() => onClose(false)} color="default">
+          {cancelText}
         </Button>
-        <Button onClick={handleConfirm} color="primary" autoFocus>
-          OK
+        <Button onClick={() => onClose(true)} color="primary" autoFocus>
+          {confirmText}
         </Button>
       </DialogActions>
     </Dialog>
   );
 };
-
-export default ConfirmationDialog;
