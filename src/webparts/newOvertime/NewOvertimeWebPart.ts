@@ -6,13 +6,12 @@ import {
   PropertyPaneTextField
 } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
+import { SPComponentLoader } from '@microsoft/sp-loader';
 
 import * as strings from 'NewOvertimeWebPartStrings';
 import NewOvertime from './components/NewOvertime';
 import { INewOvertimeProps } from './components/INewOvertimeProps';
 import { sp } from '@pnp/sp';
-import { SPComponentLoader } from '@microsoft/sp-loader';
-
 
 export interface INewOvertimeWebPartProps {
   description: string;
@@ -41,25 +40,26 @@ export default class NewOvertimeWebPart extends BaseClientSideWebPart<INewOverti
   protected get dataVersion(): Version {
     return Version.parse('1.0');
   }
-  protected onInit(): Promise<void> {
 
+  protected onInit(): Promise<void> {
     return super.onInit().then(_ => {
+      // Load Material-UI fonts and icons
       SPComponentLoader.loadCss('https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap');
       SPComponentLoader.loadCss('https://fonts.googleapis.com/icon?family=Material+Icons');
 
+      // Initialize PnPjs
       sp.setup({
         spfxContext: this.context,
         sp: {
-
           headers: {
             Accept: "application/json;odata=verbose",
           },
           baseUrl: this.context.pageContext.web.absoluteUrl,
         },
       });
-
     });
   }
+
   protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
     return {
       pages: [
