@@ -56,8 +56,11 @@ export interface IVisitorDetailsDialogProps {
   isSSDUser: boolean;
   onClose: (confirmed: boolean) => void;
   onChangeTxt: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onChangeCbo: (e: React.ChangeEvent<{ name?: string; value: unknown }>) => void;
+  //onChangeCbo: (e: React.ChangeEvent<{ name?: string; value: unknown }>) => void;
+  onChangeCbo: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  //onChangeDropZone: (files: File[]) => void;
   onChangeDropZone: (files: File[]) => void;
+  //onChipClick: (e: React.MouseEvent<HTMLDivElement, MouseEvent>, row: string, ctrl: string) => void;
   onChipClick: (e: React.MouseEvent<HTMLDivElement, MouseEvent>, row: string, ctrl: string) => void;
 }
 

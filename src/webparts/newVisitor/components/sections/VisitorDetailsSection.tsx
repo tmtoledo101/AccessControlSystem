@@ -125,10 +125,10 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
             ]}
           />
         ) : (
-          <Box p={2}>
+          <Box style={{ padding: 16 }}>
             No visitor details added yet.
             {errorFields.Details && (
-              <Box color="error.main" mt={1}>
+              <Box style={{ color: 'red', marginTop: 8 }}>
                 {errorFields.Details}
               </Box>
             )}

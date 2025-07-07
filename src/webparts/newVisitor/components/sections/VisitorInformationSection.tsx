@@ -76,7 +76,7 @@ export interface IVisitorInformationSectionProps {
   isSSDUser: boolean;
   isAC1Open: boolean;
   onChangeTxt: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onChangeCbo: (e: React.ChangeEvent<{ name?: string; value: unknown }>) => void;
+  onChangeCbo: (e: React.ChangeEvent<{ name?: string; value: any }>) => void;
   onDateTimeChange: (date: Date, name: string) => void;
   onChangeDropZone: (files: File[]) => void;
   onACSelectedValue: (event: React.ChangeEvent<{}>, value: any) => void;

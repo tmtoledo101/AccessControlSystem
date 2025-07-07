@@ -313,7 +313,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
    * Handles select input changes
    * @param e Change event
    */
-  const handleChangeCbo = async (e: React.ChangeEvent<{ name?: string; value: unknown }>) => {
+  const handleChangeCbo = async (e: React.ChangeEvent<{ name?: string; value: any }>) => {
     const { name, value } = e.target;
     if (!name) return;
 
@@ -347,7 +347,8 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
           .get();
         
         // Filter out current user
-        const filteredApprovers = approversData.filter(item => item.NameId !== currentUser?.Id);
+        //const filteredApprovers = approversData.filter(item => item.NameId !== currentUser?.Id);
+        const filteredApprovers = approversData.filter(item => item.NameId !== (currentUser && currentUser.Id));
         setApprovers(filteredApprovers);
       }
     } else if (name === 'Purpose') {
@@ -439,13 +440,14 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     if (searchValue.length > 2) {
       try {
         // Find employees in the selected department
-        const deptName = deptList.find(dept => dept.Id === visitor.DeptId)?.Title || '';
-        const options = await sp.web.lists.getByTitle('Employees')
-          .items
-          .select('*')
-          .top(5000)
-          .filter(`substringof('${searchValue}', Name) and Dept eq '${deptName}'`)
-          .get();
+          const foundDept = deptList.find(dept => dept.Id === visitor.DeptId);
+          const deptName = foundDept ? foundDept.Title : '';
+          const options = await sp.web.lists.getByTitle('Employees')
+            .items
+            .select('*')
+            .top(5000)
+            .filter(`substringof('${searchValue}', Name) and Dept eq '${deptName}'`)
+            .get();
         
         setContacts(options);
       } catch (error) {

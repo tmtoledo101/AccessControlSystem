@@ -78,8 +78,9 @@ export interface IEmployeeDetailsDialogProps {
   /**
    * On select change callback
    */
-  onSelectChange: (e: React.ChangeEvent<{ name?: string; value: unknown }>) => void;
-  
+  //onSelectChange: (e: React.ChangeEvent<{ name?: string; value: unknown }>) => void;
+  onSelectChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+
   /**
    * On time change callback
    */

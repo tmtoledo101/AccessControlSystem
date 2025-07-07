@@ -53,7 +53,7 @@ export const useEmployeeDetails = (initialDateFrom: Date, initialDateTo: Date) =
    * Handle select change
    * @param e Event
    */
-  const handleSelectChange = useCallback((e: React.ChangeEvent<{ name?: string; value: unknown }>) => {
+  const handleSelectChange = useCallback((e: React.ChangeEvent<{ name?: string; value: any }>) => {
     const { name, value } = e.target;
     
     if (name) {

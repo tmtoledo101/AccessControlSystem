@@ -31,7 +31,9 @@ export interface IApprovalSectionProps {
   /**
    * On select change callback
    */
-  onSelectChange: (e: React.ChangeEvent<{ name?: string; value: unknown }>) => void;
+  //onSelectChange: (e: React.ChangeEvent<{ name?: string; value: unknown }>) => void;
+  onSelectChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+
 }
 
 const useStyles = makeStyles((theme: Theme) =>

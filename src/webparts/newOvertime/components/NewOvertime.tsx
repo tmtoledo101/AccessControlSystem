@@ -169,7 +169,7 @@ const NewOvertime: React.FC<INewOvertimeProps> = (props) => {
    * Handle department change
    * @param e Event
    */
-  const handleChangeCbo = async (e: React.ChangeEvent<{ name?: string; value: unknown }>) => {
+  const handleChangeCbo = async (e: React.ChangeEvent<{ name?: string; value: any }>) => {
     const { name, value } = e.target;
     
     if (name === 'DeptId' && value) {

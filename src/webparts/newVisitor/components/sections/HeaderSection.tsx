@@ -90,7 +90,7 @@ const HeaderSection: React.FC<IHeaderSectionProps> = (props) => {
 
           <Paper variant="outlined" className={classes.paper}>
             <Box component="span" className={classes.label}>Requester</Box>
-            <Box component="span" className={classes.value}>{visitor.Author?.Title || 'N/A'}</Box>
+            <Box component="span" className={classes.value}>{visitor.Author ? visitor.Author.Title : 'N/A'}</Box>
           </Paper>
         </>
       )}
