@@ -21,6 +21,7 @@ import VisitorDetailsSection from './sections/VisitorDetailsSection';
 import ApprovalSection from './sections/ApprovalSection';
 import ActionButtonsSection from './sections/ActionButtonsSection';
 import ConfirmationDialog from './dialogs/ConfirmationDialog';
+import PrivacyModal from './dialogs/PrivacyModal'; 
 
 // Constants
 const ENCODERS_GROUP = "Encoders";
@@ -67,6 +68,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMessage, setDialogMessage] = useState("");
   const [submitType, setSubmitType] = useState(1); // 1 = Save, 2 = Submit
+  const [showPrivacyModal, setShowPrivacyModal] = useState(true); // ✓ Show privacy notice initially
   
   // User roles
   const [isEncoder, setEncoder] = useState(false);
@@ -122,60 +124,62 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   /**
    * Initializes the component
    */
-  useEffect(() => {
-    const init = async () => {
-      try {
-        // Check if URL is in cookie
-        if (getCookie('chkurl') !== window.location.href) {
-          setCookie('chkurl', window.location.href, 1800);
-        }
-        
-        // Initialize services
-        const spSvc = new SharePointService(props.context, props.siteUrl, props.siteRelativeUrl);
-        await spSvc.initialize();
-        setSpService(spSvc);
-        
-        setEmailService(new EmailService(spSvc, props.siteUrl));
-        setFileService(new FileService(props.siteRelativeUrl));
-        
-        // Check user permissions
-        const usersPerDept = await spSvc.getUsersPerDept();
-        if (usersPerDept.length > 0) {
-          setEncoder(true);
-          setVisitor(prev => ({ ...prev, ExternalType: "Pre-arranged" }));
-        }
-        
-        const isUserInReceptionistGroup = await spSvc.isUserInGroup(RECEPTIONIST_GROUP);
-        if (isUserInReceptionistGroup) {
-          setReceptionist(true);
-          setVisitor(prev => ({ ...prev, ExternalType: "Walk-in" }));
-        }
-        
-        // Check if user is authorized
-        if (usersPerDept.length > 0 || isUserInReceptionistGroup) {
-          // Load lists
-          const purpose = await spSvc.getPurposeList();
-          setPurposeList(purpose);
-          
-          const building = await spSvc.getBuildingList();
-          setBldgList(building);
-          
-          const depts = await spSvc.getDepartmentList(usersPerDept.length > 0, usersPerDept);
-          setDeptList(depts);
-        } else {
-          alert("You are not authorized to access this page!");
-          window.open(props.siteUrl, "_self");
-        }
-        
-        setIsLoading(false);
-      } catch (error) {
-        console.error(error);
-        setIsLoading(false);
+useEffect(() => {
+  const init = async () => {
+    try {
+      // Check if URL is in cookie
+      if (getCookie('chkurl') !== window.location.href) {
+        setCookie('chkurl', window.location.href, 1800);
       }
-    };
-    
+
+      // Initialize services
+      const spSvc = new SharePointService(props.context, props.siteUrl, props.siteRelativeUrl);
+      await spSvc.initialize();
+      setSpService(spSvc);
+
+      setEmailService(new EmailService(spSvc, props.siteUrl));
+      setFileService(new FileService(props.siteRelativeUrl));
+
+      // Check user permissions
+      const usersPerDept = await spSvc.getUsersPerDept();
+      if (usersPerDept.length > 0) {
+        setEncoder(true);
+        setVisitor(prev => ({ ...prev, ExternalType: "Pre-arranged" }));
+      }
+
+      const isUserInReceptionistGroup = await spSvc.isUserInGroup(RECEPTIONIST_GROUP);
+      if (isUserInReceptionistGroup) {
+        setReceptionist(true);
+        setVisitor(prev => ({ ...prev, ExternalType: "Walk-in" }));
+      }
+
+      // Check if user is authorized
+      if (usersPerDept.length > 0 || isUserInReceptionistGroup) {
+        // Load lists
+        const purpose = await spSvc.getPurposeList();
+        setPurposeList(purpose);
+
+        const building = await spSvc.getBuildingList();
+        setBldgList(building);
+
+        const depts = await spSvc.getDepartmentList(usersPerDept.length > 0, usersPerDept);
+        setDeptList(depts);
+      } else {
+        alert("You are not authorized to access this page!");
+        window.open(props.siteUrl, "_self");
+      }
+
+      setIsLoading(false);
+    } catch (error) {
+      console.error(error);
+      setIsLoading(false);
+    }
+  };
+
+  if (!showPrivacyModal) {
     init();
-  }, []);
+  }
+}, [showPrivacyModal]);
 
   /**
    * Handles form field change
@@ -450,6 +454,15 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
       setProgress(false);
     }
   };
+
+  if (showPrivacyModal) {
+    return (
+      <PrivacyModal
+        onAccept={() => setShowPrivacyModal(false)}
+        onDecline={() => window.open(props.siteUrl, "_self")}
+      />
+    );
+  }
 
   if (isLoading) {
     return (
