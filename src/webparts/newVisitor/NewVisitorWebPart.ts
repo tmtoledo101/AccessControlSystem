@@ -13,7 +13,6 @@ import { INewVisitorProps } from './components/INewVisitorProps';
 import { sp } from '@pnp/sp';
 import { SPComponentLoader } from '@microsoft/sp-loader';
 
-
 export interface INewVisitorWebPartProps {
   description: string;
 }
@@ -41,8 +40,8 @@ export default class NewVisitorWebPart extends BaseClientSideWebPart<INewVisitor
   protected get dataVersion(): Version {
     return Version.parse('1.0');
   }
-  protected onInit(): Promise<void> {
 
+  protected onInit(): Promise<void> {
     return super.onInit().then(_ => {
       SPComponentLoader.loadCss('https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap');
       SPComponentLoader.loadCss('https://fonts.googleapis.com/icon?family=Material+Icons');
@@ -50,16 +49,15 @@ export default class NewVisitorWebPart extends BaseClientSideWebPart<INewVisitor
       sp.setup({
         spfxContext: this.context,
         sp: {
-
           headers: {
             Accept: "application/json;odata=verbose",
           },
           baseUrl: this.context.pageContext.web.absoluteUrl,
         },
       });
-
     });
   }
+
   protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
     return {
       pages: [
