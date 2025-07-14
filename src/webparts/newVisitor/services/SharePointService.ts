@@ -118,7 +118,7 @@ export class SharePointService {
       .get();
 
     if (isEncoder) {
-      return depts.filter(dept => 
+      return depts.filter(dept =>
         usersPerDept.some(upd => upd.DeptId === dept.Id)
       );
     }
@@ -327,5 +327,37 @@ export class SharePointService {
     }));
 
     return itemId;
+  }
+
+  /**
+   * Updates the RefNo in the PrivacyConsents list for a specific user.
+   * This is called after a RefNo has been generated during form submission.
+   * @param userEmail The email of the user whose consent record needs updating.
+   * @param newRefNo The newly generated Reference Number to associate with the consent.
+   */
+  public async updatePrivacyConsentRefNo(userEmail: string, newRefNo: string): Promise<void> {
+    try {
+      const list = sp.web.lists.getByTitle("PrivacyConsents");
+
+      // Find the most recent consent entry for the given user email
+      const items = await list.items
+        .filter(`UserEmail eq '${userEmail}'`)
+        .orderBy("Created", false) // Sort by creation date descending to get the latest
+        .top(1) // Get only the most recent one
+        .get();
+
+      if (items.length > 0) {
+        const consentItemId = items[0].ID;
+        await list.items.getById(consentItemId).update({
+          RefNo: newRefNo
+        });
+        console.log(`Privacy consent for ${userEmail} (ID: ${consentItemId}) updated with RefNo: ${newRefNo}`);
+      } else {
+        console.warn(`No existing privacy consent found for user: ${userEmail}. Cannot update RefNo.`);
+      }
+    } catch (error) {
+      console.error(`Error updating privacy consent RefNo for ${userEmail}:`, error);
+      throw error; // Re-throw to propagate error if necessary
+    }
   }
 }

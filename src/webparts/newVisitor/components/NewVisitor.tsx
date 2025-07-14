@@ -15,13 +15,15 @@ import { validateVisitorForm, validateField } from '../validations/formValidatio
 import { SharePointService } from '../services/SharePointService';
 import { EmailService } from '../services/EmailService';
 import { FileService } from '../services/FileService';
-import { getCookie, setCookie } from '../helpers/cookieHelpers';
+// We no longer need getCookie or setCookie for the privacy consent logic,
+// so you can remove these imports if 'chkurl' cookie is also not needed.
+// import { getCookie, setCookie } from '../helpers/cookieHelpers';
 import VisitorInformationSection from './sections/VisitorInformationSection';
 import VisitorDetailsSection from './sections/VisitorDetailsSection';
 import ApprovalSection from './sections/ApprovalSection';
 import ActionButtonsSection from './sections/ActionButtonsSection';
 import ConfirmationDialog from './dialogs/ConfirmationDialog';
-import PrivacyModal from './dialogs/PrivacyModal'; 
+import PrivacyModal from './dialogs/PrivacyModal';
 
 // Constants
 const ENCODERS_GROUP = "Encoders";
@@ -55,12 +57,12 @@ function Alert(props: AlertProps) {
  */
 const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   const classes = useStyles();
-  
+
   // Services
   const [spService, setSpService] = useState<SharePointService>(null);
   const [emailService, setEmailService] = useState<EmailService>(null);
   const [fileService, setFileService] = useState<FileService>(null);
-  
+
   // State
   const [isLoading, setIsLoading] = useState(true);
   const [isProgress, setProgress] = useState(false);
@@ -68,12 +70,15 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMessage, setDialogMessage] = useState("");
   const [submitType, setSubmitType] = useState(1); // 1 = Save, 2 = Submit
-  const [showPrivacyModal, setShowPrivacyModal] = useState(true); // ✓ Show privacy notice initially
-  
+
+  // Privacy Modal State
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [privacyConsentGiven, setPrivacyConsentGiven] = useState(false); // New state to track consent
+
   // User roles
   const [isEncoder, setEncoder] = useState(false);
   const [isReceptionist, setReceptionist] = useState(false);
-  
+
   // Lists
   const [purposeList, setPurposeList] = useState([]);
   const [deptList, setDeptList] = useState([]);
@@ -82,7 +87,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   const [walkinApproverList, setWalkinApproverList] = useState([]);
   const [contactList, setContactList] = useState([]);
   const [visitorDetailsList, setVisitorDetailsList] = useState<IVisitorDetails[]>([]);
-  
+
   // Form data
   const [visitor, setVisitor] = useState<IVisitor>({
     ExternalType: '',
@@ -105,81 +110,111 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     Files: [],
     PurposeOthers: ''
   });
-  
+
   // Form errors
   const [errors, setErrors] = useState<IFormErrors>({});
-  
+
   // Approver details
   const [approverDetails, setApproverDetails] = useState({ email: '', name: '' });
-  
+
   // Department name
   const [deptName, setDeptName] = useState("");
-  
+
   // Reference number
-  const [refNo, setRefNo] = useState("");
-  
+  const [refNo, setRefNo] = useState(""); // This is where the Ref No will be stored
+
   // Item ID
   const [itemId, setItemId] = useState(0);
 
   /**
    * Initializes the component
    */
-useEffect(() => {
-  const init = async () => {
-    try {
-      // Check if URL is in cookie
-      if (getCookie('chkurl') !== window.location.href) {
-        setCookie('chkurl', window.location.href, 1800);
+  useEffect(() => {
+    const init = async () => {
+      console.log("useEffect: Starting initialization."); // DEBUG LOG
+      try {
+        // You might still keep the 'chkurl' cookie logic if it's needed for other purposes,
+        // but it's unrelated to the privacy consent modal now.
+        // if (getCookie('chkurl') !== window.location.href) {
+        //   setCookie('chkurl', window.location.href, 1800);
+        // }
+
+        // Initialize services
+        const spSvc = new SharePointService(props.context, props.siteUrl, props.siteRelativeUrl);
+        await spSvc.initialize();
+        setSpService(spSvc);
+
+        setEmailService(new EmailService(spSvc, props.siteUrl));
+        setFileService(new FileService(props.siteRelativeUrl));
+
+        // Check user permissions
+        const usersPerDept = await spSvc.getUsersPerDept();
+        if (usersPerDept.length > 0) {
+          setEncoder(true);
+          setVisitor(prev => ({ ...prev, ExternalType: "Pre-arranged" }));
+        }
+
+        const isUserInReceptionistGroup = await spSvc.isUserInGroup(RECEPTIONIST_GROUP);
+        if (isUserInReceptionistGroup) {
+          setReceptionist(true);
+          setVisitor(prev => ({ ...prev, ExternalType: "Walk-in" }));
+        }
+
+        // Check if user is authorized
+        if (usersPerDept.length > 0 || isUserInReceptionistGroup) {
+          console.log("useEffect: User is authorized. Loading lists."); // DEBUG LOG
+          // Load lists
+          const purpose = await spSvc.getPurposeList();
+          setPurposeList(purpose);
+
+          const building = await spSvc.getBuildingList();
+          setBldgList(building);
+
+          const depts = await spSvc.getDepartmentList(usersPerDept.length > 0, usersPerDept);
+          setDeptList(depts);
+
+          // Force display of PrivacyModal for *every* access
+          console.log("useEffect: Forcing PrivacyModal to show every time per requirement."); // DEBUG LOG
+          setShowPrivacyModal(true);
+          setPrivacyConsentGiven(false); // Ensure consent is always considered not given initially
+
+        } else {
+          console.log("useEffect: User is NOT authorized. Redirecting."); // DEBUG LOG
+          alert("You are not authorized to access this page!");
+          window.open(props.siteUrl, "_self");
+          return; // Exit early if not authorized
+        }
+
+        setIsLoading(false); // Set isLoading to false once all initial data is fetched or permission checked
+        console.log("useEffect: Initialization complete. isLoading set to false."); // DEBUG LOG
+      } catch (error) {
+        console.error("Error during component initialization:", error);
+        setIsLoading(false);
       }
+    };
 
-      // Initialize services
-      const spSvc = new SharePointService(props.context, props.siteUrl, props.siteRelativeUrl);
-      await spSvc.initialize();
-      setSpService(spSvc);
+    init();
+  }, []); // Empty dependency array means this runs once on mount
 
-      setEmailService(new EmailService(spSvc, props.siteUrl));
-      setFileService(new FileService(props.siteRelativeUrl));
-
-      // Check user permissions
-      const usersPerDept = await spSvc.getUsersPerDept();
-      if (usersPerDept.length > 0) {
-        setEncoder(true);
-        setVisitor(prev => ({ ...prev, ExternalType: "Pre-arranged" }));
-      }
-
-      const isUserInReceptionistGroup = await spSvc.isUserInGroup(RECEPTIONIST_GROUP);
-      if (isUserInReceptionistGroup) {
-        setReceptionist(true);
-        setVisitor(prev => ({ ...prev, ExternalType: "Walk-in" }));
-      }
-
-      // Check if user is authorized
-      if (usersPerDept.length > 0 || isUserInReceptionistGroup) {
-        // Load lists
-        const purpose = await spSvc.getPurposeList();
-        setPurposeList(purpose);
-
-        const building = await spSvc.getBuildingList();
-        setBldgList(building);
-
-        const depts = await spSvc.getDepartmentList(usersPerDept.length > 0, usersPerDept);
-        setDeptList(depts);
-      } else {
-        alert("You are not authorized to access this page!");
-        window.open(props.siteUrl, "_self");
-      }
-
-      setIsLoading(false);
-    } catch (error) {
-      console.error(error);
-      setIsLoading(false);
-    }
+  /**
+   * Handles privacy modal acceptance
+   */
+  const handlePrivacyAccept = () => {
+    console.log("handlePrivacyAccept: User accepted privacy. Allowing access to form."); // DEBUG LOG
+    // IMPORTANT: No cookie is set here, so the modal will reappear on next visit.
+    setPrivacyConsentGiven(true);
+    setShowPrivacyModal(false);
   };
 
-  if (!showPrivacyModal) {
-    init();
-  }
-}, [showPrivacyModal]);
+  /**
+   * Handles privacy modal declining
+   */
+  const handlePrivacyDecline = () => {
+    console.log("handlePrivacyDecline: User declined privacy. Alerting and redirecting."); // DEBUG LOG
+    // No cookie is set here either.
+    alert("You must accept the privacy policy to use this application.");
+    window.open(props.siteUrl, "_self"); // Redirect or take appropriate action
+  };
 
   /**
    * Handles form field change
@@ -190,11 +225,11 @@ useEffect(() => {
     const updatedVisitor = { ...visitor };
     updatedVisitor[name] = value;
     setVisitor(updatedVisitor);
-    
+
     // Validate field
     const errorMessage = validateField(name, value, updatedVisitor);
     setErrors(prev => ({ ...prev, [name]: errorMessage }));
-    
+
     // Special handling for certain fields
     if (name === 'DeptId') {
       handleDeptChange(value);
@@ -216,7 +251,7 @@ useEffect(() => {
       if (dept) {
         setDeptName(dept.Title);
       }
-      
+
       // Get approvers
       if (visitor.ExternalType === 'Walk-in') {
         const walkinApprovers = await spService.getWalkinApproverList(deptId);
@@ -226,7 +261,7 @@ useEffect(() => {
         setApproverList(approvers);
       }
     } catch (error) {
-      console.error(error);
+      console.error("Error handling department change:", error);
     }
   };
 
@@ -239,7 +274,7 @@ useEffect(() => {
       const approverDetails = await spService.getApproverDetails(approverId);
       setApproverDetails(approverDetails);
     } catch (error) {
-      console.error(error);
+      console.error("Error handling approver change:", error);
     }
   };
 
@@ -253,7 +288,7 @@ useEffect(() => {
         const contacts = await spService.findUsersByName(searchText, deptName);
         setContactList(contacts);
       } catch (error) {
-        console.error(error);
+        console.error("Error searching contacts:", error);
       }
     } else {
       setContactList([]);
@@ -273,7 +308,7 @@ useEffect(() => {
         LocalNo: contact.LocalNo,
         Position: contact.Position
       }));
-      
+
       // Clear error
       setErrors(prev => ({ ...prev, EmpNo: '' }));
     } else {
@@ -297,7 +332,7 @@ useEffect(() => {
     const updatedVisitor = { ...visitor };
     updatedVisitor[name] = date;
     setVisitor(updatedVisitor);
-    
+
     // Validate dates
     if (name === 'DateTimeVisit') {
       if (date > visitor.DateTimeArrival) {
@@ -350,7 +385,7 @@ useEffect(() => {
     const updatedList = [...visitorDetailsList];
     updatedList.splice(index, 1);
     setVisitorDetailsList(updatedList);
-    
+
     if (updatedList.length === 0) {
       setErrors(prev => ({ ...prev, Details: 'Visitor Details are required. Please add visitor names.' }));
     }
@@ -388,7 +423,7 @@ useEffect(() => {
    */
   const handleDialogClose = (confirmed: boolean) => {
     setDialogOpen(false);
-    
+
     if (confirmed) {
       if (dialogMessage.includes("save") || dialogMessage.includes("submit")) {
         saveVisitor();
@@ -404,67 +439,79 @@ useEffect(() => {
   const saveVisitor = async () => {
     // Validate form
     const validation = validateVisitorForm(visitor, visitorDetailsList, submitType);
-    
+
     if (!validation.isValid) {
       setErrors(validation.errors);
       return;
     }
-    
+
     setProgress(true);
-    
+
     try {
       // Get building location code
       const bldg = bldgList.find(b => b.Title === visitor.Bldg);
       let locationCode = '';
-      
+
       if (bldg) {
         locationCode = bldg.LocationCode;
       }
-      
+
       // Create request number if submitting
+      let generatedRefNo = refNo; // Use existing refNo or generate new
       if (submitType === 2) {
-        const requestNo = await spService.createRequestNo(locationCode);
-        setRefNo(requestNo);
+        generatedRefNo = await spService.createRequestNo(locationCode); // Generate new Ref No
+        setRefNo(generatedRefNo); // Update state with the newly generated Ref No
+        console.log("saveVisitor: Generated RefNo:", generatedRefNo); // DEBUG LOG
       }
-      
+
       // Save visitor
-      const itemId = await spService.saveVisitor(visitor, visitorDetailsList, submitType, refNo);
+      const itemId = await spService.saveVisitor(visitor, visitorDetailsList, submitType, generatedRefNo); // Pass the potentially new refNo
       setItemId(itemId);
-      
+      console.log("saveVisitor: Visitor saved with Item ID:", itemId); // DEBUG LOG
+
+
       // Send email if submitting
       if (submitType === 2) {
         await emailService.sendApprovalEmail(
-          refNo,
+          generatedRefNo, // Use the generatedRefNo for the email
           visitor.Purpose,
           itemId,
           approverDetails.email,
           approverDetails.name,
           isEncoder
         );
+        console.log("saveVisitor: Approval email sent."); // DEBUG LOG
+
+        // --- IMPORTANT: Privacy Consent RefNo Update (Still Needed!) ---
+        // This updates the SharePoint list, regardless of cookie preference.
+        // It's crucial for associating the RefNo with the consent record.
+        if (spService) { // Check if spService is available
+            const currentUserEmail = props.context.pageContext.user.email;
+            console.log(`saveVisitor: Attempting to update privacy consent for ${currentUserEmail} with RefNo: ${generatedRefNo}`);
+            await spService.updatePrivacyConsentRefNo(currentUserEmail, generatedRefNo);
+            console.log("saveVisitor: Privacy consent update initiated.");
+        }
+        // --- END OF IMPORTANT BLOCK ---
+
       }
-      
+
       setSavingDone(true);
-      
+
       // Redirect after 1 second
       setTimeout(() => {
         window.open(props.siteUrl, "_self");
       }, 1000);
     } catch (error) {
-      console.error(error);
+      console.error("Error saving visitor or updating consent:", error); // Enhanced error logging
       setProgress(false);
     }
   };
 
-  if (showPrivacyModal) {
-    return (
-      <PrivacyModal
-        onAccept={() => setShowPrivacyModal(false)}
-        onDecline={() => window.open(props.siteUrl, "_self")}
-      />
-    );
-  }
+  // --- START OF RENDERING LOGIC ---
 
+  // 1. Show loading backdrop if data is still being fetched
   if (isLoading) {
+    console.log("Render: Currently isLoading. Showing CircularProgress."); // DEBUG LOG
     return (
       <Backdrop className={classes.backdrop} open={true}>
         <CircularProgress color="inherit" />
@@ -472,6 +519,30 @@ useEffect(() => {
     );
   }
 
+  // 2. If loading is done, and privacy consent is NOT given, show the PrivacyModal
+  // This condition will now always be true immediately after isLoading becomes false.
+  console.log(`Render: isLoading=false. Checking showPrivacyModal=${showPrivacyModal}, privacyConsentGiven=${privacyConsentGiven}`); // DEBUG LOG
+  if (showPrivacyModal && !privacyConsentGiven) {
+    console.log("Render: Conditions met for PrivacyModal. Displaying PrivacyModal."); // DEBUG LOG
+    return (
+      <PrivacyModal
+        onAccept={handlePrivacyAccept}
+        onDecline={handlePrivacyDecline}
+        context={props.context}
+        refNo={refNo} // Will be an empty string here, as RefNo is generated on form submission
+      />
+    );
+  }
+
+  // 3. Only render the main form if privacy consent HAS been given
+  // This will be true only after the user clicks "Accept" on the modal.
+  if (!privacyConsentGiven) {
+    console.log("Render: Privacy consent not given AND showPrivacyModal is false. This state should ideally be avoided."); // DEBUG LOG
+    return null; // Prevent rendering anything until consent is truly handled
+  }
+
+  // 4. If all checks pass (not loading, consent given), render the main form
+  console.log("Render: Privacy consent given. Displaying main form."); // DEBUG LOG
   return (
     <form noValidate autoComplete="off">
       <div className={classes.root} style={{ padding: '12px' }}>
@@ -491,7 +562,7 @@ useEffect(() => {
               onDateChange={handleDateChange}
               onFilesChange={handleFilesChange}
             />
-            
+
             <VisitorDetailsSection
               visitorDetailsList={visitorDetailsList}
               requireParking={visitor.RequireParking}
@@ -500,7 +571,7 @@ useEffect(() => {
               onEditVisitor={handleEditVisitor}
               onDeleteVisitor={handleDeleteVisitor}
             />
-            
+
             <Grid item xs={12} sm={12}>
               <ApprovalSection
                 isEncoder={isEncoder}
@@ -512,7 +583,7 @@ useEffect(() => {
                 onChange={handleFieldChange}
               />
             </Grid>
-            
+
             <Grid container justify="flex-end">
               <ActionButtonsSection
                 onSave={handleSave}
@@ -522,28 +593,30 @@ useEffect(() => {
             </Grid>
           </Grid>
         </Container>
-        
+
         <ConfirmationDialog
           open={dialogOpen}
           title="Confirmation"
-          message={dialogMessage}
+          message={dialogMessage} // Display the specific message set by handleSave/Submit/Cancel
           onClose={handleDialogClose}
         />
-        
+
         <Backdrop className={classes.backdrop} open={isProgress}>
           <CircularProgress color="inherit" />
         </Backdrop>
-        
+
+        {/* Display the RefNo in the Snackbar */}
         <Snackbar open={isSavingDone} autoHideDuration={2000}>
           <Alert severity="success">
             Data has been saved successfully.
-            {isEncoder && submitType === 2 && (
-              <div>
-                An email notification has been sent to {approverDetails.name}.
+            {/* Display Ref No only if it was a 'Submit' action (submitType === 2) and refNo exists */}
+            {submitType === 2 && refNo && (
+              <div style={{ marginTop: '5px' }}>
+                <strong>Reference Number: {refNo}</strong>
               </div>
             )}
-            {isReceptionist && submitType === 2 && (
-              <div>
+            {(isEncoder || isReceptionist) && submitType === 2 && (
+              <div style={{ marginTop: '5px' }}>
                 An email notification has been sent to {approverDetails.name}.
               </div>
             )}
