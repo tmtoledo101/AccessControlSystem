@@ -15,9 +15,6 @@ import { validateVisitorForm, validateField } from '../validations/formValidatio
 import { SharePointService } from '../services/SharePointService';
 import { EmailService } from '../services/EmailService';
 import { FileService } from '../services/FileService';
-// We no longer need getCookie or setCookie for the privacy consent logic,
-// so you can remove these imports if 'chkurl' cookie is also not needed.
-// import { getCookie, setCookie } from '../helpers/cookieHelpers';
 import VisitorInformationSection from './sections/VisitorInformationSection';
 import VisitorDetailsSection from './sections/VisitorDetailsSection';
 import ApprovalSection from './sections/ApprovalSection';
@@ -133,13 +130,6 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     const init = async () => {
       console.log("useEffect: Starting initialization."); // DEBUG LOG
       try {
-        // You might still keep the 'chkurl' cookie logic if it's needed for other purposes,
-        // but it's unrelated to the privacy consent modal now.
-        // if (getCookie('chkurl') !== window.location.href) {
-        //   setCookie('chkurl', window.location.href, 1800);
-        // }
-
-        // Initialize services
         const spSvc = new SharePointService(props.context, props.siteUrl, props.siteRelativeUrl);
         await spSvc.initialize();
         setSpService(spSvc);
@@ -179,14 +169,14 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
           setPrivacyConsentGiven(false); // Ensure consent is always considered not given initially
 
         } else {
-          console.log("useEffect: User is NOT authorized. Redirecting."); // DEBUG LOG
+          console.log("useEffect: User is NOT authorized. Redirecting.");
           alert("You are not authorized to access this page!");
           window.open(props.siteUrl, "_self");
           return; // Exit early if not authorized
         }
 
         setIsLoading(false); // Set isLoading to false once all initial data is fetched or permission checked
-        console.log("useEffect: Initialization complete. isLoading set to false."); // DEBUG LOG
+        console.log("useEffect: Initialization complete. isLoading set to false.");
       } catch (error) {
         console.error("Error during component initialization:", error);
         setIsLoading(false);
@@ -194,7 +184,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     };
 
     init();
-  }, []); // Empty dependency array means this runs once on mount
+  }, []);
 
   /**
    * Handles privacy modal acceptance
@@ -480,18 +470,14 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
           approverDetails.name,
           isEncoder
         );
-        console.log("saveVisitor: Approval email sent."); // DEBUG LOG
+        console.log("saveVisitor: Approval email sent."); 
 
-        // --- IMPORTANT: Privacy Consent RefNo Update (Still Needed!) ---
-        // This updates the SharePoint list, regardless of cookie preference.
-        // It's crucial for associating the RefNo with the consent record.
         if (spService) { // Check if spService is available
             const currentUserEmail = props.context.pageContext.user.email;
             console.log(`saveVisitor: Attempting to update privacy consent for ${currentUserEmail} with RefNo: ${generatedRefNo}`);
             await spService.updatePrivacyConsentRefNo(currentUserEmail, generatedRefNo);
             console.log("saveVisitor: Privacy consent update initiated.");
         }
-        // --- END OF IMPORTANT BLOCK ---
 
       }
 
@@ -502,16 +488,13 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
         window.open(props.siteUrl, "_self");
       }, 1000);
     } catch (error) {
-      console.error("Error saving visitor or updating consent:", error); // Enhanced error logging
+      console.error("Error saving visitor or updating consent:", error);
       setProgress(false);
     }
   };
 
-  // --- START OF RENDERING LOGIC ---
-
-  // 1. Show loading backdrop if data is still being fetched
   if (isLoading) {
-    console.log("Render: Currently isLoading. Showing CircularProgress."); // DEBUG LOG
+    console.log("Render: Currently isLoading. Showing CircularProgress.");
     return (
       <Backdrop className={classes.backdrop} open={true}>
         <CircularProgress color="inherit" />
@@ -519,8 +502,6 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     );
   }
 
-  // 2. If loading is done, and privacy consent is NOT given, show the PrivacyModal
-  // This condition will now always be true immediately after isLoading becomes false.
   console.log(`Render: isLoading=false. Checking showPrivacyModal=${showPrivacyModal}, privacyConsentGiven=${privacyConsentGiven}`); // DEBUG LOG
   if (showPrivacyModal && !privacyConsentGiven) {
     console.log("Render: Conditions met for PrivacyModal. Displaying PrivacyModal."); // DEBUG LOG
@@ -529,20 +510,18 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
         onAccept={handlePrivacyAccept}
         onDecline={handlePrivacyDecline}
         context={props.context}
-        refNo={refNo} // Will be an empty string here, as RefNo is generated on form submission
+        refNo={refNo} 
       />
     );
   }
 
-  // 3. Only render the main form if privacy consent HAS been given
-  // This will be true only after the user clicks "Accept" on the modal.
   if (!privacyConsentGiven) {
     console.log("Render: Privacy consent not given AND showPrivacyModal is false. This state should ideally be avoided."); // DEBUG LOG
-    return null; // Prevent rendering anything until consent is truly handled
+    return null;
   }
 
-  // 4. If all checks pass (not loading, consent given), render the main form
-  console.log("Render: Privacy consent given. Displaying main form."); // DEBUG LOG
+
+  console.log("Render: Privacy consent given. Displaying main form.");
   return (
     <form noValidate autoComplete="off">
       <div className={classes.root} style={{ padding: '12px' }}>
