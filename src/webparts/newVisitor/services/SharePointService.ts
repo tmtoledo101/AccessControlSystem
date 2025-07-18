@@ -179,19 +179,44 @@ export class SharePointService {
   }
 
   /**
-   * Finds users by name
-   * @param searchText Search text
-   * @param deptName Department name
-   * @returns Users
+   * Finds users by name or EmpNo and department.
+   * This is used for the live search/autocomplete in the UI.
+   * @param searchQuery The text to search for (can be name or EmpNo).
+   * @param deptName Department name to filter by.
+   * @returns Users matching the criteria.
    */
-  public async findUsersByName(searchText: string, deptName: string): Promise<any[]> {
+  public async findUsersByName(searchQuery: string, deptName: string): Promise<any[]> {
+    let filterParts = [];
+
+    // Always search by Name using substringof (for typing names)
+    filterParts.push(`substringof('${searchQuery}', Name)`);
+
+    // If the searchQuery looks like a number, also search by EmpNo (for typing EmpNo)
+    // The `visitor.EmpNo` passed from saveVisitor will also hit this if it's a number
+    if (/^\d+$/.test(searchQuery)) { // Checks if string contains only digits
+        filterParts.push(`EmpNo eq '${searchQuery}'`);
+    }
+
+    // Combine the search queries with OR
+    let combinedSearchFilter = filterParts.join(" or ");
+
+    let finalFilterString = combinedSearchFilter;
+
+    // Add department filter if deptName is provided and not empty
+    if (deptName) {
+        finalFilterString = `(${combinedSearchFilter}) and Dept eq '${deptName}'`; // Group previous filters
+    }
+
+    // console.log("DEBUG findUsersByName (SharePointService): Constructed filter:", finalFilterString); // Uncomment for debugging
+
     return await sp.web.lists.getByTitle("Employees")
       .items
       .select("*")
       .top(5000)
-      .filter(`substringof('${searchText}', Name) and Dept eq '${deptName}'`)
+      .filter(finalFilterString)
       .get();
   }
+
 
   /**
    * Creates a request number
@@ -234,29 +259,64 @@ export class SharePointService {
 
   /**
    * Saves a visitor
-   * @param visitor Visitor
-   * @param visitorDetailsList Visitor details list
-   * @param submitType Submit type
+   * @param visitor Visitor data
+   * @param visitorDetailsList List of visitor details
+   * @param submitType Type of submission (1 = Save, 2 = Submit)
    * @param refNo Reference number
-   * @returns Item ID
+   * @param actualDeptName The actual department name of the contact person (e.g., "Test Department")
+   * @returns Item ID of the newly created visitor record
    */
   public async saveVisitor(
     visitor: IVisitor,
     visitorDetailsList: IVisitorDetails[],
     submitType: number,
-    refNo: string
+    refNo: string,
+    actualDeptName: string // This parameter is used for the contact person lookup
   ): Promise<number> {
-    // Find contact name
+    // Find contact name based on EmpNo and DeptName
     let contactName = "";
     if (visitor.EmpNo) {
-      const contacts = await this.findUsersByName(visitor.EmpNo, "");
+      // Use visitor.EmpNo as the search query. The findUsersByName method will handle if it's a number or might match a name.
+      // Crucially, it will explicitly filter by EmpNo if visitor.EmpNo is a digit string.
+      const contacts = await this.findUsersByName(visitor.EmpNo, actualDeptName);
       if (contacts.length > 0) {
-        contactName = contacts[0].Name;
+        contactName = contacts[0].Name; // Get the Name field from the found employee
+        console.log("DEBUG saveVisitor (SharePointService): Value derived for contactName:", contactName);
+      } else {
+        console.warn("DEBUG saveVisitor (SharePointService): No user found for EmpNo:", visitor.EmpNo, "with Dept:", actualDeptName);
       }
+    } else {
+        console.warn("DEBUG saveVisitor (SharePointService): visitor.EmpNo is empty. contactName will be empty.");
     }
 
     // Save visitor
     const requestDate = submitType === 2 ? moment().toISOString() : null;
+
+    console.log("DEBUG saveVisitor (SharePointService): Payload for 'Visitors' list add:", {
+        Title: refNo,
+        ContactName: contactName, // This is the value being sent to your Single line of text column
+        ExternalType: visitor.ExternalType,
+        Purpose: visitor.Purpose,
+        DeptId: visitor.DeptId,
+        Bldg: visitor.Bldg,
+        RoomNo: visitor.RoomNo,
+        EmpNo: visitor.EmpNo,
+        Position: visitor.Position,
+        DirectNo: visitor.DirectNo,
+        LocalNo: visitor.LocalNo,
+        DateTimeVisit: moment(visitor.DateTimeVisit).toISOString(),
+        DateTimeArrival: moment(visitor.DateTimeArrival).toISOString(),
+        CompanyName: visitor.CompanyName,
+        Address: visitor.Address,
+        VisContactNo: visitor.VisContactNo,
+        VisLocalNo: visitor.VisLocalNo,
+        RequireParking: visitor.RequireParking,
+        ApproverId: visitor.ApproverId,
+        StatusId: submitType,
+        RequestDate: requestDate,
+        PurposeOthers: visitor.PurposeOthers
+    });
+
     const iar: IItemAddResult = await sp.web.lists.getByTitle("Visitors").items.add({
       Title: refNo,
       ContactName: contactName,

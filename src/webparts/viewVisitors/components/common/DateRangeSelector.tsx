@@ -15,46 +15,75 @@ const useStyles = makeStyles((theme: Theme) =>
       display: 'flex',
       alignItems: 'center',
       gap: theme.spacing(2)
+    },
+    singlePickerContainer: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'flex-start',
+      padding: theme.spacing(1),
     }
   }),
 );
 
 interface IDateRangeSelectorProps {
-  fromDate: any;
-  toDate: any;
-  onFromDateChange: (date: any) => void;
-  onToDateChange: (date: any) => void;
+  fromDate: Date | null;
+  toDate: Date | null;
+  onFromDateChange: (date: Date | null) => void;
+  onToDateChange: (date: Date | null) => void;
+  pickerType: 'date' | 'month';
 }
 
 const DateRangeSelector: React.FC<IDateRangeSelectorProps> = (props) => {
-  const { fromDate, toDate, onFromDateChange, onToDateChange } = props;
+  const { fromDate, toDate, onFromDateChange, onToDateChange, pickerType } = props;
   const classes = useStyles();
 
   return (
-    <>
-     <MuiPickersUtilsProvider utils={DateFnsUtils}>
-      <div className={classes.container}>
-        <Paper variant="outlined" className={classes.paper}>
-          <DatePicker
-            format="MM/dd/yyyy"
-            label="From"
-            value={fromDate}
-            onChange={onFromDateChange}
-            name='fromdate'
-          />
-        </Paper>
-        <Paper variant="outlined" className={classes.paper}>
-          <DatePicker
-            format="MM/dd/yyyy"
-            label="To"
-            value={toDate}
-            onChange={onToDateChange}
-            name='todate'
-          />
-        </Paper>
-      </div>
+    <MuiPickersUtilsProvider utils={DateFnsUtils}>
+      {pickerType === 'date' ? (
+        <div className={classes.container}>
+          <Paper variant="outlined" className={classes.paper}>
+            <DatePicker
+              format="MM/dd/yyyy"
+              label="From"
+              value={fromDate}
+              onChange={onFromDateChange}
+              name='fromdate'
+              InputLabelProps={{ shrink: true }}
+              clearable
+              inputVariant="standard" // ✓ Changed from "outlined" to "standard"
+            />
+          </Paper>
+          <Paper variant="outlined" className={classes.paper}>
+            <DatePicker
+              format="MM/dd/yyyy"
+              label="To"
+              value={toDate}
+              onChange={onToDateChange}
+              name='todate'
+              InputLabelProps={{ shrink: true }}
+              clearable
+              inputVariant="standard" // ✓ Changed from "outlined" to "standard"
+            />
+          </Paper>
+        </div>
+      ) : (
+        <div className={classes.singlePickerContainer}>
+          <Paper variant="outlined" className={classes.paper}>
+            <DatePicker
+              views={["year", "month"]}
+              format="MMMM yyyy"
+              label="Select Month/Year"
+              value={fromDate}
+              onChange={onFromDateChange}
+              name='monthPicker'
+              InputLabelProps={{ shrink: true }}
+              clearable
+              inputVariant="standard" // ✓ Changed from "outlined" to "standard"
+            />
+          </Paper>
+        </div>
+      )}
     </MuiPickersUtilsProvider>
-    </>
   );
 };
 

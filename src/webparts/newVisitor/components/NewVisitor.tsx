@@ -275,6 +275,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   const handleContactSearch = async (searchText: string) => {
     if (searchText.length > 2) {
       try {
+        // Here, `searchText` is expected to be the EmpNo for SharePointService.findUsersByName
         const contacts = await spService.findUsersByName(searchText, deptName);
         setContactList(contacts);
       } catch (error) {
@@ -455,7 +456,8 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
       }
 
       // Save visitor
-      const itemId = await spService.saveVisitor(visitor, visitorDetailsList, submitType, generatedRefNo); // Pass the potentially new refNo
+      // THIS IS THE CORRECTED LINE: Passing deptName as the 5th argument
+      const itemId = await spService.saveVisitor(visitor, visitorDetailsList, submitType, generatedRefNo, deptName);
       setItemId(itemId);
       console.log("saveVisitor: Visitor saved with Item ID:", itemId); // DEBUG LOG
 
@@ -470,7 +472,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
           approverDetails.name,
           isEncoder
         );
-        console.log("saveVisitor: Approval email sent."); 
+        console.log("saveVisitor: Approval email sent.");
 
         if (spService) { // Check if spService is available
             const currentUserEmail = props.context.pageContext.user.email;
@@ -510,7 +512,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
         onAccept={handlePrivacyAccept}
         onDecline={handlePrivacyDecline}
         context={props.context}
-        refNo={refNo} 
+        refNo={refNo}
       />
     );
   }
