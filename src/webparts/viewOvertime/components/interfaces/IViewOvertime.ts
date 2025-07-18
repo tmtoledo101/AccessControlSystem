@@ -1,9 +1,10 @@
+import * as moment from 'moment';
 export interface IOvertimeRequest {
   ID: number;
-  Title: string;
+  Title: string; // This is likely the EmployeeName for the report
   RequestDate: Date;
-  DateFrom: Date;
-  DateTo: Date;
+  DateFrom: Date; // Corrected: Used DateFrom instead of From
+  DateTo: Date;   // Corrected: Used DateTo instead of To
   Purpose: string;
   StatusId: number;
   DeptId: number;
@@ -20,10 +21,10 @@ export interface IOvertimeRequest {
     Title: string;
     EMail: string;
   };
-  SSDApprover?: {
+  SSDApprover?: { // Added based on your IOvertimeRequest
     Title: string;
   };
-  Author?: {
+  Author?: { // Added based on your IOvertimeRequest
     Title: string;
     EMail: string;
   };
@@ -31,13 +32,13 @@ export interface IOvertimeRequest {
 
 export interface IOvertimeDetail {
   ID: number;
-  Title: string;
-  RefNo: string;
+  Title: string; // Employee Name
+  RefNo: string; // Added based on your IOvertimeDetail
   RequestDate: Date;
-  TimeFrom: Date;
-  TimeTo: Date;
-  Etype: string;
-  OtherSource?: string;
+  TimeFrom: Date; // Corrected: Used TimeFrom instead of OvertimeFrom
+  TimeTo: Date;   // Corrected: Used TimeTo instead of OvertimeTo
+  Etype: string;  // Added based on your IOvertimeDetail
+  OtherSource?: string; // Added based on your IOvertimeDetail
   StatusId: number;
   DeptId: number;
   ParentId: number;
@@ -48,10 +49,11 @@ export interface IOvertimeDetail {
   Status?: {
     Title: string;
   };
-  Author?: {
+  Author?: { // Added based on your IOvertimeDetail
     Title: string;
     EMail: string;
   };
+  // Note: Approver and Remarks are not in your IOvertimeDetail, so they will be excluded from export.
 }
 
 export interface IUserDept {
@@ -67,8 +69,8 @@ export interface IUserDept {
 }
 
 export interface IViewState {
-  selectedFromDate: any;
-  selectedToDate: any;
+  selectedFromDate: moment.Moment; // Corrected type to moment.Moment
+  selectedToDate: moment.Moment;   // Corrected type to moment.Moment
   selectedAgendaDate: Date;
   inputSubject: string;
   dialogMessage: string;
@@ -93,4 +95,5 @@ export interface IViewState {
   viewName: string;
   menuTabs: string[];
   tabvalue: number;
+  reportView: 'Daily' | 'Monthly'; // <--- NEW PROPERTY ADDED HERE
 }
