@@ -1,3 +1,5 @@
+// src/webparts/newVisitor/models/IVisitor.ts
+
 /**
  * Visitor interface
  */
@@ -22,4 +24,7 @@ export interface IVisitor {
   Status?: string;
   ApproverId: number;
   Files: File[];
+  
+  // Added VisitorType property
+  VisitorType?: 'Visitor' | 'Service Provider' | 'Project Contractor' | string; 
 }

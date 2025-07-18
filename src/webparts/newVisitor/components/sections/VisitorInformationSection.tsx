@@ -16,8 +16,10 @@ import Autocomplete from '@material-ui/lab/Autocomplete';
 import { DateTimePicker, MuiPickersUtilsProvider } from '@material-ui/pickers';
 import DateFnsUtils from '@date-io/date-fns';
 import { DropzoneArea } from 'material-ui-dropzone';
+import Typography from '@material-ui/core/Typography';
+
 import HeaderSection from './HeaderSection';
-import { IVisitor } from '../../models/IVisitor';
+import { IVisitor } from '../../models/IVisitor'; // This line is crucial for importing the IVisitor interface
 import { IFormErrors } from '../../models/IFormErrors';
 
 const useStyles = makeStyles((theme: Theme) =>
@@ -53,6 +55,35 @@ const useStyles = makeStyles((theme: Theme) =>
       minWidth: 160,
       maxWidth: 210
     },
+    attachmentNote: {
+      color: theme.palette.error.main,
+      fontSize: '0.85rem',
+      textAlign: 'center',
+      marginTop: theme.spacing(1),
+    },
+    // Styles to adjust DropzoneArea vertical alignment
+    dropzoneRoot: {
+      minHeight: 120, // Give it a fixed height to control space
+      display: 'flex', // Enable flexbox on the root
+      flexDirection: 'column', // Stack children vertically
+      justifyContent: 'flex-start', // Align content to the top
+      alignItems: 'center', // Center items horizontally
+      paddingTop: theme.spacing(2), // Add padding from the top
+      paddingBottom: theme.spacing(2), // Add padding from the bottom if needed
+    },
+    dropzoneText: {
+      // Styles for the "Add an attachment" text specifically
+      marginBottom: theme.spacing(1), // Add some space between text and icon
+    },
+    dropzoneIcon: {
+      // Styles for the icon specifically
+      marginTop: 0, // Remove default top margin if any
+      marginBottom: theme.spacing(1), // Add space below the icon
+    },
+    // Style for the red "Subject for Approval" text
+    subjectForApprovalRed: {
+        color: theme.palette.error.main, // Correctly using theme within makeStyles
+    },
   }),
 );
 
@@ -60,7 +91,7 @@ const useStyles = makeStyles((theme: Theme) =>
  * Visitor information section props
  */
 export interface IVisitorInformationSectionProps {
-  visitor: IVisitor;
+  visitor: IVisitor; // This IVisitor comes from the import
   errors: IFormErrors;
   externalType: string;
   purposeList: any[];
@@ -80,22 +111,22 @@ export interface IVisitorInformationSectionProps {
  * @returns Visitor information section component
  */
 const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (props) => {
-  const { 
-    visitor, 
-    errors, 
-    externalType, 
-    purposeList, 
-    deptList, 
-    bldgList, 
+  const {
+    visitor,
+    errors,
+    externalType,
+    purposeList,
+    deptList,
+    bldgList,
     contactList,
-    onChange, 
-    onContactSearch, 
-    onContactSelect, 
-    onDateChange, 
-    onFilesChange 
+    onChange,
+    onContactSearch,
+    onContactSelect,
+    onDateChange,
+    onFilesChange
   } = props;
   const classes = useStyles();
-  
+
   const [isAC1Open, setAC1Open] = useState(false);
 
   /**
@@ -104,7 +135,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
    */
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    
+
     if (name === 'RequireParking') {
       onChange(name, e.target.checked);
     } else {
@@ -136,7 +167,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
   return (
     <>
       <HeaderSection title="New Visitor" />
-      
+
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
@@ -147,7 +178,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           </Box>
         </Paper>
       </Grid>
-      
+
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <FormControl className={classes.textField} error={Boolean(errors.Purpose)}>
@@ -167,7 +198,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
             </Select>
             <FormHelperText>{errors.Purpose}</FormHelperText>
           </FormControl>
-          
+
           {visitor.Purpose === 'Others' && (
             <TextField
               inputProps={{ maxLength: 255 }}
@@ -184,7 +215,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           )}
         </Paper>
       </Grid>
-      
+
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <FormControl className={classes.textField} error={Boolean(errors.DeptId)}>
@@ -206,7 +237,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           </FormControl>
         </Paper>
       </Grid>
-      
+
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <FormControl className={classes.textField} error={Boolean(errors.Bldg)}>
@@ -228,7 +259,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           </FormControl>
         </Paper>
       </Grid>
-      
+
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <TextField
@@ -245,7 +276,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           />
         </Paper>
       </Grid>
-      
+
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <FormControl className={classes.textField} error={Boolean(errors.EmpNo)}>
@@ -274,7 +305,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           </FormControl>
         </Paper>
       </Grid>
-      
+
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
@@ -285,7 +316,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           </Box>
         </Paper>
       </Grid>
-      
+
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
@@ -296,7 +327,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           </Box>
         </Paper>
       </Grid>
-      
+
       <Grid item xs={12} sm={12}>
         <Paper variant="outlined" className={classes.paper}>
           <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
@@ -307,7 +338,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           </Box>
         </Paper>
       </Grid>
-      
+
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <FormControl className={classes.textField} error={Boolean(errors.DateTimeVisit)}>
@@ -326,7 +357,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           </FormControl>
         </Paper>
       </Grid>
-      
+
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <FormControl className={classes.textField} error={Boolean(errors.DateTimeArrival)}>
@@ -345,7 +376,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           </FormControl>
         </Paper>
       </Grid>
-      
+
       <Grid item xs={12} sm={12}>
         <Paper variant="outlined" className={classes.paper}>
           <DropzoneArea
@@ -359,12 +390,20 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
             useChipsForPreview
             previewGridProps={{ container: { spacing: 1, direction: 'row' } }}
             previewChipProps={{ classes: { root: classes.previewChip } }}
-            previewText="Selected files"
+            classes={{
+              root: classes.dropzoneRoot,
+              text: classes.dropzoneText,
+              icon: classes.dropzoneIcon,
+            }}
             dropzoneText="Add an attachment"
           />
+          <Typography variant="caption" className={classes.attachmentNote}>
+            Please do not attach visitor's details here
+          </Typography>
         </Paper>
       </Grid>
-      
+
+      {/* This Grid item represents the "Visitor Details" heading */}
       <Grid item xs={12}>
         <Paper variant="outlined" className={classes.paper}>
           <Box style={{ fontSize: "1rem" }}>
@@ -372,7 +411,29 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           </Box>
         </Paper>
       </Grid>
-      
+
+      {/* NEW: Visitor Type Dropdown (now near "Visitor Details") */}
+      <Grid item xs={12} sm={6}>
+        <Paper variant="outlined" className={classes.paper}>
+          <FormControl className={classes.textField}>
+            <InputLabel id="visitor-type-label">Visitor Type</InputLabel>
+            <Select
+              labelId="visitor-type-label"
+              id="VisitorType"
+              value={visitor.VisitorType || ''} // Assuming visitor.VisitorType will hold the selected value
+              onChange={handleSelectChange} // You can reuse handleSelectChange or create a specific one
+              name="VisitorType"
+            >
+              <MenuItem value="Visitor">Visitor</MenuItem>
+              <MenuItem value="Service Provider">Service Provider</MenuItem>
+              <MenuItem value="Project Contractor">Project Contractor</MenuItem>
+            </Select>
+            {/* Add FormHelperText if you need validation for this field */}
+          </FormControl>
+        </Paper>
+      </Grid>
+      {/* END NEW: Visitor Type Dropdown */}
+
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <TextField
@@ -389,7 +450,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           />
         </Paper>
       </Grid>
-      
+
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <TextField
@@ -406,7 +467,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           />
         </Paper>
       </Grid>
-      
+
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <TextField
@@ -423,7 +484,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           />
         </Paper>
       </Grid>
-      
+
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <TextField
@@ -438,7 +499,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           />
         </Paper>
       </Grid>
-      
+
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <div className={classes.datelabel}>
@@ -453,6 +514,10 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
               }
               label="Request for Parking"
             />
+            {/* Using the new class for red color */}
+            <Typography variant="caption" className={classes.subjectForApprovalRed} style={{ display: 'block', marginLeft: 35 }}>
+              (Subject for Approval)
+            </Typography>
           </div>
         </Paper>
       </Grid>
