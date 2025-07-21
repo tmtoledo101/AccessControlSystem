@@ -65,7 +65,8 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
   
   // Define columns array
   const columns = [
-    { title: 'Name', field: 'Title' },
+    { title: 'Last Name', field: 'Title' },
+    { title: 'First Name', field: 'FirstName' },
     { title: 'Access Card', field: 'AccessCard' },
     {
       title: 'Car',
@@ -74,7 +75,8 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
     },
     { title: 'Plate No.', field: 'PlateNo' },
     { title: 'Type of Vehicle', field: 'TypeofVehicle' },
-    { title: "Driver's Name", field: 'DriverName' },
+    { title: "Driver's Last Name", field: 'DriverName' },
+    { title: "Driver's First Name", field: 'DriverFirstName' },
     { title: 'Gate', field: 'GateNo' },
     { title: 'ID Presented', field: 'IDPresented' },
   ];

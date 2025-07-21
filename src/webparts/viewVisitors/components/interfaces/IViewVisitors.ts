@@ -2,6 +2,8 @@ import * as moment from 'moment'; // Make sure moment is imported if you're usin
 export interface IVisitor {
   ID: number;
   Title: string;
+//not sure
+FirstName: string;
   RequestDate: Date;
   DeptId: number;
   Dept: {
@@ -34,6 +36,8 @@ export interface IVisitor {
 export interface IVisitorDetail {
   ID: number;
   Title: string;
+//not sure
+  FirstName: string;
   RequestDate: Date;
   DeptId: number;
   Dept: {

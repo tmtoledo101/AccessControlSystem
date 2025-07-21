@@ -29,12 +29,14 @@ export interface IFormErrors {
  */
 export interface IVisitorDetailsErrors {
   Title?: string;
+  FirstName?: string;
   Car?: string;
   AccessCard?: string;
   PlateNo?: string;
   TypeofVehicle?: string;
   Color?: string;
   DriverName?: string;
+  DriverFirstName?: string;
   IDPresentedId?: string;
   GateNo?: string;
   Files?: string;

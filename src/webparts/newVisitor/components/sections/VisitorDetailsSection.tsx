@@ -64,11 +64,13 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
   const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add');
   const [selectedVisitorDetails, setSelectedVisitorDetails] = useState<IVisitorDetails>({
     Title: '',
+    FirstName: '',
     Car: requireParking,
     Color: '',
     PlateNo: '',
     TypeofVehicle: '',
     DriverName: '',
+    DriverFirstName: '',
     IDPresented: '',
     GateNo: '',
     ParentId: null,
@@ -84,11 +86,13 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
     setDialogMode('add');
     setSelectedVisitorDetails({
       Title: '',
+      FirstName: '',
       Car: requireParking,
       Color: '',
       PlateNo: '',
       TypeofVehicle: '',
       DriverName: '',
+      DriverFirstName: '',
       IDPresented: '',
       GateNo: '',
       ParentId: null,
@@ -162,7 +166,8 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
               <MaterialTable
                 title="Visitors"
                 columns={[
-                  { title: 'Name', field: 'Title' },
+                  { title: 'Last Name', field: 'Title' },
+                  { title: 'First Name', field: 'FirstName' },
                   {
                     title: 'Car', 
                     field: "Car",
@@ -170,7 +175,8 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
                   },
                   { title: 'Plate No.', field: 'PlateNo' },
                   { title: 'Type of Vehicle', field: "TypeofVehicle" },
-                  { title: "Driver's Name", field: "DriverName" },
+                  { title: "Driver's Last Name", field: "DriverName" },
+                  { title: "Driver's First Name", field: "DriverFirstName" },
                 ]}
                 data={visitorDetailsList}
                 options={{

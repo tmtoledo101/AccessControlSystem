@@ -571,7 +571,8 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       // These vwid's correspond to IVisitorDetail data
       dataToExport = (state.dirListItems as IVisitorDetail[]).map(item => ({
         'ID': item.ID,
-        'Visitor Name': item.Title, // Assuming Title on IVisitorDetail is the visitor name
+        'Visitor Last Name': item.Title, // Assuming Title on IVisitorDetail is the visitor name
+        'Visitor First Name': item.FirstName,
         'Request Date': moment(item.RequestDate).format('YYYY-MM-DD HH:mm'),
         'Department': item.Dept ? item.Dept.Title : '',
         'Reference No.': item.RefNo,

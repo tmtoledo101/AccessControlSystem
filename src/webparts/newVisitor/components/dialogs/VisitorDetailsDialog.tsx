@@ -80,6 +80,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
       if (!e.target.checked) {
         updatedDetails.Color = '';
         updatedDetails.DriverName = '';
+        updatedDetails.DriverFirstName = '';
         updatedDetails.PlateNo = '';
         updatedDetails.TypeofVehicle = '';
       }
@@ -135,13 +136,30 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                   inputProps={{ maxLength: 255 }}
                   error={Boolean(errors.Title)}
                   required
-                  label="Visitor's Name"
+                  label="Visitor's Last Name"
                   name="Title"
                   onChange={handleTextChange}
                   value={visitorDetails.Title || ''}
                   variant="standard"
                   className={classes.textField}
                   helperText={errors.Title}
+                />
+              </Paper>
+            </Grid>
+
+              <Grid item xs={12} sm={6}>
+              <Paper variant="outlined" className={classes.paper}>
+                <TextField
+                  inputProps={{ maxLength: 255 }}
+                  error={Boolean(errors.FirstName)}
+                  required
+                  label="Visitor's First Name"
+                  name="FirstName"
+                  onChange={handleTextChange}
+                  value={visitorDetails.FirstName || ''}
+                  variant="standard"
+                  className={classes.textField}
+                  helperText={errors.FirstName}
                 />
               </Paper>
             </Grid>
@@ -206,13 +224,30 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       inputProps={{ maxLength: 255 }}
                       error={Boolean(errors.DriverName)}
                       required
-                      label="Driver's Name"
-                      name="DriverName"
+                      label="Driver's Last Name"
+                      name="DriverLastName"
                       onChange={handleTextChange}
                       value={visitorDetails.DriverName || ''}
                       variant="standard"
                       className={classes.textField}
                       helperText={errors.DriverName}
+                    />
+                  </Paper>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Paper variant="outlined" className={classes.paper}>
+                    <TextField
+                      inputProps={{ maxLength: 255 }}
+                      error={Boolean(errors.DriverFirstName)}
+                      required
+                      label="Driver's First Name"
+                      name="DriverFirstName"
+                      onChange={handleTextChange}
+                      value={visitorDetails.DriverFirstName || ''}
+                      variant="standard"
+                      className={classes.textField}
+                      helperText={errors.DriverFirstName}
                     />
                   </Paper>
                 </Grid>

@@ -4,12 +4,14 @@
 export interface IVisitorDetails {
   ID: number;
   Title: string;
+  FirstName: string;
   Car: boolean;
   AccessCard: string;
   PlateNo: string;
   TypeofVehicle: string;
   Color: string;
   DriverName: string;
+  DriverFirstName: string;
   IDPresented: string;
   GateNo: string;
   ParentId: number;
@@ -24,12 +26,14 @@ export interface IVisitorDetails {
  */
 export interface IVisitorDetailsError {
   Title: string;
+  FirstName: string;
   Car: string;
   AccessCard: string;
   PlateNo: string;
   TypeofVehicle: string;
   Color: string;
   DriverName: string;
+  DriverFirstName: string;
   IDPresented: string;
   GateNo: string;
   Files: string;

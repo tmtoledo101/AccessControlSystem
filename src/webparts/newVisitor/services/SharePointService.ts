@@ -366,9 +366,11 @@ export class SharePointService {
       const iar2: IItemAddResult = await sp.web.lists.getByTitle("VisitorDetails").items.add({
         ParentId: itemId,
         Title: visitorDetail.Title,
+        FirstName: visitorDetail.FirstName,
         Car: visitorDetail.Car,
         Color: visitorDetail.Color,
         DriverName: visitorDetail.DriverName,
+        DriverFirstName: visitorDetail.DriverFirstName,
         TypeofVehicle: visitorDetail.TypeofVehicle,
         PlateNo: visitorDetail.PlateNo,
         GateNo: visitorDetail.GateNo,

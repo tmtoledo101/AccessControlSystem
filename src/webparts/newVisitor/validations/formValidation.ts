@@ -77,11 +77,11 @@ export function validateVisitorDetailsForm(
   let isValid = true;
 
   // Required fields
-  const requiredFields = ["Title"];
+  const requiredFields = ["Title", "FirstName"];
 
   // Add car-related fields if Car is true
   if (visitorDetails.Car) {
-    requiredFields.push("PlateNo", "TypeofVehicle", "Color", "DriverName");
+    requiredFields.push("PlateNo", "TypeofVehicle", "Color", "DriverName","DriverFirstName");
   }
 
   // Validate required fields

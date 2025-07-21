@@ -230,13 +230,28 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       inputProps={{ maxLength: 255 }}
                       error={!!errorDetails.Title}
                       required
-                      label="Visitor's Name"
+                      label="Visitor's Last Name"
                       name="Title"
                       onChange={onChangeTxt}
                       value={visitorDetails.Title}
                       variant="standard"
                       className={classes.textField}
                       helperText={errorDetails.Title}
+                    />
+                  )}
+
+                  {checkVisibility('cedit') && (
+                    <TextField
+                      inputProps={{ maxLength: 255 }}
+                      error={!!errorDetails.FirstName}
+                      required
+                      label="Visitor's First Name"
+                      name="FirstName"
+                      onChange={onChangeTxt}
+                      value={visitorDetails.FirstName}
+                      variant="standard"
+                      className={classes.textField}
+                      helperText={errorDetails.FirstName}
                     />
                   )}
                   
@@ -341,13 +356,28 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                           inputProps={{ maxLength: 255 }}
                           error={!!errorDetails.DriverName}
                           required
-                          label="Driver's Name"
+                          label="Driver's Last Name"
                           name="DriverName"
                           onChange={onChangeTxt}
                           value={visitorDetails.DriverName}
                           variant="standard"
                           className={classes.textField}
                           helperText={errorDetails.DriverName}
+                        />
+                      )}
+
+                      {checkVisibility('cedit') && (
+                        <TextField
+                          inputProps={{ maxLength: 255 }}
+                          error={!!errorDetails.DriverFirstName}
+                          required
+                          label="Driver's First Name"
+                          name="DriverFirstName"
+                          onChange={onChangeTxt}
+                          value={visitorDetails.DriverFirstName}
+                          variant="standard"
+                          className={classes.textField}
+                          helperText={errorDetails.DriverFirstName}
                         />
                       )}
                       

@@ -45,8 +45,12 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
           render: (value, renderType) => customDateRender(value, renderType, 'DateTo', 'MM/DD/yyyy HH:mm:ss')
         },
         { 
-          title: "Visitor's Name", 
+          title: "Visitor's Last Name", 
           field: 'Title' 
+        },
+        { 
+          title: "Visitor's First Name", 
+          field: 'FirstName' 
         },
         { 
           title: "Company Name", 

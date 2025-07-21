@@ -173,12 +173,14 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const [visitorDetails, setVisitorDetails] = useState<IVisitorDetails>({
     ID: null, 
     Title: '', 
+    FirstName: '',
     Car: false, 
     AccessCard: '', 
     PlateNo: '', 
     TypeofVehicle: '', 
     Color: '',
-    DriverName: '', 
+    DriverName: '',
+    DriverFirstName: '', 
     IDPresented: '', 
     GateNo: '', 
     ParentId: null, 
@@ -190,13 +192,15 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const [visitorDetailsList, setVisitorDetailsList] = useState<IVisitorDetails[]>([]);
   
   const [errorDetails, setErrorDetails] = useState<IVisitorDetailsError>({
-    Title: '', 
+    Title: '',
+    FirstName: '', 
     Car: '', 
     AccessCard: '', 
     PlateNo: '', 
     TypeofVehicle: '', 
     Color: '', 
-    DriverName: '', 
+    DriverName: '',
+    DriverFirstName: '', 
     IDPresented: '', 
     GateNo: '', 
     Files: ''
@@ -225,7 +229,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         // Get URL parameters
         _sourceURL = document.referrer;
        // _itemId = parseInt(getUrlParameter('pid'));
-       _itemId = 9;
+       _itemId = 62;
         // Get current user
         const user = await sharePointService.getCurrentUser();
         setCurrentUser(user);
