@@ -225,7 +225,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       error={Boolean(errors.DriverName)}
                       required
                       label="Driver's Last Name"
-                      name="DriverLastName"
+                      name="DriverName"
                       onChange={handleTextChange}
                       value={visitorDetails.DriverName || ''}
                       variant="standard"

@@ -147,7 +147,7 @@ export default class SharePointService {
         .expand('Dept,Status,Author')
         .top(5000)
         .orderBy("Modified", false)
-        .filter(`substringof('${searchText}', Title)`)
+        .filter(`substringof('${searchText}', Title) or substringof('${searchText}', FirstName)`)
         .get();
     } catch (error) {
       console.log(error);

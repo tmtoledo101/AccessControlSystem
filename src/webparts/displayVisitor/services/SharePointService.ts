@@ -497,9 +497,11 @@ export class SharePointService {
       await sp.web.lists.getByTitle("VisitorDetails").items.getById(visitorDetails.ID).update({
         ParentId: parentId,
         Title: visitorDetails.Title,
+        FirstName: visitorDetails.FirstName,
         Car: visitorDetails.Car,
         Color: visitorDetails.Color,
         DriverName: visitorDetails.DriverName,
+        DriverFirstName: visitorDetails.DriverFirstName,
         TypeofVehicle: visitorDetails.TypeofVehicle,
         PlateNo: visitorDetails.PlateNo,
         GateNo: visitorDetails.GateNo,
@@ -521,9 +523,11 @@ export class SharePointService {
       const result: IItemAddResult = await sp.web.lists.getByTitle("VisitorDetails").items.add({
         ParentId: parentId,
         Title: visitorDetails.Title,
+        FirstName: visitorDetails.FirstName,
         Car: visitorDetails.Car,
         Color: visitorDetails.Color,
         DriverName: visitorDetails.DriverName,
+        DriverFirstName: visitorDetails.DriverFirstName,
         TypeofVehicle: visitorDetails.TypeofVehicle,
         PlateNo: visitorDetails.PlateNo,
         GateNo: visitorDetails.GateNo,
