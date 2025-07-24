@@ -354,15 +354,15 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       {checkVisibility('cedit') && (
                         <TextField
                           inputProps={{ maxLength: 255 }}
-                          error={!!errorDetails.DriverName}
+                          error={!!errorDetails.DriverLastName}
                           required
                           label="Driver's Last Name"
-                          name="DriverName"
+                          name="DriverLastName"
                           onChange={onChangeTxt}
-                          value={visitorDetails.DriverName}
+                          value={visitorDetails.DriverLastName}
                           variant="standard"
                           className={classes.textField}
-                          helperText={errorDetails.DriverName}
+                          helperText={errorDetails.DriverLastName}
                         />
                       )}
 
@@ -387,7 +387,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                             Driver's Name
                           </Box>
                           <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
-                            {visitorDetails.DriverName}
+                            {visitorDetails.DriverLastName}
                           </Box>
                         </>
                       )}

@@ -79,7 +79,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
       
       if (!e.target.checked) {
         updatedDetails.Color = '';
-        updatedDetails.DriverName = '';
+        updatedDetails.DriverLastName = '';
         updatedDetails.DriverFirstName = '';
         updatedDetails.PlateNo = '';
         updatedDetails.TypeofVehicle = '';
@@ -222,15 +222,15 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                   <Paper variant="outlined" className={classes.paper}>
                     <TextField
                       inputProps={{ maxLength: 255 }}
-                      error={Boolean(errors.DriverName)}
+                      error={Boolean(errors.DriverLastName)}
                       required
                       label="Driver's Last Name"
-                      name="DriverName"
+                      name="DriverLastName"
                       onChange={handleTextChange}
-                      value={visitorDetails.DriverName || ''}
+                      value={visitorDetails.DriverLastName || ''}
                       variant="standard"
                       className={classes.textField}
-                      helperText={errors.DriverName}
+                      helperText={errors.DriverLastName}
                     />
                   </Paper>
                 </Grid>

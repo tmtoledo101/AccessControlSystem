@@ -179,7 +179,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     PlateNo: '', 
     TypeofVehicle: '', 
     Color: '',
-    DriverName: '',
+    DriverLastName: '',
     DriverFirstName: '', 
     IDPresented: '', 
     GateNo: '', 
@@ -199,7 +199,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     PlateNo: '', 
     TypeofVehicle: '', 
     Color: '', 
-    DriverName: '',
+    DriverLastName: '',
     DriverFirstName: '', 
     IDPresented: '', 
     GateNo: '', 
@@ -587,16 +587,16 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     
     // Determine required fields based on user role and status
     if ((isEncoder) && ((inputFields.StatusId === 1) || (inputFields.StatusId === 2))) {
-      required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverName');
+      required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverLastName');
     } else if ((isReceptionist) && ((inputFields.StatusId === 4) || (inputFields.StatusId === 9))) {
-      required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverName', 'AccessCard', 'IDPresented', 'GateNo');
+      required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverLastName', 'AccessCard', 'IDPresented', 'GateNo');
       
       // Check for files
       if (visitorDetails.Files.length === 0) {
         tempProps.Files = "Please upload a file.";
       }
     } else if ((isReceptionist) && ((inputFields.StatusId === 1) || (inputFields.StatusId === 2))) {
-      required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverName');
+      required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverLastName');
     }
     
     const validbit = [];
@@ -609,7 +609,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         tempProps[required[i]] = "";
       } else if ((required[i] === "Color") && (visitorDetails.Car === false)) {
         tempProps[required[i]] = "";
-      } else if ((required[i] === "DriverName") && (visitorDetails.Car === false)) {
+      } else if ((required[i] === "DriverLastName") && (visitorDetails.Car === false)) {
         tempProps[required[i]] = "";
       } else {
         if (!visitorDetails[required[i]]) {
@@ -762,7 +762,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       tempProps[name] = e.target.checked;
       if (e.target.checked === false) {
         tempProps.Color = "";
-        tempProps.DriverName = "";
+        tempProps.DriverLastName = "";
         tempProps.PlateNo = "";
         tempProps.TypeofVehicle = "";
       }
@@ -940,7 +940,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     tempProps.AccessCard = '';
     tempProps.Car = inputFields.RequireParking;
     tempProps.Color = '';
-    tempProps.DriverName = '';
+    tempProps.DriverLastName = '';
     tempProps.GateNo = '';
     tempProps.IDPresented = '';
     tempProps.ParentId = null;

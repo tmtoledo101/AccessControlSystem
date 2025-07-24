@@ -9,7 +9,7 @@ export interface IVisitorDetails {
   PlateNo: string;
   TypeofVehicle: string;
   Color: string;
-  DriverName: string;
+  DriverLastName: string;
   DriverFirstName: string;
   IDPresented: string;
   GateNo: string;

@@ -81,7 +81,7 @@ export function validateVisitorDetailsForm(
 
   // Add car-related fields if Car is true
   if (visitorDetails.Car) {
-    requiredFields.push("PlateNo", "TypeofVehicle", "Color", "DriverName","DriverFirstName");
+    requiredFields.push("PlateNo", "TypeofVehicle", "Color", "DriverLastName","DriverFirstName");
   }
 
   // Validate required fields

@@ -369,7 +369,7 @@ export class SharePointService {
         FirstName: visitorDetail.FirstName,
         Car: visitorDetail.Car,
         Color: visitorDetail.Color,
-        DriverName: visitorDetail.DriverName,
+        DriverLastName: visitorDetail.DriverLastName,
         DriverFirstName: visitorDetail.DriverFirstName,
         TypeofVehicle: visitorDetail.TypeofVehicle,
         PlateNo: visitorDetail.PlateNo,

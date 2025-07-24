@@ -35,7 +35,7 @@ export interface IVisitorDetailsErrors {
   PlateNo?: string;
   TypeofVehicle?: string;
   Color?: string;
-  DriverName?: string;
+  DriverLastName?: string;
   DriverFirstName?: string;
   IDPresentedId?: string;
   GateNo?: string;
