@@ -11,6 +11,7 @@ export interface IOvertimeRequest {
   ApproverId: number;
   SSDApproverId: number;
   Modified: Date;
+  Bldg: string; // Added for building filtering
   Dept?: {
     Title: string;
   };

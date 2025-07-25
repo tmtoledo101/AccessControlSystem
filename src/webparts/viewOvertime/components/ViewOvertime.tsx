@@ -60,6 +60,8 @@ const useStyles = makeStyles((theme: Theme) =>
 const Encoders_Group = "Encoders";
 const Receptionist_Group = "Receptionist"; // Keep this if used elsewhere, currently not in this file's logic
 const SSD_Group = "SSD";
+const HOUsers_Group = "HOUsers";
+const SPCUsers_Group = "SPCUsers";
 
 // Global variables
 let usersPerDept: IUserDept[] = [];
@@ -70,6 +72,8 @@ let isencoder = false;
 let isapprover = false;
 let isreceptionist = false;
 let isssduser = false;
+let ishouser = false;
+let isspcuser = false;
 
 export default function ViewOvertime(props: IViewOvertimeProps) {
   const classes = useStyles();
@@ -289,16 +293,43 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
 
       if (searchText.length > 2) {
         const overtimeDetails = await SharePointService.searchOvertimeByName(searchText);
+        let filteredDetails: IOvertimeDetail[] = overtimeDetails;
+
+        // Filter by building for HOUsers and SPCUsers
+        if (ishouser || isspcuser) {
+          // Get overtime requests to map ParentId to building
+          const overtimeRequests = await SharePointService.loadOvertimeRequests(
+            state.selectedFromDate.toDate(),
+            state.selectedToDate.toDate()
+          );
+          
+          // Create mapping from ID to building
+          const overtimeBldgMap: { [key: number]: string } = {};
+          overtimeRequests.forEach(request => {
+            overtimeBldgMap[request.ID] = request.Bldg;
+          });
+          
+          // Filter overtime details based on building
+          filteredDetails = overtimeDetails.filter(detail => {
+            const parentBldg = overtimeBldgMap[detail.ParentId];
+            if (ishouser) {
+              return parentBldg === "(HO) 5-Storey Building";
+            } else if (isspcuser) {
+              return parentBldg === "SPC";
+            }
+            return true;
+          });
+        }
 
         if (isreceptionist || isssduser) {
           setState(prevState => ({
             ...prevState,
-            dirListItems: overtimeDetails
+            dirListItems: filteredDetails
           }));
         } else if (isencoder || isapprover) {
           let mappedrows: IOvertimeDetail[] = [];
 
-          overtimeDetails.map(row => {
+          filteredDetails.map(row => {
             let filtered = [];
             if (isencoder) {
               filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
@@ -341,6 +372,14 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
 
       overtimeRequests.map(row => {
         let filtered = [];
+        let includeRow = true;
+
+        // Filter by building based on user group
+        if (ishouser && row.Bldg !== "(HO) 5-Storey Building") {
+          includeRow = false;
+        } else if (isspcuser && row.Bldg !== "SPC") {
+          includeRow = false;
+        }
 
         if (currentState.isEncoder) {
           filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
@@ -349,7 +388,7 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
           filtered = approversPerDept.filter((item) => item.NameId === row.ApproverId);
         }
 
-        if ((filtered.length > 0)) {
+        if ((filtered.length > 0) && includeRow) {
           mappedrows.push(row);
         }
       });
@@ -357,12 +396,50 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
       fetchedData = mappedrows;
     } else if ((action === 2)) {
       const overtimeRequests = await SharePointService.loadOvertimeRequests(from.toDate(), to.toDate());
-      fetchedData = overtimeRequests;
+      // Filter by building based on user group
+      if (ishouser || isspcuser) {
+        const filteredRequests = overtimeRequests.filter(row => {
+          if (ishouser) {
+            return row.Bldg === "(HO) 5-Storey Building";
+          } else if (isspcuser) {
+            return row.Bldg === "SPC";
+          }
+          return true;
+        });
+        fetchedData = filteredRequests;
+      } else {
+        fetchedData = overtimeRequests;
+      }
     } else if ((action === 3)) {
       const overtimeDetails = await SharePointService.loadOvertimeDetails(from.toDate(), to.toDate());
+      let filteredDetails: IOvertimeDetail[] = overtimeDetails;
+
+      // Filter by building for HOUsers and SPCUsers
+      if (ishouser || isspcuser) {
+        // Get overtime requests to map ParentId to building
+        const overtimeRequests = await SharePointService.loadOvertimeRequests(from.toDate(), to.toDate());
+        
+        // Create mapping from ID to building
+        const overtimeBldgMap: { [key: number]: string } = {};
+        overtimeRequests.forEach(request => {
+          overtimeBldgMap[request.ID] = request.Bldg;
+        });
+        
+        // Filter overtime details based on building
+        filteredDetails = overtimeDetails.filter(detail => {
+          const parentBldg = overtimeBldgMap[detail.ParentId];
+          if (ishouser) {
+            return parentBldg === "(HO) 5-Storey Building";
+          } else if (isspcuser) {
+            return parentBldg === "SPC";
+          }
+          return true;
+        });
+      }
+
       let mappedrows: IOvertimeDetail[] = [];
 
-      overtimeDetails.map(row => {
+      filteredDetails.map(row => {
         let filtered = [];
 
         if (currentState.isEncoder) {
@@ -379,7 +456,32 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
       fetchedData = mappedrows;
     } else if ((action === 4)) {
       const overtimeDetails = await SharePointService.loadOvertimeDetails(from.toDate(), to.toDate());
-      fetchedData = overtimeDetails;
+      let filteredDetails: IOvertimeDetail[] = overtimeDetails;
+
+      // Filter by building for HOUsers and SPCUsers
+      if (ishouser || isspcuser) {
+        // Get overtime requests to map ParentId to building
+        const overtimeRequests = await SharePointService.loadOvertimeRequests(from.toDate(), to.toDate());
+        
+        // Create mapping from ID to building
+        const overtimeBldgMap: { [key: number]: string } = {};
+        overtimeRequests.forEach(request => {
+          overtimeBldgMap[request.ID] = request.Bldg;
+        });
+        
+        // Filter overtime details based on building
+        filteredDetails = overtimeDetails.filter(detail => {
+          const parentBldg = overtimeBldgMap[detail.ParentId];
+          if (ishouser) {
+            return parentBldg === "(HO) 5-Storey Building";
+          } else if (isspcuser) {
+            return parentBldg === "SPC";
+          }
+          return true;
+        });
+      }
+
+      fetchedData = filteredDetails;
     } else if ((action === 5)) {
       const overtimeRequests = await SharePointService.loadOvertimeRequests(from.toDate(), to.toDate());
       let mappedrows: IOvertimeRequest[] = [];
@@ -387,12 +489,20 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
       overtimeRequests.map(row => {
         let filtered = approversPerDept.filter((item) => item.NameId === row.ApproverId);
         let isvalid = false;
+        let includeRow = true;
+
+        // Filter by building based on user group
+        if (ishouser && row.Bldg !== "(HO) 5-Storey Building") {
+          includeRow = false;
+        } else if (isspcuser && row.Bldg !== "SPC") {
+          includeRow = false;
+        }
 
         if ((row.StatusId === 2)) {
           isvalid = true;
         }
 
-        if ((filtered.length > 0) && (isvalid)) {
+        if ((filtered.length > 0) && (isvalid) && includeRow) {
           mappedrows.push(row);
         }
       });
@@ -404,12 +514,20 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
 
       overtimeRequests.map(row => {
         let isvalid = false;
+        let includeRow = true;
+
+        // Filter by building based on user group
+        if (ishouser && row.Bldg !== "(HO) 5-Storey Building") {
+          includeRow = false;
+        } else if (isspcuser && row.Bldg !== "SPC") {
+          includeRow = false;
+        }
 
         if ((row.StatusId === 3)) {
           isvalid = true;
         }
 
-        if ((isvalid)) {
+        if ((isvalid) && includeRow) {
           mappedrows.push(row);
         }
       });
@@ -425,8 +543,21 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
           moment(to).endOf('month').toDate()
         );
       }
-      // No HO/SPC user filtering applied here as it's not defined in ViewOvertime context
-      fetchedData = reportData;
+      
+      // Apply HO/SPC user filtering for reports
+      if (ishouser || isspcuser) {
+        const filteredReports = reportData.filter(row => {
+          if (ishouser) {
+            return row.Bldg === "(HO) 5-Storey Building";
+          } else if (isspcuser) {
+            return row.Bldg === "SPC";
+          }
+          return true;
+        });
+        fetchedData = filteredReports;
+      } else {
+        fetchedData = reportData;
+      }
     } else {
       alert("You are not authorized to access this page!");
       window.open(props.siteUrl, "_self");
@@ -548,6 +679,15 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
             isSSDUser = true;
             isssduser = true;
             break;
+          }
+        }
+
+        // Check if user is in HOUsers or SPCUsers groups
+        for (let i = 0; i < groups.length; i++) {
+          if (groups[i].LoginName === HOUsers_Group) {
+            ishouser = true;
+          } else if (groups[i].LoginName === SPCUsers_Group) {
+            isspcuser = true;
           }
         }
 

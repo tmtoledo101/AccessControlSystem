@@ -229,7 +229,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         // Get URL parameters
         _sourceURL = document.referrer;
        // _itemId = parseInt(getUrlParameter('pid'));
-       _itemId = 62;
+       _itemId = 74;
         // Get current user
         const user = await sharePointService.getCurrentUser();
         setCurrentUser(user);
@@ -943,7 +943,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     tempProps.DriverLastName = '';
     tempProps.GateNo = '';
     tempProps.IDPresented = '';
-    tempProps.ParentId = null;
+    //tempProps.ParentId = null;
+    tempProps.ParentId = inputFields.ID; // Set ParentId to the main visitor's ID
     tempProps.ID = null;
     tempProps.PlateNo = '';
     tempProps.Title = '';
@@ -1022,97 +1023,192 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   /**
    * Saves the form
    */
+  // const save = async () => {
+  //   try {
+  //     setProgress(true);
+      
+  //     // Check if record has been modified
+  //     const origVisitor = await sharePointService.getVisitorById(_itemId);
+  //     if (origVisitor) {
+  //       console.log("origVisitor", origVisitor.Modified);
+  //       console.log("modifiedDate", modifiedDate);
+  //       if (origVisitor.Modified !== modifiedDate) {
+  //         alert("Record has been changed by another user!");
+  //         window.open(props.siteUrl, "_self");
+  //         return;
+  //       }
+  //     }
+      
+  //     // Save visitor
+  //     const updatedVisitor = await sharePointService.saveVisitor(
+  //       inputFields,
+  //       sAction,
+  //       currentUser
+  //     );
+      
+  //     // Update reference number
+  //     _refno = updatedVisitor.Title;
+      
+  //     // Upload files
+  //     await fileService.uploadVisitorFiles(
+  //       _itemId,
+  //       inputFields.Files,
+  //       inputFields.origFiles,
+  //       deleteFiles
+  //     );
+      
+  //     // Send email notification
+  //     await sendEmail();
+      
+  //     // Save visitor details
+  //     for (const visitorDetail of visitorDetailsList) {
+  //       await sharePointService.saveVisitorDetails(
+  //         visitorDetail,
+  //         _itemId,
+  //         _refno,
+  //         inputFields.DeptId,
+  //         inputFields.DateTimeVisit,
+  //         inputFields.DateTimeArrival,
+  //         inputFields.CompanyName,
+  //         updatedVisitor.StatusId,
+  //         updatedVisitor.RequestDate
+  //       );
+        
+  //       if (visitorDetail.ID) {
+  //         await fileService.uploadVisitorDetailsFiles(
+  //           visitorDetail.ID,
+  //           visitorDetail.Files,
+  //           visitorDetail.origFiles
+  //         );
+  //       }
+  //     }
+      
+  //     // Delete visitor details files
+  //     await fileService.deleteVisitorDetailsFiles(deleteFilesDetails);
+      
+  //     // Delete removed visitor details
+  //     for (const origDetail of _origVisitorDetailsList) {
+  //       const exists = visitorDetailsList.some(detail => detail.ID === origDetail.ID);
+  //       if (!exists) {
+  //         await sharePointService.deleteVisitorDetails(origDetail.ID);
+  //       }
+  //     }
+      
+  //     setSavingDone(true);
+      
+  //     // Redirect after saving
+  //     setTimeout(() => {
+  //       let url = props.siteUrl;
+  //       if (_sourceURL) {
+  //         url = _sourceURL;
+  //       }
+        
+  //       if (((inputFields.StatusId === 4) || (inputFields.StatusId === 9)) && (isReceptionist)) {
+  //         url = window.location.href;
+  //       }
+        
+  //       window.open(url, "_self");
+  //     }, 1000);
+  //   } catch (error) {
+  //     console.error("Error saving data:", error);
+  //     setProgress(false);
+  //   }
+  // };
   const save = async () => {
-    try {
-      setProgress(true);
-      
-      // Check if record has been modified
-      const origVisitor = await sharePointService.getVisitorById(_itemId);
-      if (origVisitor) {
-        console.log("origVisitor", origVisitor.Modified);
-        console.log("modifiedDate", modifiedDate);
-        if (origVisitor.Modified !== modifiedDate) {
-          alert("Record has been changed by another user!");
-          window.open(props.siteUrl, "_self");
-          return;
-        }
+  try {
+    setProgress(true);
+    
+    // Check if record has been modified
+    const origVisitor = await sharePointService.getVisitorById(_itemId);
+    if (origVisitor) {
+      if (origVisitor.Modified !== modifiedDate) {
+        alert("Record has been changed by another user!");
+        window.open(props.siteUrl, "_self");
+        return;
       }
-      
-      // Save visitor
-      const updatedVisitor = await sharePointService.saveVisitor(
-        inputFields,
-        sAction,
-        currentUser
-      );
-      
-      // Update reference number
-      _refno = updatedVisitor.Title;
-      
-      // Upload files
-      await fileService.uploadVisitorFiles(
-        _itemId,
-        inputFields.Files,
-        inputFields.origFiles,
-        deleteFiles
-      );
-      
-      // Send email notification
-      await sendEmail();
-      
-      // Save visitor details
-      for (const visitorDetail of visitorDetailsList) {
-        await sharePointService.saveVisitorDetails(
-          visitorDetail,
-          _itemId,
-          _refno,
-          inputFields.DeptId,
-          inputFields.DateTimeVisit,
-          inputFields.DateTimeArrival,
-          inputFields.CompanyName,
-          updatedVisitor.StatusId,
-          updatedVisitor.RequestDate
-        );
-        
-        if (visitorDetail.ID) {
-          await fileService.uploadVisitorDetailsFiles(
-            visitorDetail.ID,
-            visitorDetail.Files,
-            visitorDetail.origFiles
-          );
-        }
-      }
-      
-      // Delete visitor details files
-      await fileService.deleteVisitorDetailsFiles(deleteFilesDetails);
-      
-      // Delete removed visitor details
-      for (const origDetail of _origVisitorDetailsList) {
-        const exists = visitorDetailsList.some(detail => detail.ID === origDetail.ID);
-        if (!exists) {
-          await sharePointService.deleteVisitorDetails(origDetail.ID);
-        }
-      }
-      
-      setSavingDone(true);
-      
-      // Redirect after saving
-      setTimeout(() => {
-        let url = props.siteUrl;
-        if (_sourceURL) {
-          url = _sourceURL;
-        }
-        
-        if (((inputFields.StatusId === 4) || (inputFields.StatusId === 9)) && (isReceptionist)) {
-          url = window.location.href;
-        }
-        
-        window.open(url, "_self");
-      }, 1000);
-    } catch (error) {
-      console.error("Error saving data:", error);
-      setProgress(false);
     }
-  };
+    
+    // Save visitor
+    const updatedVisitor = await sharePointService.saveVisitor(
+      inputFields,
+      sAction,
+      currentUser
+    );
+    
+    // Update reference number
+    _refno = updatedVisitor.Title;
+    
+    // Upload files
+    await fileService.uploadVisitorFiles(
+      _itemId,
+      inputFields.Files,
+      inputFields.origFiles,
+      deleteFiles
+    );
+    
+    // Send email notification
+    await sendEmail();
+    
+    // Save visitor details - ensure ParentId is set
+    for (const visitorDetail of visitorDetailsList) {
+      // Make sure ParentId is always set to the main visitor ID
+      const detailToSave = {
+        ...visitorDetail,
+        ParentId: _itemId // Explicitly set ParentId here
+      };
+      
+      await sharePointService.saveVisitorDetails(
+        detailToSave,
+        _itemId, // Pass as separate parameter if needed
+        _refno,
+        inputFields.DeptId,
+        inputFields.DateTimeVisit,
+        inputFields.DateTimeArrival,
+        inputFields.CompanyName,
+        updatedVisitor.StatusId,
+        updatedVisitor.RequestDate
+      );
+      
+      if (visitorDetail.ID) {
+        await fileService.uploadVisitorDetailsFiles(
+          visitorDetail.ID,
+          visitorDetail.Files,
+          visitorDetail.origFiles
+        );
+      }
+    }
+    
+    // Delete visitor details files
+    await fileService.deleteVisitorDetailsFiles(deleteFilesDetails);
+    
+    // Delete removed visitor details
+    for (const origDetail of _origVisitorDetailsList) {
+      const exists = visitorDetailsList.some(detail => detail.ID === origDetail.ID);
+      if (!exists) {
+        await sharePointService.deleteVisitorDetails(origDetail.ID);
+      }
+    }
+    
+    setSavingDone(true);
+    
+    // Redirect after saving
+    setTimeout(() => {
+      let url = props.siteUrl;
+      if (_sourceURL) {
+        url = _sourceURL;
+      }
+      
+      if (((inputFields.StatusId === 4) || (inputFields.StatusId === 9)) && (isReceptionist)) {
+        url = window.location.href;
+      }
+      
+      window.open(url, "_self");
+    }, 1000);
+  } catch (error) {
+    console.error("Error saving data:", error);
+    setProgress(false);
+  }
+};
   
   return (
     <form noValidate autoComplete="off">
