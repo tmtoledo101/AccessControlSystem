@@ -643,8 +643,24 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       msg = "Do you want to submit this form?";
     } else if (t === 'approve') {
       msg = "Do you want to approve this request?";
+      
+      // Set approver details for email notification
+      if (inputFields.Approver && inputFields.Approver.EMail) {
+        setApproverDetails({
+          email: inputFields.Approver.EMail,
+          name: inputFields.Approver.Title
+        });
+      }
     } else if (t === 'deny') {
       msg = "Do you want to deny this request?";
+      
+      // Set approver details for email notification
+      if (inputFields.Approver && inputFields.Approver.EMail) {
+        setApproverDetails({
+          email: inputFields.Approver.EMail,
+          name: inputFields.Approver.Title
+        });
+      }
     } else if (t === 'markcomplete') {
       msg = "Do you want to complete this request?";
     }
@@ -897,7 +913,13 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         _itemIdDetails = rowData.ID;
       }
       
-      setVisitorDetails(rowData);
+      // Ensure ParentId is set correctly when viewing/editing visitor details
+      const detailWithParentId = {
+        ...rowData,
+        ParentId: rowData.ParentId || _itemId // Use existing ParentId or fall back to _itemId
+      };
+      
+      setVisitorDetails(detailWithParentId);
       setVisitorDetailsMode('edit');
       setOpenDialogFab(true);
     } else if (action === 'delete') {
@@ -943,8 +965,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     tempProps.DriverLastName = '';
     tempProps.GateNo = '';
     tempProps.IDPresented = '';
-    //tempProps.ParentId = null;
-    tempProps.ParentId = inputFields.ID; // Set ParentId to the main visitor's ID
+    // Always ensure ParentId is set to the main visitor's ID
+    tempProps.ParentId = inputFields.ID; 
+    console.log("Setting ParentId for new visitor details:", inputFields.ID);
     tempProps.ID = null;
     tempProps.PlateNo = '';
     tempProps.Title = '';
@@ -969,14 +992,20 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       // Only allow edits if the user is not in view-only mode
       if (isEdit && !isViewOnly) {
         if (validateOnSubmitDetails()) {
+          // Ensure ParentId is set correctly before saving
+          const detailWithParentId = {
+            ...visitorDetails,
+            ParentId: _itemId // Always use the current visitor ID
+          };
+          
           if (visitorDetailsMode === 'add') {
-            setVisitorDetailsList([...visitorDetailsList, visitorDetails]);
+            setVisitorDetailsList([...visitorDetailsList, detailWithParentId]);
             const tempProps = { ...errorFields };
             tempProps.Details = "";
             setError(tempProps);
           } else {
             const tempList = [...visitorDetailsList];
-            tempList[_idx] = { ...visitorDetails };
+            tempList[_idx] = detailWithParentId;
             setVisitorDetailsList(tempList);
           }
         }
@@ -1149,6 +1178,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     // Send email notification
     await sendEmail();
     
+    // Log the current visitor ID to help with debugging
+    console.log("Current visitor ID (_itemId):", _itemId);
+    
     // Save visitor details - ensure ParentId is set
     for (const visitorDetail of visitorDetailsList) {
       // Make sure ParentId is always set to the main visitor ID
@@ -1156,6 +1188,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         ...visitorDetail,
         ParentId: _itemId // Explicitly set ParentId here
       };
+      
+      // Log the ParentId being set
+      console.log("Setting ParentId for visitor detail:", _itemId);
       
       await sharePointService.saveVisitorDetails(
         detailToSave,
@@ -1191,7 +1226,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     
     setSavingDone(true);
     
-    // Redirect after saving
+    // Redirect after saving - increased timeout to allow notification to be seen
     setTimeout(() => {
       let url = props.siteUrl;
       if (_sourceURL) {
@@ -1203,7 +1238,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       }
       
       window.open(url, "_self");
-    }, 1000);
+    }, 3000); // Increased from 1000ms to 3000ms to give more time to see the notification
   } catch (error) {
     console.error("Error saving data:", error);
     setProgress(false);
@@ -1334,7 +1369,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             <CircularProgress color="inherit" />
           </Backdrop>
           
-          <Snackbar open={isSavingDone} autoHideDuration={2000}>
+          <Snackbar open={isSavingDone} autoHideDuration={3000}>
             <Alert severity="success">
               Data has been saved successfully.
               {successMessage && <div>{successMessage}</div>}

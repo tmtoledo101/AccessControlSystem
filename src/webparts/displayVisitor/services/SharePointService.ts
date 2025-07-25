@@ -492,10 +492,16 @@ export class SharePointService {
     statusId: number,
     requestDate: Date
   ): Promise<IVisitorDetails> {
+    // Ensure parentId is valid and not zero
+    if (!parentId || parentId === 0) {
+      console.error("Invalid parentId detected:", parentId);
+      throw new Error("Cannot save visitor details with invalid parentId");
+    }
+    
     if (visitorDetails.ID) {
       // Update existing visitor details
       await sp.web.lists.getByTitle("VisitorDetails").items.getById(visitorDetails.ID).update({
-        ParentId: parentId,
+        ParentId: parentId, // Ensure this is set correctly
         Title: visitorDetails.Title,
         FirstName: visitorDetails.FirstName,
         Car: visitorDetails.Car,
@@ -520,8 +526,9 @@ export class SharePointService {
       return visitorDetails;
     } else {
       // Create new visitor details
+      console.log("Creating new visitor details with parentId:", parentId);
       const result: IItemAddResult = await sp.web.lists.getByTitle("VisitorDetails").items.add({
-        ParentId: parentId,
+        ParentId: parentId, // Ensure this is set correctly
         Title: visitorDetails.Title,
         FirstName: visitorDetails.FirstName,
         Car: visitorDetails.Car,
