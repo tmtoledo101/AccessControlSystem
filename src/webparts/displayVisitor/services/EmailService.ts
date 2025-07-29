@@ -47,111 +47,111 @@ export class EmailService {
    * @param ssdUsers Array of SSD users
    * @param visitorDetailsList List of visitor details
    */
-  public async sendNotification(
-    action: string,
-    visitor: IVisitor,
-    approverDetails: IApproverDetails,
-    isEncoder: boolean,
-    isReceptionist: boolean,
-    isApproverUser: boolean,
-    isWalkinApproverUser: boolean,
-    isSSDUser: boolean,
-    ssdUsers: any[],
-    visitorDetailsList?: IVisitorDetails[]
-  ): Promise<void> {
-    let toEmails: string[] = [];
-    let subject: string = '';
-    let body: string = '';
-    const refNo = visitor.Title;
-    const purpose = visitor.Purpose;
-    const linkUrl = `${this.siteUrl}/sitePages/DisplayVisitorappge.aspx?pid=${visitor.ID}`;
+  public async sendNotification(
+    action: string,
+    visitor: IVisitor, // This is the 'visitor' parameter from the outer scope
+    approverDetails: IApproverDetails,
+    isEncoder: boolean,
+    isReceptionist: boolean,
+    isApproverUser: boolean,
+    isWalkinApproverUser: boolean,
+    isSSDUser: boolean,
+    ssdUsers: any[],
+    visitorDetailsList?: IVisitorDetails[]
+  ): Promise<void> {
+    let toEmails: string[] = [];
+    let subject: string = '';
+    let body: string = '';
+    const refNo = visitor.Title;
+    const purpose = visitor.Purpose;
+    const linkUrl = `${this.siteUrl}/sitePages/DisplayVisitorappge.aspx?pid=${visitor.ID}`;
 
-    // Determine email recipients, subject, and body based on action and user role
-    if ((isEncoder) && (action === 'submit') && (visitor.StatusId === 1)) {
-      // Encoder submitting a request
-      toEmails.push(approverDetails.email);
-      subject = `BSP ACCESS CONTROL SYSTEM : For Approval ${refNo} - ${purpose}`;
-      body = `BSP Access Control System Request Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
-    } else if ((isReceptionist) && (action === 'submit') && (visitor.StatusId === 1)) {
-      // Receptionist submitting a request
-      toEmails.push(approverDetails.email);
-      subject = `BSP ACCESS CONTROL SYSTEM : For Confirmation ${refNo} - ${purpose}`;
-      body = `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
-    } else if ((isApproverUser) && (action === 'approve') && (visitor.StatusId === 2)) {
-      // Department approver approving a request
-      // Send to SSD users
-      toEmails = ssdUsers.map(user => user.Email);
-      subject = `BSP ACCESS CONTROL SYSTEM : For Approval ${refNo} - ${purpose}`;
-      body = `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
-      
-      // Also notify the author
-      await this.sendEmail(
-        [visitor.Author.EMail],
-        `BSP ACCESS CONTROL SYSTEM : Approved by ${visitor.Approver.Title} - ${refNo}`,
-        `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`
-      );
-    } else if ((isWalkinApproverUser) && (action === 'approve') && (visitor.StatusId === 2)) {
-      // Walkin approver approving a request
-      toEmails.push(visitor.Author.EMail);
-      subject = `BSP ACCESS CONTROL SYSTEM : Confirmed by ${visitor.Approver.Title} - ${refNo}`;
-      body = `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
-    } else if ((isSSDUser) && (action === 'approve') && (visitor.StatusId === 3)) {
-      // SSD approving a request
-      toEmails.push(visitor.Author.EMail);
-      subject = `BSP ACCESS CONTROL SYSTEM : Approved by SSD - ${refNo}`;
-      
-      // Create visitor details table
-      let visitorTable = '';
-      if (visitorDetailsList && visitorDetailsList.length > 0) {
-        visitorTable = '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">' +
-          '<tr style="background-color: #f2f2f2;">' +
-          '<th>Visitor Name</th>' +
-          '<th>SSD Approval</th>' +
-          '</tr>';
-        
-        for (let i = 0; i < visitorDetailsList.length; i++) {
-          const visitor = visitorDetailsList[i];
-          const approvalStatus = visitor.SSDApprove === 'Yes' ? 'Approved' : 'Not Approved';
-          const rowStyle = i % 2 === 0 ? '' : 'background-color: #f9f9f9;';
-          
-          visitorTable += '<tr style="' + rowStyle + '">' +
-            '<td>' + visitor.Title + '</td>' +
-            '<td>' + approvalStatus + '</td>' +
-            '</tr>';
-        }
-        
-        visitorTable += '</table>';
-      }
-      
-      body = `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>` +
-        `<p><strong>Visitor Details:</strong></p>` +
-        `${visitorTable}` +
-        `</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
-    } else if ((isApproverUser) && (action === 'deny') && (visitor.StatusId === 2)) {
-      // Department approver denying a request
-      toEmails.push(visitor.Author.EMail);
-      subject = `BSP ACCESS CONTROL SYSTEM : Disapproved by ${visitor.Approver.Title} - ${refNo}`;
-      body = `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
-    } else if ((isWalkinApproverUser) && (action === 'deny') && (visitor.StatusId === 2)) {
-      // Walkin approver denying a request
-      toEmails.push(visitor.Author.EMail);
-      subject = `BSP ACCESS CONTROL SYSTEM : Disapproved by ${visitor.Approver.Title} - ${refNo}`;
-      body = `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
-    } else if ((isSSDUser) && (action === 'deny') && (visitor.StatusId === 3)) {
-      // SSD denying a request
-      toEmails.push(visitor.Author.EMail);
-      subject = `BSP ACCESS CONTROL SYSTEM : Disapproved by SSD - ${refNo}`;
-      body = `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
-    } else {
-      // No email to send
-      return;
-    }
+    // Determine email recipients, subject, and body based on action and user role
+    if ((isEncoder) && (action === 'submit') && (visitor.StatusId === 1)) {
+      // Encoder submitting a request
+      toEmails.push(approverDetails.email);
+      subject = `BSP ACCESS CONTROL SYSTEM : For Approval ${refNo} - ${purpose}`;
+      body = `BSP Access Control System Request Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
+    } else if ((isReceptionist) && (action === 'submit') && (visitor.StatusId === 1)) {
+      // Receptionist submitting a request
+      toEmails.push(approverDetails.email);
+      subject = `BSP ACCESS CONTROL SYSTEM : For Confirmation ${refNo} - ${purpose}`;
+      body = `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
+    } else if ((isApproverUser) && (action === 'approve') && (visitor.StatusId === 2)) {
+      // Department approver approving a request
+      // Send to SSD users
+      toEmails = ssdUsers.map(user => user.Email);
+      subject = `BSP ACCESS CONTROL SYSTEM : For Approval ${refNo} - ${purpose}`;
+      body = `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
 
-    // Send the email if there are recipients
-    if (toEmails.length > 0) {
-      await this.sendEmail(toEmails, subject, body);
-    }
-  }
+      // Also notify the author
+      await this.sendEmail(
+        [visitor.Author.EMail],
+        `BSP ACCESS CONTROL SYSTEM : Approved by ${visitor.Approver.Title} - ${refNo}`,
+        `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`
+      );
+    } else if ((isWalkinApproverUser) && (action === 'approve') && (visitor.StatusId === 2)) {
+      // Walkin approver approving a request
+      toEmails.push(visitor.Author.EMail);
+      subject = `BSP ACCESS CONTROL SYSTEM : Confirmed by ${visitor.Approver.Title} - ${refNo}`;
+      body = `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
+    } else if ((isSSDUser) && (action === 'approve') && (visitor.StatusId === 3)) {
+      // SSD approving a request
+      toEmails.push(visitor.Author.EMail);
+      subject = `BSP ACCESS CONTROL SYSTEM : Approved by SSD - ${refNo}`;
+
+      // Create visitor details table
+      let visitorTable = '';
+      if (visitorDetailsList && visitorDetailsList.length > 0) {
+        visitorTable = '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">' +
+          '<tr style="background-color: #f2f2f2;">' +
+          '<th>Visitor Name</th>' +
+          '<th>SSD Approval</th>' +
+          '</tr>';
+
+        for (let i = 0; i < visitorDetailsList.length; i++) {
+          const currentVisitorDetail = visitorDetailsList[i]; // Renamed to avoid shadowing
+          const approvalStatus = currentVisitorDetail.SSDApprove === 'Yes' ? 'Approved' : 'Not Approved';
+          const rowStyle = i % 2 === 0 ? '' : 'background-color: #f9f9f9;';
+
+          visitorTable += '<tr style="' + rowStyle + '">' +
+            '<td>' + currentVisitorDetail.Title + '</td>' +
+            '<td>' + approvalStatus + '</td>' +
+            '</tr>';
+        }
+
+        visitorTable += '</table>';
+      }
+
+      body = `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>` +
+        `<p><strong>Visitor Details:</strong></p>` +
+        `${visitorTable}` +
+        `</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
+    } else if ((isApproverUser) && (action === 'deny') && (visitor.StatusId === 2)) {
+      // Department approver denying a request
+      toEmails.push(visitor.Author.EMail);
+      subject = `BSP ACCESS CONTROL SYSTEM : Disapproved by ${visitor.Approver.Title} - ${refNo}`;
+      body = `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
+    } else if ((isWalkinApproverUser) && (action === 'deny') && (visitor.StatusId === 2)) {
+      // Walkin approver denying a request
+      toEmails.push(visitor.Author.EMail);
+      subject = `BSP ACCESS CONTROL SYSTEM : Disapproved by ${visitor.Approver.Title} - ${refNo}`;
+      body = `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
+    } else if ((isSSDUser) && (action === 'deny') && (visitor.StatusId === 3)) {
+      // SSD denying a request
+      toEmails.push(visitor.Author.EMail);
+      subject = `BSP ACCESS CONTROL SYSTEM : Disapproved by SSD - ${refNo}`;
+      body = `BSP Access Control System For Approval Notification.</br></br>Ref No.:${refNo}</br>Purpose:${purpose}</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
+    } else {
+      // No email to send
+      return;
+    }
+
+    // Send the email if there are recipients
+    if (toEmails.length > 0) {
+      await this.sendEmail(toEmails, subject, body);
+    }
+  }
 
   /**
    * Gets a message for the success notification based on the action and user role

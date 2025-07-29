@@ -91,13 +91,13 @@ export default class PrivacyModal extends React.Component<IPrivacyModalProps, IP
         saveError: "An unexpected error occurred while saving your consent. Please try again."
       });
     }
-  };
+  }
   private _onAccept = async (): Promise<void> => {
     await this._saveConsent('Accepted');
-  };
+  }
   private _onDecline = async (): Promise<void> => {
     await this._saveConsent('Declined');
-  };
+  }
   public render(): React.ReactElement<any> {
     const { isSaving, saveError, isOpen } = this.state;
     const stackTokens: IStackTokens = { childrenGap: 20 };

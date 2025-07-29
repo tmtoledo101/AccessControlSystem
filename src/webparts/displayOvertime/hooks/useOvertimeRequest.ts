@@ -51,79 +51,6 @@ export const useOvertimeRequest = (siteUrl: string, siteRelativeUrl: string) => 
   const [originalEmployeeDetails, setOriginalEmployeeDetails] = useState<IEmployeeDetails[]>([]);
 
   /**
-   * Loads the request data
-   */
-  const loadData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      
-      // Get the request ID from the URL
-      const id = parseInt(getUrlParameter('pid')) || 2; // Default to 1 for testing
-      console.log(`Loading request with ID: ${id}`);
-      setRequestId(id);
-      
-      // Get the source URL
-      setSourceUrl(document.referrer);
-      
-      // Get the current user
-      const user = await SharePointService.getCurrentUser();
-      console.log(`Current user loaded:`, user);
-      setCurrentUser(user);
-      console.log(`currentUser:`, user);
-      
-      // Get the user's groups
-      const groups = await SharePointService.getUserGroups();
-      setUserGroups(groups);
-      
-      // Get the user's departments
-      const departments = await SharePointService.getUserDepartments(user.Id);
-      setUserDepartments(departments);
-      
-      // Get the request
-      const request = await SharePointService.getOvertimeRequest(id, siteRelativeUrl);
-      console.log(`Request loaded:`, request);
-      if (!request) {
-        throw new Error('Request not found');
-      }
-      
-      // Get the employee details
-      const employeeDetails = await SharePointService.getEmployeeDetails(id);
-      setOriginalEmployeeDetails(employeeDetails);
-      
-      // Set user permissions
-      const userPermissions = getUserPermissions(
-        user.Id,
-        groups,
-        departments,
-        request.ApproverId,
-        request.StatusId
-      );
-      setPermissions(userPermissions);
-      
-      // Check if the user has permission to access the request
-      if (!userPermissions.isUser) {
-        alert('You are not authorized to access this page!');
-        window.open(siteUrl, '_self');
-        return null;
-      }
-      
-      // Load reference data
-      await loadReferenceData(request.DeptId, user);
-      
-      setIsLoading(false);
-      
-      return {
-        request,
-        employeeDetails
-      };
-    } catch (error) {
-      console.error(error);
-      setIsLoading(false);
-      return null;
-    }
-  }, [siteUrl, siteRelativeUrl]);
-
-  /**
    * Loads reference data
    * @param departmentId The department ID
    * @param user The current user (optional)
@@ -132,15 +59,15 @@ export const useOvertimeRequest = (siteUrl: string, siteRelativeUrl: string) => 
     // Load purpose list
     const purposes = await SharePointService.getPurposeOptions();
     setPurposeList(purposes);
-    
+
     // Load building list
     const buildings = await SharePointService.getBuildingOptions();
     setBuildingList(buildings);
-    
+
     // Load department list
     const departments = await SharePointService.getDepartmentOptions(userDepartments);
     setDepartmentList(departments);
-    
+
     // Load approver list
     if (departmentId) {
       // Use the passed user parameter if available, otherwise fall back to currentUser
@@ -151,15 +78,88 @@ export const useOvertimeRequest = (siteUrl: string, siteRelativeUrl: string) => 
         setApproverList(approvers);
       }
     }
-    
+
     // Load SSD users
-    const ssdUsers = await SharePointService.getSSDUsers();
-    setSsdUsers(ssdUsers);
-    
+    const fetchedSsdUsers = await SharePointService.getSSDUsers(); // Renamed to avoid shadowing
+    setSsdUsers(fetchedSsdUsers);
+
     // Load personnel type list
     const personnelTypes = await SharePointService.getPersonnelTypeOptions();
     setPersonnelTypeList(personnelTypes);
-  }, [userDepartments, currentUser]);
+  }, [userDepartments, currentUser]); // Dependencies for loadReferenceData
+
+  /**
+   * Loads the request data
+   */
+  const loadData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      // Get the request ID from the URL
+      const id = parseInt(getUrlParameter('pid')) || 2; // Default to 1 for testing
+      console.log(`Loading request with ID: ${id}`);
+      setRequestId(id);
+
+      // Get the source URL
+      setSourceUrl(document.referrer);
+
+      // Get the current user
+      const user = await SharePointService.getCurrentUser();
+      console.log(`Current user loaded:`, user);
+      setCurrentUser(user);
+      console.log(`currentUser:`, user);
+
+      // Get the user's groups
+      const groups = await SharePointService.getUserGroups();
+      setUserGroups(groups);
+
+      // Get the user's departments
+      const departments = await SharePointService.getUserDepartments(user.Id);
+      setUserDepartments(departments);
+
+      // Get the request
+      const request = await SharePointService.getOvertimeRequest(id, siteRelativeUrl);
+      console.log(`Request loaded:`, request);
+      if (!request) {
+        throw new Error('Request not found');
+      }
+
+      // Get the employee details
+      const employeeDetails = await SharePointService.getEmployeeDetails(id);
+      setOriginalEmployeeDetails(employeeDetails);
+
+      // Set user permissions
+      const userPermissions = getUserPermissions(
+        user.Id,
+        groups,
+        departments,
+        request.ApproverId,
+        request.StatusId
+      );
+      setPermissions(userPermissions);
+
+      // Check if the user has permission to access the request
+      if (!userPermissions.isUser) {
+        alert('You are not authorized to access this page!');
+        window.open(siteUrl, '_self');
+        return null;
+      }
+
+      // Load reference data
+      await loadReferenceData(request.DeptId, user);
+
+      setIsLoading(false);
+
+      return {
+        request,
+        employeeDetails
+      };
+    } catch (error) {
+      console.error(error);
+      setIsLoading(false);
+      return null;
+    }
+  }, [siteUrl, siteRelativeUrl, loadReferenceData]); // Add loadReferenceData as a dependency
 
   /**
    * Handles department change
@@ -193,11 +193,11 @@ export const useOvertimeRequest = (siteUrl: string, siteRelativeUrl: string) => 
     try {
       // Validate the request
       const { isValid, errors } = validateOvertimeRequest(request, action, employeeDetails);
-      
+
       if (!isValid) {
         return { errors };
       }
-      
+
       // Save the request
       const savedRequest = await SharePointService.saveOvertimeRequest(
         request,
@@ -206,7 +206,7 @@ export const useOvertimeRequest = (siteUrl: string, siteRelativeUrl: string) => 
         employeeDetails,
         originalEmployeeDetails
       );
-      
+
       // Send email notification
       if (currentUser) {
         await EmailService.sendEmailNotification(
@@ -217,14 +217,14 @@ export const useOvertimeRequest = (siteUrl: string, siteRelativeUrl: string) => 
           ssdUsers
         );
       }
-      
-      return { 
+
+      return {
         savedRequest,
         success: true
       };
     } catch (error) {
       console.error(error);
-      return { 
+      return {
         error: error.message
       };
     }

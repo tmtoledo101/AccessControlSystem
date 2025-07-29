@@ -47,7 +47,7 @@ function Alert(props: any) {
 export default function DisplayOvertime(props: IDisplayOvertimeProps) {
   const classes = useStyles();
   const { siteUrl, siteRelativeUrl } = props;
-  
+
   // Custom hooks
   const {
     isLoading,
@@ -65,7 +65,7 @@ export default function DisplayOvertime(props: IDisplayOvertimeProps) {
     handleDepartmentChange,
     saveRequest
   } = useOvertimeRequest(siteUrl, siteRelativeUrl);
-  
+
   // Initial state for form data
   const initialFormState: IOvertimeRequest = {
     ID: null,
@@ -94,7 +94,7 @@ export default function DisplayOvertime(props: IDisplayOvertimeProps) {
     Author: { Title: '', EMail: '' },
     AuthorId: null
   };
-  
+
   // Initial state for employee details
   const initialEmployeeDetailsState: IEmployeeDetails = {
     ID: null,
@@ -109,7 +109,7 @@ export default function DisplayOvertime(props: IDisplayOvertimeProps) {
     initFiles: [],
     origFiles: []
   };
-  
+
   // Form state hook
   const {
     formData,
@@ -137,7 +137,7 @@ export default function DisplayOvertime(props: IDisplayOvertimeProps) {
     handleChangeDropZone,
     setActionAndMessage
   } = useFormState(initialFormState);
-  
+
   // Employee details hook
   const {
     detailsData,
@@ -168,146 +168,22 @@ export default function DisplayOvertime(props: IDisplayOvertimeProps) {
     openEditDialog,
     deleteDetail
   } = useEmployeeDetails(initialEmployeeDetailsState);
-  
+
   // State for deleted files
   const [deleteFiles, setDeleteFiles] = useState<any[]>([]);
-  
-  /**
-   * Load data on component mount
-   */
-  useEffect(() => {
-    const fetchData = async () => {
-      const result = await loadData();
-      
-      if (result) {
-        setFormData(result.request);
-        setDetailsList(result.employeeDetails);
-        setModifiedDate(result.request.Modified);
-      }
-    };
-    
-    fetchData();
-  }, []);
-  
-  /**
-   * Handles department change
-   */
-  const onDepartmentChange = async (e) => {
-    const { value } = e.target;
-    const deptName = await handleDepartmentChange(value);
-    
-    // Update department name in employee details
-    const updatedDetailsData = { ...detailsData };
-    updatedDetailsData['deptId'] = value;
-    updatedDetailsData['deptName'] = deptName;
-    setDetailsData(updatedDetailsData);
-    
-    // Call the original handler
-    handleChangeCbo(e);
-  };
-  
-  /**
-   * Handles file change
-   */
-  const onFileChange = (files) => {
-    const deletedFiles = handleChangeDropZone(files);
-    setDeleteFiles(deletedFiles);
-  };
-  
-  /**
-   * Handles file click
-   */
-  const handleFileClick = (e, fileName) => {
-    const fileUrl = `${siteUrl}/OvertimeLib/${requestId}/${fileName}`;
-    
-    let link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = fileName;
-    link.click();
-  };
-  
-  /**
-   * Handles dialog close
-   */
-  const handleDialogClose = async (confirmed: boolean) => {
-    setOpenDialog(false);
-    
-    if (confirmed) {
-      if (action === 'cancel') {
-        let url = siteUrl;
-        if (sourceUrl) {
-          url = sourceUrl;
-        }
-        window.open(url, "_self");
-      } else {
-        await save();
-      }
-    }
-  };
-  
-  /**
-   * Handles employee details dialog close
-   */
-  const handleEmployeeDialogClose = (save: boolean) => {
-    setOpenEmployeeDialog(false);
-    
-    if (save) {
-      if (validateEmployeeDetails()) {
-        addOrUpdateDetail();
-        
-        // Clear the details error if we have at least one employee
-        if (detailsList.length === 0) {
-          const updatedErrors = { ...errors };
-          updatedErrors.Details = '';
-          setErrors(updatedErrors);
-        }
-      }
-    }
-  };
-  
-  /**
-   * Validates employee details
-   */
-  const validateEmployeeDetails = () => {
-    const updatedErrors = { ...detailsErrors };
-    let isValid = true;
-    
-    // Required fields
-    const requiredFields = ['EmpNo'];
-    if (detailsData.Etype === 'Others') {
-      requiredFields.push('OtherSource');
-    }
-    
-    // Check required fields
-    requiredFields.forEach(field => {
-      if (!detailsData[field]) {
-        updatedErrors[field] = "This is a required input field";
-        isValid = false;
-      }
-    });
-    
-    // Check time validity
-    if (detailsData.TimeFrom > detailsData.TimeTo) {
-      updatedErrors.TimeFrom = "From Time should be earlier than To Time";
-      isValid = false;
-    }
-    
-    setDetailsErrors(updatedErrors);
-    return isValid;
-  };
-  
+
   /**
    * Saves the request
    */
   const save = async () => {
     setProgress(true);
-    
+
     try {
       const result = await saveRequest(formData, action, detailsList);
-      
+
       if (result.success) {
         setSavingDone(true);
-        
+
         // Redirect after a delay
         setTimeout(() => {
           let url = siteUrl;
@@ -329,42 +205,167 @@ export default function DisplayOvertime(props: IDisplayOvertimeProps) {
       setProgress(false);
     }
   };
-  
+
+  /**
+   * Validates employee details
+   */
+  const validateEmployeeDetails = () => {
+    const updatedErrors = { ...detailsErrors };
+    let isValid = true;
+
+    // Required fields
+    const requiredFields = ['EmpNo'];
+    if (detailsData.Etype === 'Others') {
+      requiredFields.push('OtherSource');
+    }
+
+    // Check required fields
+    requiredFields.forEach(field => {
+      if (!detailsData[field]) {
+        updatedErrors[field] = "This is a required input field";
+        isValid = false;
+      }
+    });
+
+    // Check time validity
+    if (detailsData.TimeFrom > detailsData.TimeTo) {
+      updatedErrors.TimeFrom = "From Time should be earlier than To Time";
+      isValid = false;
+    }
+
+    setDetailsErrors(updatedErrors);
+    return isValid;
+  };
+
+  /**
+   * Load data on component mount
+   */
+  useEffect(() => {
+    const fetchData = async () => {
+      const result = await loadData();
+
+      if (result) {
+        setFormData(result.request);
+        setDetailsList(result.employeeDetails);
+        setModifiedDate(result.request.Modified);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  /**
+   * Handles department change
+   */
+  const onDepartmentChange = async (e) => {
+    const { value } = e.target;
+    const deptName = await handleDepartmentChange(value);
+
+    // Update department name in employee details
+    const updatedDetailsData = { ...detailsData };
+    updatedDetailsData['deptId'] = value;
+    updatedDetailsData['deptName'] = deptName;
+    setDetailsData(updatedDetailsData);
+
+    // Call the original handler
+    handleChangeCbo(e);
+  };
+
+  /**
+   * Handles file change
+   */
+  const onFileChange = (files) => {
+    const deletedFiles = handleChangeDropZone(files);
+    setDeleteFiles(deletedFiles);
+  };
+
+  /**
+   * Handles file click
+   */
+  const handleFileClick = (e, fileName) => {
+    const fileUrl = `${siteUrl}/OvertimeLib/${requestId}/${fileName}`;
+
+    let link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = fileName;
+    link.click();
+  };
+
+  /**
+   * Handles dialog close
+   */
+  const handleDialogClose = async (confirmed: boolean) => {
+    setOpenDialog(false);
+
+    if (confirmed) {
+      if (action === 'cancel') {
+        let url = siteUrl;
+        if (sourceUrl) {
+          url = sourceUrl;
+        }
+        window.open(url, "_self");
+      } else {
+        await save(); // Now 'save' is defined
+      }
+    }
+  };
+
+  /**
+   * Handles employee details dialog close
+   */
+  const handleEmployeeDialogClose = (shouldSave: boolean) => { // Renamed parameter
+    setOpenEmployeeDialog(false);
+
+    if (shouldSave) {
+      if (validateEmployeeDetails()) { // Now 'validateEmployeeDetails' is defined
+        addOrUpdateDetail();
+
+        // Clear the details error if we have at least one employee
+        if (detailsList.length === 0) {
+          const updatedErrors = { ...errors };
+          updatedErrors.Details = '';
+          setErrors(updatedErrors);
+        }
+      }
+    }
+  };
+
+
   /**
    * Handles save action
    */
   const handleSave = () => {
     setActionAndMessage('savedraft');
   };
-  
+
   /**
    * Handles submit action
    */
   const handleSubmit = () => {
     setActionAndMessage('submit');
   };
-  
+
   /**
    * Handles approve action
    */
   const handleApprove = () => {
     setActionAndMessage('approve');
   };
-  
+
   /**
    * Handles deny action
    */
   const handleDeny = () => {
     setActionAndMessage('deny');
   };
-  
+
   /**
    * Handles cancel action
    */
   const handleCancel = () => {
     setActionAndMessage('cancel');
   };
-  
+
   /**
    * Handles close action
    */
@@ -375,7 +376,7 @@ export default function DisplayOvertime(props: IDisplayOvertimeProps) {
     }
     window.open(url, "_self");
   };
-  
+
   // If loading, show progress indicator
   if (isLoading) {
     return (
@@ -384,12 +385,12 @@ export default function DisplayOvertime(props: IDisplayOvertimeProps) {
       </Backdrop>
     );
   }
-  
+
   // If no request ID, don't render anything
   if (!requestId) {
     return null;
   }
-  
+
   return (
     <form noValidate autoComplete="off">
       <div className={classes.root}>
@@ -403,7 +404,7 @@ export default function DisplayOvertime(props: IDisplayOvertimeProps) {
               isEditMode={isEdit}
               onEditClick={setEditMode}
             />
-            
+
             {/* Request Info Section */}
             <RequestInfoSection
               formData={formData}
@@ -418,7 +419,7 @@ export default function DisplayOvertime(props: IDisplayOvertimeProps) {
               handleChangeCbo={onDepartmentChange}
               onDateChange={onDateChange}
             />
-            
+
             {/* Attachments Section */}
             <AttachmentsSection
               files={formData.Files}
@@ -431,7 +432,7 @@ export default function DisplayOvertime(props: IDisplayOvertimeProps) {
               handleChangeDropZone={onFileChange}
               handleChipClick={handleFileClick}
             />
-            
+
             {/* Employee Details Section */}
             <EmployeeDetailsSection
               employeeDetails={detailsList}
@@ -450,7 +451,7 @@ export default function DisplayOvertime(props: IDisplayOvertimeProps) {
               )}
               onDeleteClick={deleteDetail}
             />
-            
+
             {/* Approval Section */}
             <ApprovalSection
               formData={formData}
@@ -462,7 +463,7 @@ export default function DisplayOvertime(props: IDisplayOvertimeProps) {
               handleChangeTxt={handleChangeTxt}
               handleChangeCbo={handleChangeCbo}
             />
-            
+
             {/* Action Buttons Section */}
             <ActionButtonsSection
               permissions={permissions}
@@ -477,7 +478,7 @@ export default function DisplayOvertime(props: IDisplayOvertimeProps) {
             />
           </Grid>
         </Container>
-        
+
         {/* Confirmation Dialog */}
         <ConfirmationDialog
           open={openDialog}
@@ -485,7 +486,7 @@ export default function DisplayOvertime(props: IDisplayOvertimeProps) {
           title="Confirmation"
           message={dialogMessage}
         />
-        
+
         {/* Employee Details Dialog */}
         <EmployeeDetailsDialog
           open={openEmployeeDialog}
@@ -504,12 +505,12 @@ export default function DisplayOvertime(props: IDisplayOvertimeProps) {
           handleAutocompleteSelection={handleAutocompleteSelection}
           findUser={findUser}
         />
-        
+
         {/* Progress Backdrop */}
         <Backdrop className={classes.backdrop} open={isProgress}>
           <CircularProgress color="inherit" />
         </Backdrop>
-        
+
         {/* Success Snackbar */}
         <Snackbar open={isSavingDone} autoHideDuration={2000}>
           <Alert severity="success">

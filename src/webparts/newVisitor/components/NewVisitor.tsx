@@ -124,6 +124,115 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   const [itemId, setItemId] = useState(0);
 
   /**
+   * Saves the visitor
+   */
+  const saveVisitor = async () => {
+    // Validate form
+    const validation = validateVisitorForm(visitor, visitorDetailsList, submitType);
+
+    if (!validation.isValid) {
+      setErrors(validation.errors);
+      return;
+    }
+
+    setProgress(true);
+
+    try {
+      // Get building location code
+      const bldg = bldgList.find(b => b.Title === visitor.Bldg);
+      let locationCode = '';
+
+      if (bldg) {
+        locationCode = bldg.LocationCode;
+      }
+
+      // Create request number if submitting
+      let generatedRefNo = refNo; // Use existing refNo or generate new
+      if (submitType === 2) {
+        generatedRefNo = await spService.createRequestNo(locationCode); // Generate new Ref No
+        setRefNo(generatedRefNo); // Update state with the newly generated Ref No
+        console.log("saveVisitor: Generated RefNo:", generatedRefNo); // DEBUG LOG
+      }
+
+      // Save visitor
+      const savedItemId = await spService.saveVisitor(visitor, visitorDetailsList, submitType, generatedRefNo, deptName); // Renamed to avoid shadowing
+      setItemId(savedItemId); // Set the state variable
+      console.log("saveVisitor: Visitor saved with Item ID:", savedItemId); // DEBUG LOG
+
+
+      // Send email if submitting
+      if (submitType === 2) {
+        await emailService.sendApprovalEmail(
+          generatedRefNo, // Use the generatedRefNo for the email
+          visitor.Purpose,
+          savedItemId, // Use the renamed variable
+          approverDetails.email,
+          approverDetails.name,
+          isEncoder
+        );
+        console.log("saveVisitor: Approval email sent.");
+
+        if (spService) { // Check if spService is available
+            const currentUserEmail = props.context.pageContext.user.email;
+            console.log(`saveVisitor: Attempting to update privacy consent for ${currentUserEmail} with RefNo: ${generatedRefNo}`);
+            await spService.updatePrivacyConsentRefNo(currentUserEmail, generatedRefNo);
+            console.log("saveVisitor: Privacy consent update initiated.");
+        }
+
+      }
+
+      setSavingDone(true);
+
+      // Redirect after 1 second
+      setTimeout(() => {
+        window.open(props.siteUrl, "_self");
+      }, 1000);
+    } catch (error) {
+      console.error("Error saving visitor or updating consent:", error);
+      setProgress(false);
+    }
+  };
+
+
+  /**
+   * Handles department change
+   * @param deptId Department ID
+   */
+  const handleDeptChange = async (deptId: number) => {
+    try {
+      // Get department name
+      const dept = deptList.find(d => d.Id === deptId);
+      if (dept) {
+        setDeptName(dept.Title);
+      }
+
+      // Get approvers
+      if (visitor.ExternalType === 'Walk-in') {
+        const walkinApprovers = await spService.getWalkinApproverList(deptId);
+        setWalkinApproverList(walkinApprovers);
+      } else {
+        const approvers = await spService.getApproverList(deptId);
+        setApproverList(approvers);
+      }
+    } catch (error) {
+      console.error("Error handling department change:", error);
+    }
+  };
+
+  /**
+   * Handles approver change
+   * @param approverId Approver ID
+   */
+  const handleApproverChange = async (approverId: number) => {
+    try {
+      const fetchedApproverDetails = await spService.getApproverDetails(approverId); // Renamed to avoid shadowing
+      setApproverDetails(fetchedApproverDetails); // Set the state variable
+    } catch (error) {
+      console.error("Error handling approver change:", error);
+    }
+  };
+
+  /**
    * Initializes the component
    */
   useEffect(() => {
@@ -222,49 +331,11 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
 
     // Special handling for certain fields
     if (name === 'DeptId') {
-      handleDeptChange(value);
+      handleDeptChange(value); // Now defined
     } else if (name === 'Purpose' && value !== 'Others') {
       updatedVisitor.PurposeOthers = '';
     } else if (name === 'ApproverId') {
-      handleApproverChange(value);
-    }
-  };
-
-  /**
-   * Handles department change
-   * @param deptId Department ID
-   */
-  const handleDeptChange = async (deptId: number) => {
-    try {
-      // Get department name
-      const dept = deptList.find(d => d.Id === deptId);
-      if (dept) {
-        setDeptName(dept.Title);
-      }
-
-      // Get approvers
-      if (visitor.ExternalType === 'Walk-in') {
-        const walkinApprovers = await spService.getWalkinApproverList(deptId);
-        setWalkinApproverList(walkinApprovers);
-      } else {
-        const approvers = await spService.getApproverList(deptId);
-        setApproverList(approvers);
-      }
-    } catch (error) {
-      console.error("Error handling department change:", error);
-    }
-  };
-
-  /**
-   * Handles approver change
-   * @param approverId Approver ID
-   */
-  const handleApproverChange = async (approverId: number) => {
-    try {
-      const approverDetails = await spService.getApproverDetails(approverId);
-      setApproverDetails(approverDetails);
-    } catch (error) {
-      console.error("Error handling approver change:", error);
+      handleApproverChange(value); // Now defined
     }
   };
 
@@ -417,81 +488,10 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
 
     if (confirmed) {
       if (dialogMessage.includes("save") || dialogMessage.includes("submit")) {
-        saveVisitor();
+        saveVisitor(); // Now defined
       } else if (dialogMessage.includes("discard")) {
         window.open(props.siteUrl, "_self");
       }
-    }
-  };
-
-  /**
-   * Saves the visitor
-   */
-  const saveVisitor = async () => {
-    // Validate form
-    const validation = validateVisitorForm(visitor, visitorDetailsList, submitType);
-
-    if (!validation.isValid) {
-      setErrors(validation.errors);
-      return;
-    }
-
-    setProgress(true);
-
-    try {
-      // Get building location code
-      const bldg = bldgList.find(b => b.Title === visitor.Bldg);
-      let locationCode = '';
-
-      if (bldg) {
-        locationCode = bldg.LocationCode;
-      }
-
-      // Create request number if submitting
-      let generatedRefNo = refNo; // Use existing refNo or generate new
-      if (submitType === 2) {
-        generatedRefNo = await spService.createRequestNo(locationCode); // Generate new Ref No
-        setRefNo(generatedRefNo); // Update state with the newly generated Ref No
-        console.log("saveVisitor: Generated RefNo:", generatedRefNo); // DEBUG LOG
-      }
-
-      // Save visitor
-      // THIS IS THE CORRECTED LINE: Passing deptName as the 5th argument
-      const itemId = await spService.saveVisitor(visitor, visitorDetailsList, submitType, generatedRefNo, deptName);
-      setItemId(itemId);
-      console.log("saveVisitor: Visitor saved with Item ID:", itemId); // DEBUG LOG
-
-
-      // Send email if submitting
-      if (submitType === 2) {
-        await emailService.sendApprovalEmail(
-          generatedRefNo, // Use the generatedRefNo for the email
-          visitor.Purpose,
-          itemId,
-          approverDetails.email,
-          approverDetails.name,
-          isEncoder
-        );
-        console.log("saveVisitor: Approval email sent.");
-
-        if (spService) { // Check if spService is available
-            const currentUserEmail = props.context.pageContext.user.email;
-            console.log(`saveVisitor: Attempting to update privacy consent for ${currentUserEmail} with RefNo: ${generatedRefNo}`);
-            await spService.updatePrivacyConsentRefNo(currentUserEmail, generatedRefNo);
-            console.log("saveVisitor: Privacy consent update initiated.");
-        }
-
-      }
-
-      setSavingDone(true);
-
-      // Redirect after 1 second
-      setTimeout(() => {
-        window.open(props.siteUrl, "_self");
-      }, 1000);
-    } catch (error) {
-      console.error("Error saving visitor or updating consent:", error);
-      setProgress(false);
     }
   };
 
