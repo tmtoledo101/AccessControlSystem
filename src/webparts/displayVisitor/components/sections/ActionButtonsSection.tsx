@@ -180,7 +180,7 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
         </ButtonGroup>
       )}
       
-      {checkVisibility('addapproval') && (
+      {/* {checkVisibility('addapproval') && (
         <ButtonGroup>
           <Button 
             className={classes.paperbutton} 
@@ -210,6 +210,41 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
             onClick={(e) => onSubmit(e, 'approve')}
           >
             Approve
+          </Button>
+        </ButtonGroup>
+      )} */}
+
+      {checkVisibility('addapproval') && (
+        <ButtonGroup>
+          <Button 
+            className={classes.paperbutton} 
+            startIcon={<CancelIcon />} 
+            variant="contained" 
+            color="default" 
+            onClick={onCancel}
+          >
+            Close
+          </Button>
+          {/* <Button 
+            name="deny" 
+            className={classes.paperbutton} 
+            startIcon={<ThumbDownIcon />} 
+            variant="contained" 
+            color="default" 
+            onClick={(e) => onSubmit(e, 'deny')}
+          >
+            Deny
+          </Button>
+          */}
+          <Button 
+            name="approve" // Changed from "approve" to "save"
+            className={classes.paperbutton} 
+            startIcon={<SaveIcon />} // Changed icon to SaveIcon
+            variant="contained" 
+            color="primary" 
+            onClick={(e) => onSubmit(e, 'approve')} // Changed action to 'save'
+          >
+            Save {/* Changed button text to "Save" */}
           </Button>
         </ButtonGroup>
       )}
