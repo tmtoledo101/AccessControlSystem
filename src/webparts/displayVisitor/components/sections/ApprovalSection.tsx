@@ -132,7 +132,7 @@ const ApprovalSection: React.FC<IApprovalSectionProps> = (props) => {
   const checkVisibility = (element: string): boolean => {
     const forApprover = isApproverUser && visitor.StatusId === 2;
     const forWalkinApprover = isWalkinApproverUser && visitor.StatusId === 2;
-    const forSSD = isSSDUser && visitor.StatusId === 3;
+    const forSSD = isSSDUser && (visitor.StatusId === 3 || visitor.StatusId === 4 || visitor.StatusId === 7); // Include StatusId 4 (Approved by SSD) and 7 (Denied by SSD)
     const forEncoder = isEncoder && (visitor.StatusId === 1 || visitor.StatusId === 2);
     const forReceptionist = isReceptionist && (visitor.StatusId === 1 || visitor.StatusId === 2);
     const forReceptionistCompletion = isReceptionist && (visitor.StatusId === 4 || visitor.StatusId === 9);

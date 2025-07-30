@@ -103,7 +103,7 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
   const checkVisibility = (element: string): boolean => {
     const forApprover = isApproverUser && statusId === 2;
     const forWalkinApprover = isWalkinApproverUser && statusId === 2;
-    const forSSD = isSSDUser && statusId === 3;
+    const forSSD = isSSDUser && (statusId === 3 || statusId === 4 || statusId === 7); // Include StatusId 4 (Approved by SSD) and 7 (Denied by SSD)
     const forEncoder = isEncoder && (statusId === 1 || statusId === 2);
     const forReceptionist = isReceptionist && (statusId === 1 || statusId === 2);
     const forReceptionistCompletion = isReceptionist && (statusId === 4 || statusId === 9);

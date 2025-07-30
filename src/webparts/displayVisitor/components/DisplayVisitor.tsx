@@ -56,7 +56,7 @@ function Alert(props: AlertProps) {
 const checkVisibility = (element: string, visitor: IVisitor, isEdit: boolean, isEncoder: boolean, isReceptionist: boolean, isApproverUser: boolean, isWalkinApproverUser: boolean, isSSDUser: boolean): boolean => {
   const forApprover = isApproverUser && visitor.StatusId === 2;
   const forWalkinApprover = isWalkinApproverUser && visitor.StatusId === 2;
-  const forSSD = isSSDUser && visitor.StatusId === 3;
+  const forSSD = isSSDUser && (visitor.StatusId === 3 || visitor.StatusId === 4 || visitor.StatusId === 7); // Include StatusId 4 (Approved by SSD) and 7 (Denied by SSD)
   const forEncoder = isEncoder && (visitor.StatusId === 1 || visitor.StatusId === 2);
   const forReceptionist = isReceptionist && (visitor.StatusId === 1 || visitor.StatusId === 2);
   const forReceptionistCompletion = isReceptionist && (visitor.StatusId === 4 || visitor.StatusId === 9);
@@ -318,6 +318,29 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         const tempList = [...visitorDetailsList];
         tempList[idx] = rowData; // Use the updated rowData directly
         setVisitorDetailsList(tempList);
+        
+        // Only update status if the user is an SSD user
+        if (isSSDUser) {
+          console.log("SSD Approve value:", rowData.SSDApprove);
+          
+          if (rowData.SSDApprove === 'Yes') {
+            // If SSD approver ticks the checkbox, update status to "Approved by SSD" (ID 4)
+            console.log("Setting status to Approved by SSD (4)");
+            setInputs(prev => ({
+              ...prev,
+              StatusId: 4,
+              Status: { Title: 'Approved by SSD' }
+            }));
+          } else if (rowData.SSDApprove === 'No') {
+            // If SSD approver unticks the checkbox, update status to "Denied by SSD" (ID 7)
+            console.log("Setting status to Denied by SSD (7)");
+            setInputs(prev => ({
+              ...prev,
+              StatusId: 7,
+              Status: { Title: 'Denied by SSD' }
+            }));
+          }
+        }
       }
     }
   };
@@ -605,6 +628,13 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           ParentId: _itemId
         };
 
+        // Determine the StatusId based on SSDApprove value
+        let detailStatusId = updatedVisitor.StatusId;
+        if (isSSDUser && visitorDetail.SSDApprove !== undefined) {
+          // If SSD user has approved or denied this specific visitor
+          detailStatusId = visitorDetail.SSDApprove === 'Yes' ? 4 : 7;
+        }
+
         const savedDetail = await sharePointService.saveVisitorDetails(
           detailToSave,
           _itemId,
@@ -613,7 +643,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           inputFields.DateTimeVisit,
           inputFields.DateTimeArrival,
           inputFields.CompanyName,
-          updatedVisitor.StatusId,
+          detailStatusId,
           updatedVisitor.RequestDate
         );
 
@@ -751,7 +781,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         // Get URL parameters
         _sourceURL = document.referrer;
         // _itemId = parseInt(getUrlParameter('pid'));
-        _itemId = 86; // Hardcoded for testing, ideally use getUrlParameter
+        _itemId = 88; // Hardcoded for testing, ideally use getUrlParameter
 
         // Get current user
         const user = await sharePointService.getCurrentUser();
