@@ -105,7 +105,8 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     RequireParking: false,
     ApproverId: null,
     Files: [],
-    PurposeOthers: ''
+    PurposeOthers: '',
+    VisitorType: 'Visitor' // Initialize with default value
   });
 
   // Form errors
@@ -548,6 +549,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
               visitorDetailsList={visitorDetailsList}
               requireParking={visitor.RequireParking}
               detailsError={errors.Details}
+              visitorType={visitor.VisitorType || 'Visitor'} // Pass the selected VisitorType from the main form
               onAddVisitor={handleAddVisitor}
               onEditVisitor={handleEditVisitor}
               onDeleteVisitor={handleDeleteVisitor}

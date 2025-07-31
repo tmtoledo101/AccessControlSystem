@@ -314,7 +314,8 @@ export class SharePointService {
         ApproverId: visitor.ApproverId,
         StatusId: submitType,
         RequestDate: requestDate,
-        PurposeOthers: visitor.PurposeOthers
+        PurposeOthers: visitor.PurposeOthers,
+        //VisitorType: visitor.VisitorType
     });
 
     const iar: IItemAddResult = await sp.web.lists.getByTitle("Visitors").items.add({
@@ -339,7 +340,8 @@ export class SharePointService {
       ApproverId: visitor.ApproverId,
       StatusId: submitType,
       RequestDate: requestDate,
-      PurposeOthers: visitor.PurposeOthers
+      PurposeOthers: visitor.PurposeOthers,
+      //VisitorType: visitor.VisitorType
     });
 
     const itemId = iar.data.ID;
@@ -382,7 +384,8 @@ export class SharePointService {
         DateFrom: moment(visitor.DateTimeVisit).toISOString(),
         DateTo: moment(visitor.DateTimeArrival).toISOString(),
         CompanyName: visitor.CompanyName,
-        StatusId: submitType
+        StatusId: submitType,
+        VisitorType: visitorDetail.VisitorType // Added VisitorType field
       });
 
       await sp.web.lists.getByTitle("VisitorDetailsLib").rootFolder.folders.add(iar2.data.ID.toString());

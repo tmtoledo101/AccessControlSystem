@@ -40,4 +40,5 @@ export interface IVisitorDetailsErrors {
   IDPresentedId?: string;
   GateNo?: string;
   Files?: string;
+  VisitorType?: string;
 }

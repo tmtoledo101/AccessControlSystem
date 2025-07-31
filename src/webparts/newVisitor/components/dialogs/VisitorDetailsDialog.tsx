@@ -11,7 +11,13 @@ import Paper from '@material-ui/core/Paper';
 import TextField from '@material-ui/core/TextField';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
+import Select from '@material-ui/core/Select';
+import MenuItem from '@material-ui/core/MenuItem';
+import InputLabel from '@material-ui/core/InputLabel';
+import FormControl from '@material-ui/core/FormControl';
+import FormHelperText from '@material-ui/core/FormHelperText';
 import { DialogProps } from '@material-ui/core/Dialog';
+import Typography from '@material-ui/core/Typography';
 import { IVisitorDetails } from '../../models/IVisitorDetails';
 import { IVisitorDetailsErrors } from '../../models/IFormErrors';
 import { validateVisitorDetailsForm } from '../../validations/formValidation';
@@ -179,6 +185,17 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                     label="With Vehicle?"
                   />
                 </div>
+              </Paper>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Paper variant="outlined" className={classes.paper}>
+                <Typography variant="caption" style={{ display: 'block', margin: '4px 8px' }}>
+                  Visitor Type
+                </Typography>
+                <Typography variant="body1" style={{ display: 'block', fontWeight: 500, margin: '4px 8px' }}>
+                  {visitorDetails.VisitorType || 'Visitor'}
+                </Typography>
               </Paper>
             </Grid>
 

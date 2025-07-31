@@ -15,4 +15,5 @@ export interface IVisitorDetails {
   GateNo: string;
   ParentId: number;
   Files: File[];
+  VisitorType: string;
 }

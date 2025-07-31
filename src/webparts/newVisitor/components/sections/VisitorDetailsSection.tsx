@@ -39,6 +39,7 @@ export interface IVisitorDetailsSectionProps {
   visitorDetailsList: IVisitorDetails[];
   requireParking: boolean;
   detailsError: string;
+  visitorType: string; // Add visitorType prop to receive the selected value from parent
   onAddVisitor: (visitorDetails: IVisitorDetails) => void;
   onEditVisitor: (visitorDetails: IVisitorDetails, index: number) => void;
   onDeleteVisitor: (index: number) => void;
@@ -54,6 +55,7 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
     visitorDetailsList, 
     requireParking, 
     detailsError, 
+    visitorType, // Extract visitorType from props
     onAddVisitor, 
     onEditVisitor, 
     onDeleteVisitor 
@@ -75,7 +77,8 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
     GateNo: '',
     ParentId: null,
     AccessCard: '',
-    Files: []
+    Files: [],
+    VisitorType: visitorType // Use the visitorType from props
   });
   const [selectedIndex, setSelectedIndex] = useState(-1);
 
@@ -97,7 +100,8 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
       GateNo: '',
       ParentId: null,
       AccessCard: '',
-      Files: []
+      Files: [],
+      VisitorType: visitorType // Use the visitorType from props
     });
     setDialogOpen(true);
   };
@@ -168,6 +172,7 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
                 columns={[
                   { title: 'Last Name', field: 'Title' },
                   { title: 'First Name', field: 'FirstName' },
+                  { title: 'Visitor Type', field: 'VisitorType' },
                   {
                     title: 'Car', 
                     field: "Car",
