@@ -24,50 +24,50 @@ export interface IActionButtonsSectionProps {
    * Whether the form is in edit mode
    */
   isEdit: boolean;
-  
+
   /**
    * Whether the current user is an encoder
    */
   isEncoder: boolean;
-  
+
   /**
    * Whether the current user is a receptionist
    */
   isReceptionist: boolean;
-  
+
   /**
    * Whether the current user is an approver
    */
   isApproverUser: boolean;
-  
+
   /**
    * Whether the current user is a walkin approver
    */
   isWalkinApproverUser: boolean;
-  
+
   /**
    * Whether the current user is an SSD user
    */
   isSSDUser: boolean;
-  
+
   /**
    * The current status ID
    */
   statusId: number;
-  
+
   /**
    * Callback when the submit button is clicked
    * @param e Event
    * @param action Action type
    */
   onSubmit: (e: React.MouseEvent, action: string) => void;
-  
+
   /**
    * Callback when the cancel button is clicked
    * @param e Event
    */
   onCancel: (e: React.MouseEvent) => void;
-  
+
   /**
    * Callback when the close button is clicked
    */
@@ -92,22 +92,22 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
     onCancel,
     onClose
   } = props;
-  
+
   const classes = useStyles();
-  
+
   /**
-   * Checks if a button should be visible based on user role and form state
+   * Checks if a button group or individual button should be visible based on user role and form state
    * @param element Element name
    * @returns Whether the element should be visible
    */
   const checkVisibility = (element: string): boolean => {
     const forApprover = isApproverUser && statusId === 2;
-    const forWalkinApprover = isWalkinApproverUser && statusId === 2;
+    const forWalkinApprover = isWalkinApproverUser && statusId === 2; // Note: forWalkinApprover is not used in this specific button logic, but kept for context.
     const forSSD = isSSDUser && (statusId === 3 || statusId === 4 || statusId === 7); // Include StatusId 4 (Approved by SSD) and 7 (Denied by SSD)
     const forEncoder = isEncoder && (statusId === 1 || statusId === 2);
     const forReceptionist = isReceptionist && (statusId === 1 || statusId === 2);
     const forReceptionistCompletion = isReceptionist && (statusId === 4 || statusId === 9);
-    
+
     switch (element) {
       case 'addmain1':
         return isEdit && (forEncoder || forReceptionist || forReceptionistCompletion);
@@ -115,63 +115,65 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
         return isEdit && ((isEncoder && statusId === 1) || (isReceptionist && statusId === 1));
       case 'close':
         return !isEdit;
-      case 'addapproval':
-        return isEdit && (forApprover || forSSD);
+      case 'approverActions': // New case for approver-specific buttons
+        return isEdit && forApprover;
+      case 'ssdActions': // New case for SSD-specific buttons
+        return isEdit && forSSD;
       case 'markcomplete':
         return isEdit && forReceptionistCompletion;
       default:
         return false;
     }
   };
-  
+
   return (
     <Grid container justify="flex-end">
       {isEdit && (
         <ButtonGroup>
           {checkVisibility('addmain1') && (
             <>
-              <Button 
-                className={classes.paperbutton} 
-                startIcon={<CancelIcon />} 
-                variant="contained" 
-                color="secondary" 
+              <Button
+                className={classes.paperbutton}
+                startIcon={<CancelIcon />}
+                variant="contained"
+                color="secondary"
                 onClick={onCancel}
               >
                 Close
               </Button>
-              <Button 
-                name="savedraft" 
-                className={classes.paperbutton} 
-                startIcon={<SaveIcon />} 
-                variant="contained" 
-                color="default" 
+              <Button
+                name="savedraft"
+                className={classes.paperbutton}
+                startIcon={<SaveIcon />}
+                variant="contained"
+                color="default"
                 onClick={(e) => onSubmit(e, 'savedraft')}
               >
                 Save
               </Button>
             </>
           )}
-          
+
           {checkVisibility('addmain2') && (
-            <Button 
-              name="submit" 
-              className={classes.paperbutton} 
-              endIcon={<SendIcon />} 
-              variant="contained" 
-              color="primary" 
+            <Button
+              name="submit"
+              className={classes.paperbutton}
+              endIcon={<SendIcon />}
+              variant="contained"
+              color="primary"
               onClick={(e) => onSubmit(e, 'submit')}
             >
               Submit
             </Button>
           )}
-          
+
           {checkVisibility('markcomplete') && (
-            <Button 
-              name="markcomplete" 
-              className={classes.paperbutton} 
-              startIcon={<DoneIcon />} 
-              variant="contained" 
-              color="default" 
+            <Button
+              name="markcomplete"
+              className={classes.paperbutton}
+              startIcon={<DoneIcon />}
+              variant="contained"
+              color="default"
               onClick={(e) => onSubmit(e, 'markcomplete')}
             >
               Mark complete
@@ -179,82 +181,73 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
           )}
         </ButtonGroup>
       )}
-      
-      {/* {checkVisibility('addapproval') && (
+
+      {/* Buttons for Approver Users */}
+      {checkVisibility('approverActions') && (
         <ButtonGroup>
-          <Button 
-            className={classes.paperbutton} 
-            startIcon={<CancelIcon />} 
-            variant="contained" 
-            color="default" 
+          {/* <Button
+            className={classes.paperbutton}
+            startIcon={<CancelIcon />}
+            variant="contained"
+            color="default"
             onClick={onCancel}
           >
             Close
-          </Button>
-          <Button 
-            name="deny" 
-            className={classes.paperbutton} 
-            startIcon={<ThumbDownIcon />} 
-            variant="contained" 
-            color="default" 
+          </Button> */}
+          <Button
+            name="deny"
+            className={classes.paperbutton}
+            startIcon={<ThumbDownIcon />}
+            variant="contained"
+            color="default"
             onClick={(e) => onSubmit(e, 'deny')}
           >
             Deny
           </Button>
-          <Button 
-            name="approve" 
-            className={classes.paperbutton} 
-            startIcon={<ThumbUpIcon />} 
-            variant="contained" 
-            color="primary" 
+          <Button
+            name="approve"
+            className={classes.paperbutton}
+            startIcon={<ThumbUpIcon />}
+            variant="contained"
+            color="primary"
             onClick={(e) => onSubmit(e, 'approve')}
           >
             Approve
           </Button>
         </ButtonGroup>
-      )} */}
+      )}
 
-      {checkVisibility('addapproval') && (
+      {/* Buttons for SSD Users */}
+      {checkVisibility('ssdActions') && (
         <ButtonGroup>
-          <Button 
-            className={classes.paperbutton} 
-            startIcon={<CancelIcon />} 
-            variant="contained" 
-            color="default" 
+          <Button
+            className={classes.paperbutton}
+            startIcon={<CancelIcon />}
+            variant="contained"
+            color="default"
             onClick={onCancel}
           >
             Close
           </Button>
-          {/* <Button 
-            name="deny" 
-            className={classes.paperbutton} 
-            startIcon={<ThumbDownIcon />} 
-            variant="contained" 
-            color="default" 
-            onClick={(e) => onSubmit(e, 'deny')}
+          <Button
+            name="saveSSD" // Distinct name for clarity
+            className={classes.paperbutton}
+            startIcon={<SaveIcon />}
+            variant="contained"
+            color="primary"
+            onClick={(e) => onSubmit(e, 'saveSSD')} // Distinct action for clarity
           >
-            Deny
-          </Button>
-          */}
-          <Button 
-            name="approve" // Changed from "approve" to "save"
-            className={classes.paperbutton} 
-            startIcon={<SaveIcon />} // Changed icon to SaveIcon
-            variant="contained" 
-            color="primary" 
-            onClick={(e) => onSubmit(e, 'approve')} // Changed action to 'save'
-          >
-            Save {/* Changed button text to "Save" */}
+            Save
           </Button>
         </ButtonGroup>
       )}
-      
+
       {checkVisibility('close') && (
         <ButtonGroup>
-          <Button 
-            className={classes.paperbutton} 
-            variant="contained" 
-            color="default" 
+          <Button
+            className={classes.paperbutton}
+            variant="contained"
+            color="default"
             onClick={onClose}
           >
             Close

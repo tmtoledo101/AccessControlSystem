@@ -781,7 +781,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         // Get URL parameters
         _sourceURL = document.referrer;
         // _itemId = parseInt(getUrlParameter('pid'));
-        _itemId = 88; // Hardcoded for testing, ideally use getUrlParameter
+        _itemId = 90; // Hardcoded for testing, ideally use getUrlParameter
 
         // Get current user
         const user = await sharePointService.getCurrentUser();
@@ -1222,6 +1222,14 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
    * Handles edit button click for the main form
    */
   const handleEditClick = () => {
+    // Check if the SSD user should be able to edit based on the status
+    if (isSSDUser && !(inputFields.StatusId === 3 || inputFields.StatusId === 4 || inputFields.StatusId === 7)) {
+      // Don't allow editing if the request hasn't been approved by the Approver yet
+      alert("SSD users can only edit requests that have been approved by the Approver.");
+      return;
+    }
+    
+    // Allow editing
     setEditMode(true);
   };
 
