@@ -781,7 +781,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         // Get URL parameters
         _sourceURL = document.referrer;
         // _itemId = parseInt(getUrlParameter('pid'));
-        _itemId = 90; // Hardcoded for testing, ideally use getUrlParameter
+        _itemId = 7; // Hardcoded for testing, ideally use getUrlParameter
 
         // Get current user
         const user = await sharePointService.getCurrentUser();
