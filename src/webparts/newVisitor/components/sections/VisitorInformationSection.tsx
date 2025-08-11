@@ -241,7 +241,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <FormControl className={classes.textField} error={Boolean(errors.Bldg)}>
-            <InputLabel id="bldgLabel">Building</InputLabel>
+            <InputLabel id="bldgLabel">Building *</InputLabel>
             <Select
               labelId="bldgLabel"
               id="Bldg"
