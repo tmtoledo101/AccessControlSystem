@@ -773,174 +773,183 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   /**
    * Initializes the component
    */
-useEffect(() => {
-  (async () => {
-    try {
-      setProgress(true);
+  useEffect(() => {
+    (async () => {
+      try {
+        setProgress(true);
 
-      // Helper function to get URL parameter
-      //const getUrlParameter = (name: string): string | null => {
-      //  const params = new URLSearchParams(window.location.search);
-      //  return params.get(name);
-      //};
+        // Get URL parameters
+        _sourceURL = document.referrer;
+        _itemId = parseInt(getUrlParameter('pid'));
+        //_itemId = 7; // Hardcoded for testing, ideally use getUrlParameter
 
-      // Get URL parameters
-      _sourceURL = document.referrer;
-      const pidParam = getUrlParameter("pid");
-      _itemId = pidParam ? parseInt(pidParam, 10) : null;
+        // Get current user
+        const user = await sharePointService.getCurrentUser();
+        setCurrentUser(user);
+        console.log("User", user);
 
-      if (!_itemId || isNaN(_itemId)) {
-        alert("No valid visitor ID provided!");
-        setProgress(false);
-        return;
-      }
+        // Check user groups
+        const groups = await sharePointService.getCurrentUserGroups();
+        let isUser = false;
+        let isencoder = false;
+        let isreceptionist = false;
+        console.log("Groups:", groups);
 
-      // Get current user
-      const user = await sharePointService.getCurrentUser();
-      setCurrentUser(user);
-      console.log("User", user);
-
-      // Check user groups
-      const groups = await sharePointService.getCurrentUserGroups();
-      let isUser = false;
-      let isencoder = false;
-      let isreceptionist = false;
-      console.log("Groups:", groups);
-
-      // Check if user is in Receptionist group
-      for (let i = 0; i < groups.length; i++) {
-        if (groups[i].LoginName === Receptionist_Group) {
-          setReceptionist(true);
-          isUser = true;
-          isreceptionist = true;
-          break;
+        // Check if user is in Receptionist group
+        for (let i = 0; i < groups.length; i++) {
+          if (groups[i].LoginName === Receptionist_Group) {
+            setReceptionist(true);
+            isUser = true;
+            isreceptionist = true;
+            break;
+          }
         }
-      }
 
-      // Get visitor data
-      const visitor = await sharePointService.getVisitorById(_itemId);
-      if (!visitor) {
-        setProgress(false);
-        return;
-      }
+        // Get visitor data
+        const visitor = await sharePointService.getVisitorById(_itemId);
+        if (!visitor) {
+          setProgress(false);
+          // Handle case where visitor is not found, e.g., redirect or show error
+          return;
+        }
 
-      setModifiedDate(visitor.Modified);
+        setModifiedDate(visitor.Modified); // to check if record has been updated
 
-      // Check if user is in UsersPerDept (Encoder role)
-      const users_per_dept = await sharePointService.getDepartments(user.Id);
-      if (users_per_dept.length > 0) {
-        isUser = true;
-        isencoder = true;
-        setEncoder(true);
-      }
-      setUsersPerDept(users_per_dept);
+        // Check if user is in UsersPerDept (Encoder role)
+        const users_per_dept = await sharePointService.getDepartments(user.Id);
+        if (users_per_dept.length > 0) {
+          isUser = true;
+          isencoder = true;
+          setEncoder(true);
+        }
+        setUsersPerDept(users_per_dept);
 
-      // Show print button for receptionist if status is approved or completed
-      if ((visitor.StatusId === 4 || visitor.StatusId === 9) && isreceptionist) {
-        setHidePrint(false);
-        const colorlist = await sharePointService.getIDColors();
-        setcolorList(colorlist);
-      }
+        // Show print button for receptionist if status is approved or completed
+        if ((visitor.StatusId === 4 || visitor.StatusId === 9) && isreceptionist) {
+          setHidePrint(false);
+          const colorlist = await sharePointService.getIDColors();
+          setcolorList(colorlist);
+        }
 
-      // Check if user is an approver
-      if (visitor.ExternalType === 'Pre-arranged') {
-        const approvers = await sharePointService.getApprovers(visitor.DeptId, user.Id);
-        setApprovers(approvers);
-        if (approvers.some(item => item.NameId === user.Id)) {
+        // Check if user is an approver (Department Approver or Walk-in Approver)
+        if (visitor.ExternalType === 'Pre-arranged') {
+          const approvers = await sharePointService.getApprovers(visitor.DeptId, user.Id);
+          setApprovers(approvers);
+
+          const filtuser = approvers.filter(item => item.NameId === user.Id);
+          if (filtuser.length > 0) {
+            isUser = true;
+          }
+        } else if (visitor.ExternalType === 'Walk-in') {
+          const walkinapprovers = await sharePointService.getWalkinApprovers(visitor.DeptId);
+          setWalkinApprovers(walkinapprovers);
+
+          const filtuser = walkinapprovers.filter(item => item.NameId === user.Id);
+          if (filtuser.length > 0) {
+            isUser = true;
+          }
+        }
+
+        // Set specific approver roles if current user is the assigned approver
+        if (visitor.ApproverId === user.Id) {
+          if (visitor.ExternalType === "Pre-arranged") {
+            setApproverUser(true);
+          } else {
+            setisWalkinApproverUser(true);
+          }
           isUser = true;
         }
-      } else if (visitor.ExternalType === 'Walk-in') {
-        const walkinapprovers = await sharePointService.getWalkinApprovers(visitor.DeptId);
-        setWalkinApprovers(walkinapprovers);
-        if (walkinapprovers.some(item => item.NameId === user.Id)) {
-          isUser = true;
-        }
-      }
 
-      // Set approver roles
-      if (visitor.ApproverId === user.Id) {
-        if (visitor.ExternalType === "Pre-arranged") {
-          setApproverUser(true);
+        // Re-confirm encoder status for Pre-arranged visitors
+        if ((visitor.ExternalType === "Pre-arranged") && (isencoder)) {
+          setEncoder(true);
+        }
+
+        // Check if user is in SSD group
+        console.log("groups: ", groups.length);
+        for (let i = 0; i < groups.length; i++) {
+          if (groups[i].LoginName === SSD_Group) {
+            console.log("Login name: ", groups[i].LoginName, " SSD Group: ", SSD_Group);
+            setSSDUser(true);
+            isUser = true;
+            break;
+          }
+        }
+
+        // Log the current user type for debugging
+        console.log("Current User Type:", {
+          "Is Encoder": isencoder,
+          "Is Receptionist": isreceptionist,
+          "Is Department Approver": isApproverUser,
+          "Is SSD Approver": isSSDUser,
+          "Is Walk-in Approver": isWalkinApproverUser,
+          "IsEdit": isEdit
+        });
+
+        // If the user is authorized, fetch lookup data and visitor details
+        if (isUser) {
+          _deptName = visitor.Dept.Title;
+
+          // Get lookup data for various dropdowns
+          const purpose = await sharePointService.getPurposes();
+          setPurpose(purpose);
+
+          const building = await sharePointService.getBuildings();
+          setBldg(building);
+
+          const depts = await sharePointService.getDepartments();
+
+          // Filter departments based on user role (encoder or receptionist)
+          if (isencoder) {
+            const mappedrows = [];
+            depts.forEach(row => {
+              const filtered = users_per_dept.filter(item => item.DeptId === row.Id);
+              if (filtered.length > 0) {
+                mappedrows.push(row);
+              }
+            });
+            setDept(mappedrows);
+          } else if (isreceptionist) {
+            setDept(depts);
+          }
+
+          // Get contact information for the current visitor's contact person
+          const optionContacts = await sharePointService.getEmployeeByEmpNo(visitor.EmpNo);
+          setContacts(optionContacts);
+
+          // Get SSD users
+          const ssdUsers = await sharePointService.getSSDUsers();
+          console.log("SSD Users", ssdUsers);
+          setSSD(ssdUsers);
+
+          // Get and set visitor details related to the main visitor
+          const visitordetails = await sharePointService.getVisitorDetailsByParentId(_itemId);
+          _origVisitorDetailsList = visitordetails; // Store original for comparison on save
+          setVisitorDetailsList(visitordetails);
+
+          // Get gates and ID types for visitor details form
+          const gates = await sharePointService.getGates();
+          setGates(gates);
+
+          const idpresented = await sharePointService.getIDTypes();
+          setIDs(idpresented);
+
+          // Set the main visitor form data
+          setInputs({ ...visitor });
         } else {
-          setisWalkinApproverUser(true);
-        }
-        isUser = true;
-      }
-
-      if (visitor.ExternalType === "Pre-arranged" && isencoder) {
-        setEncoder(true);
-      }
-
-      // Check if user is in SSD group
-      for (let i = 0; i < groups.length; i++) {
-        if (groups[i].LoginName === SSD_Group) {
-          setSSDUser(true);
-          isUser = true;
-          break;
-        }
-      }
-
-      console.log("Current User Type:", {
-        "Is Encoder": isencoder,
-        "Is Receptionist": isreceptionist,
-        "Is Department Approver": isApproverUser,
-        "Is SSD Approver": isSSDUser,
-        "Is Walk-in Approver": isWalkinApproverUser,
-        "IsEdit": isEdit
-      });
-
-      if (isUser) {
-        _deptName = visitor.Dept.Title;
-
-        const purpose = await sharePointService.getPurposes();
-        setPurpose(purpose);
-
-        const building = await sharePointService.getBuildings();
-        setBldg(building);
-
-        const depts = await sharePointService.getDepartments();
-
-        if (isencoder) {
-          const mappedrows = [];
-          depts.forEach(row => {
-            if (users_per_dept.some(item => item.DeptId === row.Id)) {
-              mappedrows.push(row);
-            }
-          });
-          setDept(mappedrows);
-        } else if (isreceptionist) {
-          setDept(depts);
+          // If not authorized, alert and redirect
+          alert("You are not authorized to access this page!");
+          window.open(props.siteUrl, "_self");
         }
 
-        const optionContacts = await sharePointService.getEmployeeByEmpNo(visitor.EmpNo);
-        setContacts(optionContacts);
-
-        const ssdUsers = await sharePointService.getSSDUsers();
-        setSSD(ssdUsers);
-
-        const visitordetails = await sharePointService.getVisitorDetailsByParentId(_itemId);
-        _origVisitorDetailsList = visitordetails;
-        setVisitorDetailsList(visitordetails);
-
-        const gates = await sharePointService.getGates();
-        setGates(gates);
-
-        const idpresented = await sharePointService.getIDTypes();
-        setIDs(idpresented);
-
-        setInputs({ ...visitor });
-      } else {
-        alert("You are not authorized to access this page!");
-        window.open(props.siteUrl, "_self");
+        setProgress(false); // Hide progress indicator once all data is loaded
+      } catch (e) {
+        console.error("Initialization Error:", e);
+        setProgress(false); // Ensure progress is hidden even on error
       }
+    })();
+  }, []); // Empty dependency array means this runs once on component mount
 
-      setProgress(false);
-    } catch (e) {
-      console.error("Initialization Error:", e);
-      setProgress(false);
-    }
-  })();
-}, []);// Empty dependency array means this runs once on component mount
 
   /**
    * Handles select field changes (dropdowns)

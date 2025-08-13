@@ -96,16 +96,10 @@ export const useOvertimeRequest = (siteUrl: string, siteRelativeUrl: string) => 
       setIsLoading(true);
 
       // Get the request ID from the URL
-      const param =
-        getUrlParameter('pid') ||
-        getUrlParameter('rid') ||
-        getUrlParameter('ID');
-
-      const id = param ? parseInt(param, 10) : null;
-      setRequestId(id);
-      //const id = parseInt(getUrlParameter('pid')) || 2; // Default to 1 for testing
+      //const id = parseInt(getUrlParameter('pid')) || 4; // Default to 1 for testing
+      const id = parseInt(getUrlParameter('pid')); // Default to 1 for testing
       console.log(`Loading request with ID: ${id}`);
-      //setRequestId(id);
+      setRequestId(id);
 
       // Get the source URL
       setSourceUrl(document.referrer);

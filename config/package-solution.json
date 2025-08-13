@@ -1,8 +1,8 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
   "solution": {
-    "name": "bacs-client-side-solution",
-    "id": "940CC52F-3638-4FF1-9F82-C422AF67ECCF",
+    "name": "bacs-client-side-solution_2025_KPMG_Dev",
+    "id": "f9949dcc-aaaf-4975-ba67-52f94d740dcd",
     "version": "1.0.0.1",
     "includeClientSideAssets": true,
     "isDomainIsolated": false
