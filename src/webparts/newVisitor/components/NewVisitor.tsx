@@ -247,8 +247,12 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
 
         const usersPerDept = await spSvc.getUsersPerDept();
         if (usersPerDept.length > 0) { setEncoder(true); setVisitor(prev => ({ ...prev, ExternalType: "Pre-arranged" })); }
-        const isReceptionist = await spSvc.isUserInGroup(RECEPTIONIST_GROUP);
-        if (isReceptionist) { setReceptionist(true); setVisitor(prev => ({ ...prev, ExternalType: "Walk-in" })); }
+        
+        const isReceptionistResult = await spSvc.isUserInGroup(RECEPTIONIST_GROUP);
+        if (isReceptionistResult) {
+          setReceptionist(true); 
+          setVisitor(prev => ({ ...prev, ExternalType: "Walk-in" })); 
+        }
 
         if (usersPerDept.length > 0 || isReceptionist) {
           setPurposeList(await spSvc.getPurposeList());

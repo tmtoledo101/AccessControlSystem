@@ -3,7 +3,7 @@
   "solution": {
     "name": "bacs-client-side-solution_2025_KPMG_Dev",
     "id": "f9949dcc-aaaf-4975-ba67-52f94d740dcd",
-    "version": "1.0.0.1",
+    "version": "1.0.0.2",
     "includeClientSideAssets": true,
     "isDomainIsolated": false
   },
