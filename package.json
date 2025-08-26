@@ -1,6 +1,6 @@
 {
-  "name": "res-reservation",
-  "version": "0.0.1",
+  "name": "bacs",
+  "version": "1.0.0",
   "private": true,
   "main": "lib/index.js",
   "scripts": {

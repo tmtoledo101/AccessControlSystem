@@ -19,11 +19,11 @@
   "preconfiguredEntries": [{
     "groupId": "5c03119e-3074-46fd-976b-c60198311f70", // Other
     "group": { "default": "Other" },
-    "title": { "default": "DisplayOvertime" },
-    "description": { "default": "DisplayOvertime description" },
+    "title": { "default": "DisplayOvertime_2025" },
+    "description": { "default": "A web part to display and manage employee overtime records with improved 2025 updates." },
     "officeFabricIconFontName": "Page",
     "properties": {
-      "description": "DisplayOvertime"
+      "description": "DisplayOvertime_2025"
     }
   }]
 }

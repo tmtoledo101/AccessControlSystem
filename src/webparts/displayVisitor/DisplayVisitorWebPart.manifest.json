@@ -19,11 +19,11 @@
   "preconfiguredEntries": [{
     "groupId": "5c03119e-3074-46fd-976b-c60198311f70", // Other
     "group": { "default": "Other" },
-    "title": { "default": "DisplayVisitor" },
-    "description": { "default": "DisplayVisitor description" },
+    "title": { "default": "DisplayVisitor_2025" },
+    "description": { "default": "A web part to display and manage visitor records with improved 2025 updates." },
     "officeFabricIconFontName": "Page",
     "properties": {
-      "description": "DisplayVisitor"
+      "description": "DisplayVisitor_2025"
     }
   }]
 }

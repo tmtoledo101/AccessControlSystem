@@ -55,6 +55,7 @@ const useStyles = makeStyles((theme: Theme) =>
 const Encoders_Group = "Encoders";
 const Receptionist_Group = "Receptionist";
 const SSD_Group = "SSD";
+const SSD_Group_v2 = "SSD_v2";
 const WalkinApprover_Group = "WalkinApprover";
 const HOUsers_Group = "HOUsers";
 const SPCUsers_Group = "SPCUsers";
@@ -536,7 +537,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     }));
   }
 
-  // New function to handle report download
+  // New function to handle report download with better formatting
   const handleDownloadReport = () => {
     if (state.dirListItems.length === 0) {
       alert("No data to download.");
@@ -548,60 +549,97 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
     let dataToExport: any[] = [];
 
-    // Determine the type of data and map accordingly
-    if (state.vwid === 10 || state.vwid === 1 || state.vwid === 2 || state.vwid === 5 || state.vwid === 6 || state.vwid === 7 || state.vwid === 8) {
-      // These vwid's correspond to IVisitor data
-      dataToExport = (state.dirListItems as IVisitor[]).map(item => ({
-        'ID': item.ID,
-        'Reference Number': item.Title,
-        'Company Name': item.CompanyName,
-        'Host Name': item.Approver ? item.Approver.Title : '',
-        'Department': item.Dept ? item.Dept.Title : '',
-        'Building': item.Bldg,
-        'Request Date': moment(item.RequestDate).format('YYYY-MM-DD HH:mm'),
-        'Date & Time Visit': moment(item.DateTimeVisit).format('YYYY-MM-DD HH:mm'),
-        'Date & Time Arrival': item.DateTimeArrival ? moment(item.DateTimeArrival).format('YYYY-MM-DD HH:mm') : '',
-        'Purpose': item.Purpose,
-        'Status': item.Status ? item.Status.Title : '',
-        'Requires Parking': item.RequireParking ? 'Yes' : 'No',
-        // Note: 'Time Out' and 'QR Code' are not directly in your IVisitor interface.
-        // If you need them, you must add them to IVisitor and ensure they are populated from SharePoint.
-      }));
-    } else if (state.vwid === 9 || state.vwid === 3 || state.vwid === 4) {
-      // These vwid's correspond to IVisitorDetail data
-      dataToExport = (state.dirListItems as IVisitorDetail[]).map(item => ({
-        'ID': item.ID,
-        'Visitor Last Name': item.Title, // Assuming Title on IVisitorDetail is the visitor name
-        'Visitor First Name': item.FirstName,
-        'Request Date': moment(item.RequestDate).format('YYYY-MM-DD HH:mm'),
-        'Department': item.Dept ? item.Dept.Title : '',
-        'Reference No.': item.RefNo,
-        'Date From': moment(item.DateFrom).format('YYYY-MM-DD HH:mm'),
-        'Date To': moment(item.DateTo).format('YYYY-MM-DD HH:mm'),
-        'Company Name': item.CompanyName,
-        'Car': item.Car ? 'Yes' : 'No',
-        'Access Card': item.AccessCard,
-        'Status': item.Status ? item.Status.Title : '',
-        'Parent ID': item.ParentId,
-        'Author': item.Author ? item.Author.Title : '',
-        // Note: 'Building' is not directly on IVisitorDetail.
-        // If you need it for IVisitorDetail reports, you would typically get it from the parent IVisitor record.
-      }));
+  // Determine the type of data and map accordingly
+  if (state.vwid === 10 || state.vwid === 1 || state.vwid === 2 || state.vwid === 5 || state.vwid === 6 || state.vwid === 7 || state.vwid === 8) {
+    dataToExport = (state.dirListItems as IVisitor[]).map(item => ({
+      'ID': item.ID,
+      'Reference Number': item.Title,
+      'Company Name': item.CompanyName,
+      'Host Name': item.Approver ? item.Approver.Title : '',
+      'Department': item.Dept ? item.Dept.Title : '',
+      'Building': item.Bldg,
+      'Request Date': item.RequestDate ? new Date(item.RequestDate) : '',
+      'Date & Time Visit': item.DateTimeVisit ? new Date(item.DateTimeVisit) : '',
+      'Date & Time Arrival': item.DateTimeArrival ? new Date(item.DateTimeArrival) : '',
+      'Purpose': item.Purpose,
+      'Status': item.Status ? item.Status.Title : '',
+      'Requires Parking': item.RequireParking ? 'Yes' : 'No',
+    }));
+  } else if (state.vwid === 9 || state.vwid === 3 || state.vwid === 4) {
+    dataToExport = (state.dirListItems as IVisitorDetail[]).map(item => ({
+      'ID': item.ID,
+      'Visitor Last Name': item.Title,
+      'Visitor First Name': item.FirstName,
+      'Request Date': item.RequestDate ? new Date(item.RequestDate) : '',
+      'Department': item.Dept ? item.Dept.Title : '',
+      'Reference No.': item.RefNo,
+      'Date From': item.DateFrom ? new Date(item.DateFrom) : '',
+      'Date To': item.DateTo ? new Date(item.DateTo) : '',
+      'Company Name': item.CompanyName,
+      'Car': item.Car ? 'Yes' : 'No',
+      'Access Card': item.AccessCard,
+      'Status': item.Status ? item.Status.Title : '',
+      'Parent ID': item.ParentId,
+      'Author': item.Author ? item.Author.Title : '',
+    }));
     } else {
-      console.warn("Download not supported for current view type (vwid: " + state.vwid + ")");
       alert("Download not supported for this report type.");
       return;
     }
 
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, reportType);
+  // Create worksheet
+  const ws = XLSX.utils.json_to_sheet(dataToExport);
 
-    // Generate Excel file and trigger download
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    saveAs(new Blob([wbout], { type: 'application/octet-stream' }), fileName);
-  };
+  // Add headers formatting (bold)
+  const headers = Object.keys(dataToExport[0] || {});
+  XLSX.utils.sheet_add_aoa(ws, [headers], { origin: "A1" });
 
+  // AutoFit column widths based on formatted values
+  const colWidths = headers.map((header) => {
+    let maxLength = header.length;
+    dataToExport.forEach((row) => {
+      let value = row[header];
+
+      //Format date fields before measuring
+      if (value && (header.includes("Date") || header.includes("Time"))) {
+        value = moment(value).format("MM/DD/YYYY HH:mm"); 
+      }
+
+      if (value) {
+        const cellLength = value.toString().length;
+        if (cellLength > maxLength) {
+          maxLength = cellLength;
+        }
+      }
+    });
+    return { wch: maxLength + 2 };
+  });
+  ws['!cols'] = colWidths;
+
+  // Add autofilter
+  ws['!autofilter'] = { ref: `A1:${String.fromCharCode(64 + headers.length)}${dataToExport.length + 1}` };
+
+  // Apply date formatting
+  headers.forEach((header, idx) => {
+    if (header.toLowerCase().includes("date") || header.toLowerCase().includes("time")) {
+      for (let r = 2; r <= dataToExport.length + 1; r++) {
+        const cellRef = XLSX.utils.encode_cell({ c: idx, r: r - 1 });
+        const cell = ws[cellRef];
+        if (cell && cell.t === "d") {
+          cell.z = "yyyy-mm-dd hh:mm";
+        }
+      }
+    }
+  });
+
+  // Build workbook
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, reportType);
+
+  // Save file
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  saveAs(new Blob([wbout], { type: 'application/octet-stream' }), fileName);
+};
 
   // Initialize component
   useEffect(() => {
@@ -632,8 +670,15 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
             break;
           }
         }
+        //for (let i = 0; i < groups.length; i++) {
+        //  if (groups[i].LoginName === SSD_Group) {
+        //    isSSDUser = true;
+        //    break;
+        //  }
+
+        //MultipleEntry
         for (let i = 0; i < groups.length; i++) {
-          if (groups[i].LoginName === SSD_Group) {
+          if (groups[i].LoginName === SSD_Group_v2) {
             isSSDUser = true;
             break;
           }
@@ -653,8 +698,14 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         if (isApprover || isWalkinApprover) {
           temptabs.push('Dept. Approver');
         }
+
+        //if (isSSDUser) {
+        //  temptabs.push('SSD');
+        //}
+
+        //MultipleEntry
         if (isSSDUser) {
-          temptabs.push('SSD');
+          temptabs.push('MultiEntry');
         }
         if (isEncoder || isReceptionist || isSSDUser || isApprover || isWalkinApprover || isHOUser || isSPCUser) {
           temptabs.push('Reports');
