@@ -1,559 +1,407 @@
-import * as React from 'react';
-import { useState, useEffect, useRef } from 'react';
-import { IDisplayVisitorProps } from './IDisplayVisitorProps';
-import { IVisitor, IFormError, IApproverDetails } from '../models/IVisitor';
-import { IVisitorDetails, IVisitorDetailsError } from '../models/IVisitorDetails';
-import { SharePointService } from '../services/SharePointService';
-import { EmailService } from '../services/EmailService';
-import { FileService } from '../services/FileService';
-import { getUrlParameter } from '../helpers/urlHelpers';
+import * as React from "react";
+import { useState, useEffect, useRef } from "react";
+import { IDisplayVisitorProps } from "./IDisplayVisitorProps";
+import { IVisitor, IFormError, IApproverDetails } from "../models/IVisitor";
+import { IVisitorDetails, IVisitorDetailsError } from "../models/IVisitorDetails";
+import { SharePointService } from "../services/SharePointService";
+import { EmailService } from "../services/EmailService";
+import { FileService } from "../services/FileService";
+import { getUrlParameter } from "../helpers/urlHelpers";
 
-// Section components
-import HeaderSection from './sections/HeaderSection';
-import VisitorInformationSection from './sections/VisitorInformationSection';
-import VisitorDetailsSection from './sections/VisitorDetailsSection';
-import ApprovalSection from './sections/ApprovalSection';
-import ActionButtonsSection from './sections/ActionButtonsSection';
+import HeaderSection from "./sections/HeaderSection";
+import VisitorInformationSection from "./sections/VisitorInformationSection";
+import VisitorDetailsSection from "./sections/VisitorDetailsSection";
+import ApprovalSection from "./sections/ApprovalSection";
+import ActionButtonsSection from "./sections/ActionButtonsSection";
 
-// Dialog components
-import ConfirmationDialog from './dialogs/ConfirmationDialog';
-import VisitorDetailsDialog from './dialogs/VisitorDetailsDialog';
-import PrintIDDialog from './dialogs/PrintIDDialog';
+import ConfirmationDialog from "./dialogs/ConfirmationDialog";
+import VisitorDetailsDialog from "./dialogs/VisitorDetailsDialog";
+import PrintIDDialog from "./dialogs/PrintIDDialog";
 
-// Material UI imports
-import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
-import Grid from '@material-ui/core/Grid';
-import Backdrop from '@material-ui/core/Backdrop';
-import CircularProgress from '@material-ui/core/CircularProgress';
-import Snackbar from '@material-ui/core/Snackbar';
-import MuiAlert, { AlertProps } from '@material-ui/lab/Alert';
+import { makeStyles, createStyles, Theme } from "@material-ui/core/styles";
+import Grid from "@material-ui/core/Grid";
+import Backdrop from "@material-ui/core/Backdrop";
+import CircularProgress from "@material-ui/core/CircularProgress";
+import Snackbar from "@material-ui/core/Snackbar";
+import MuiAlert, { AlertProps } from "@material-ui/lab/Alert";
 
-// Define styles
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     root: {
       flexGrow: 1,
-      fontFamily: '"Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif',
-      padding: '12px'
+      fontFamily:
+        '"Segoe UI", "Segoe UI Web (West European)", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif',
+      padding: "12px",
     },
-    backdrop: {
-      zIndex: theme.zIndex.drawer + 1,
-      color: '#fff',
-    },
-  }),
+    backdrop: { zIndex: theme.zIndex.drawer + 1, color: "#fff" },
+  })
 );
 
-// Alert component
 function Alert(props: AlertProps) {
   return <MuiAlert elevation={6} variant="filled" {...props} />;
 }
 
-/**
- * Checks if a field should be visible based on user role and form state
- * @param element Element name
- * @returns Whether the element should be visible
- */
-const checkVisibility = (element: string, visitor: IVisitor, isEdit: boolean, isEncoder: boolean, isReceptionist: boolean, isApproverUser: boolean, isWalkinApproverUser: boolean, isSSDUser: boolean): boolean => {
+// small helpers
+const isEmptyString = (v: any) => v === null || v === undefined || (typeof v === "string" && v.trim() === "");
+const nowDate = () => new Date();
+
+const checkVisibility = (
+  element: string,
+  visitor: IVisitor,
+  isEdit: boolean,
+  isEncoder: boolean,
+  isReceptionist: boolean,
+  isApproverUser: boolean,
+  isWalkinApproverUser: boolean,
+  isSSDUser: boolean
+): boolean => {
   const forApprover = isApproverUser && visitor.StatusId === 2;
   const forWalkinApprover = isWalkinApproverUser && visitor.StatusId === 2;
-  const forSSD = isSSDUser && (visitor.StatusId === 3 || visitor.StatusId === 4 || visitor.StatusId === 7); // Include StatusId 4 (Approved by SSD) and 7 (Denied by SSD)
+  const forSSD = isSSDUser && (visitor.StatusId === 3 || visitor.StatusId === 4 || visitor.StatusId === 7);
   const forEncoder = isEncoder && (visitor.StatusId === 1 || visitor.StatusId === 2);
   const forReceptionist = isReceptionist && (visitor.StatusId === 1 || visitor.StatusId === 2);
-  const forReceptionistCompletion = isReceptionist && (visitor.StatusId === 4 || visitor.StatusId === 9);
 
   switch (element) {
-    case 'editicon':
-      // The edit icon should be visible if not already in edit mode and the user is an encoder or SSD user
+    case "editicon":
       return !isEdit && (forEncoder || forSSD);
     default:
       return false;
   }
 };
 
+const initialVisitor: IVisitor = {
+  ID: null,
+  Title: "",
+  ExternalType: "",
+  Purpose: "",
+  DeptId: null,
+  Dept: { Title: "" },
+  Bldg: "",
+  RoomNo: "",
+  EmpNo: "",
+  ContactName: "",
+  Position: "",
+  DirectNo: "",
+  LocalNo: "",
+  DateTimeVisit: nowDate(),
+  DateTimeArrival: nowDate(),
+  CompanyName: "",
+  Address: "",
+  VisContactNo: "",
+  VisLocalNo: "",
+  RequireParking: false,
+  Remarks1: "",
+  Remarks2: "",
+  StatusId: 0,
+  Status: { Title: "" },
+  ApproverId: null,
+  Approver: { Title: "", EMail: "", ID: null },
+  Files: [],
+  initFiles: [],
+  origFiles: [],
+  SSDApproverId: null,
+  SSDApprover: { Title: "" },
+  RequestDate: nowDate(),
+  Author: { Title: "", EMail: "" },
+  AuthorId: null,
+  colorAccess: "General",
+  SSDDate: null,
+  DeptApproverDate: null,
+  MarkCompleteDate: null,
+  Receptionist: { Title: "" },
+  ReceptionistId: null,
+  PurposeOthers: "",
+};
 
-/**
- * DisplayVisitor component
- * @param props Component properties
- * @returns JSX element
- */
+const initialFormError: IFormError = {
+  ExternalType: "",
+  Purpose: "",
+  DeptId: "",
+  Bldg: "",
+  RoomNo: "",
+  EmpNo: "",
+  Title: "",
+  Position: "",
+  DirectNo: "",
+  LocalNo: "",
+  DateTimeVisit: "",
+  DateTimeArrival: "",
+  CompanyName: "",
+  Address: "",
+  VisContactNo: "",
+  VisLocalNo: "",
+  RequireParking: "",
+  ApproverId: "",
+  Details: "",
+  Remarks1: "",
+  Remarks2: "",
+  PurposeOthers: "",
+};
+
+const initialVisitorDetail: IVisitorDetails = {
+  ID: null,
+  Title: "",
+  FirstName: "",
+  Car: false,
+  AccessCard: "",
+  PlateNo: "",
+  TypeofVehicle: "",
+  Color: "",
+  DriverLastName: "",
+  DriverFirstName: "",
+  IDPresented: "",
+  GateNo: "",
+  ParentId: null,
+  Files: [],
+  initFiles: [],
+  origFiles: [],
+};
+
+const initialVisitorDetailError: IVisitorDetailsError = {
+  Title: "",
+  FirstName: "",
+  Car: "",
+  AccessCard: "",
+  PlateNo: "",
+  TypeofVehicle: "",
+  Color: "",
+  DriverLastName: "",
+  DriverFirstName: "",
+  IDPresented: "",
+  GateNo: "",
+  Files: "",
+};
+
 const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const classes = useStyles();
   const printRef = useRef<HTMLDivElement>(null);
 
-  // Constants
   const Encoders_Group = "Encoders";
   const Receptionist_Group = "Receptionist";
   const SSD_Group = "SSD";
   const WalkinApprover_Group = "WalkinApprover";
 
-  // Services
   const sharePointService = new SharePointService(props.siteUrl, props.siteRelativeUrl);
   const fileService = new FileService(props.siteRelativeUrl);
 
-  // State variables
+  // UI state
   const [openDialog, setOpenDialog] = useState(false);
-  const [approverDetails, setApproverDetails] = useState<IApproverDetails>({ email: '', name: '' });
-  const [isSavingDone, setSavingDone] = useState(false);
+  const [openDialogFab, setOpenDialogFab] = useState(false);
+  const [openDialogIDFab, setOpenDialogIDFab] = useState(false);
   const [isProgress, setProgress] = useState(false);
+  const [isSavingDone, setSavingDone] = useState(false);
   const [dialogMessage, setDialogMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  // role flags
   const [isEncoder, setEncoder] = useState(false);
   const [isReceptionist, setReceptionist] = useState(false);
   const [isApproverUser, setApproverUser] = useState(false);
   const [isSSDUser, setSSDUser] = useState(false);
   const [isWalkinApproverUser, setisWalkinApproverUser] = useState(false);
-  const [visitorDetailsMode, setVisitorDetailsMode] = useState('add');
-  const [SSDUsers, setSSD] = useState([]);
-  const [WalkinApprovers, setWalkinApprovers] = useState([]);
-  const [sAction, setsAction] = useState('');
-  const [modifiedDate, setModifiedDate] = useState<Date>(null);
-  const [isHidePrint, setHidePrint] = useState(true);
-  const [colorList, setcolorList] = useState([]);
-  const [purposeList, setPurpose] = useState([]);
-  const [deptList, setDept] = useState([]);
-  const [bldgList, setBldg] = useState([]);
-  const [approverList, setApprovers] = useState([]);
-  const [contactList, setContacts] = React.useState([]);
-  const [IDList, setIDs] = React.useState([]);
-  const [GateList, setGates] = React.useState([]);
-  const [usersPerDept, setUsersPerDept] = React.useState([]);
-  const [isAC1Open, setAC1Open] = React.useState(false);
-  const [openDialogFab, setOpenDialogFab] = useState(false);
-  const [openDialogIDFab, setOpenDialogIDFab] = useState(false);
-  const [isEdit, setEditMode] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [successMessage, setSuccessMessage] = useState("");
 
-  // Form state
-  const [inputFields, setInputs] = useState<IVisitor>({
-    ID: null,
-    Title: '',
-    ExternalType: '',
-    Purpose: '',
-    DeptId: null,
-    Dept: { Title: '' },
-    Bldg: '',
-    RoomNo: '',
-    EmpNo: '',
-    ContactName: '',
-    Position: '',
-    DirectNo: '',
-    LocalNo: '',
-    DateTimeVisit: new Date(),
-    DateTimeArrival: new Date(),
-    CompanyName: '',
-    Address: '',
-    VisContactNo: '',
-    VisLocalNo: '',
-    RequireParking: false,
-    Remarks1: '',
-    Remarks2: '',
-    StatusId: 0,
-    Status: { Title: '' },
-    ApproverId: null,
-    Approver: { Title: '', EMail: '', ID: null },
-    Files: [],
-    initFiles: [],
-    origFiles: [],
-    SSDApproverId: null,
-    SSDApprover: { Title: '' },
-    RequestDate: new Date(),
-    Author: { Title: '', EMail: '' },
-    AuthorId: null,
-    colorAccess: 'General',
-    SSDDate: null,
-    DeptApproverDate: null,
-    MarkCompleteDate: null,
-    Receptionist: { Title: '' },
-    ReceptionistId: null,
-    PurposeOthers: ''
-  });
+  // lookups & lists
+  const [SSDUsers, setSSD] = useState<any[]>([]);
+  const [WalkinApprovers, setWalkinApprovers] = useState<any[]>([]);
+  const [colorList, setcolorList] = useState<any[]>([]);
+  const [purposeList, setPurpose] = useState<any[]>([]);
+  const [deptList, setDept] = useState<any[]>([]);
+  const [bldgList, setBldg] = useState<any[]>([]);
+  const [approverList, setApprovers] = useState<any[]>([]);
+  const [contactList, setContacts] = useState<any[]>([]);
+  const [IDList, setIDs] = useState<any[]>([]);
+  const [GateList, setGates] = useState<any[]>([]);
+  const [usersPerDept, setUsersPerDept] = useState<any[]>([]);
+  const [isAC1Open, setAC1Open] = useState(false);
 
-  const [errorFields, setError] = useState<IFormError>({
-    ExternalType: '',
-    Purpose: '',
-    DeptId: '',
-    Bldg: '',
-    RoomNo: '',
-    EmpNo: '',
-    Title: '',
-    Position: '',
-    DirectNo: '',
-    LocalNo: '',
-    DateTimeVisit: '',
-    DateTimeArrival: '',
-    CompanyName: '',
-    Address: '',
-    VisContactNo: '',
-    VisLocalNo: '',
-    RequireParking: '',
-    ApproverId: '',
-    Details: '',
-    Remarks1: '',
-    Remarks2: '',
-    PurposeOthers: ''
-  });
-
-  const [visitorDetails, setVisitorDetails] = useState<IVisitorDetails>({
-    ID: null,
-    Title: '',
-    FirstName: '',
-    Car: false,
-    AccessCard: '',
-    PlateNo: '',
-    TypeofVehicle: '',
-    Color: '',
-    DriverLastName: '',
-    DriverFirstName: '',
-    IDPresented: '',
-    GateNo: '',
-    ParentId: null,
-    Files: [],
-    initFiles: [],
-    origFiles: []
-  });
-
+  // form & details
+  const [inputFields, setInputs] = useState<IVisitor>({ ...initialVisitor });
+  const [errorFields, setError] = useState<IFormError>({ ...initialFormError });
+  const [visitorDetails, setVisitorDetails] = useState<IVisitorDetails>({ ...initialVisitorDetail });
   const [visitorDetailsList, setVisitorDetailsList] = useState<IVisitorDetails[]>([]);
+  const [errorDetails, setErrorDetails] = useState<IVisitorDetailsError>({ ...initialVisitorDetailError });
 
-  const [errorDetails, setErrorDetails] = useState<IVisitorDetailsError>({
-    Title: '',
-    FirstName: '',
-    Car: '',
-    AccessCard: '',
-    PlateNo: '',
-    TypeofVehicle: '',
-    Color: '',
-    DriverLastName: '',
-    DriverFirstName: '',
-    IDPresented: '',
-    GateNo: '',
-    Files: ''
-  });
+  // misc
+  const [approverDetails, setApproverDetails] = useState<IApproverDetails>({ email: "", name: "" });
+  const [visitorDetailsMode, setVisitorDetailsMode] = useState<"add" | "edit">("add");
+  const [sAction, setsAction] = useState("");
+  const [modifiedDate, setModifiedDate] = useState<Date | null>(null);
+  const [isHidePrint, setHidePrint] = useState(true);
+  const [visitorIsEditMode, setEditMode] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // Variables (mutable, but not state, often for temporary use within functions)
+  // internal mutable vars (kept from original logic)
   let _idx = -1;
   let _deptName = "";
   let _itemId = 0;
-  let _itemIdDetails = 0; // Used to track the ID of the currently active visitor detail for file operations
-  let _sourceURL = null;
+  let _itemIdDetails = 0;
+  let _sourceURL: string | null = null;
   let _refno = "";
-  let _colorValue = 'Green';
-  let deleteFiles = []; // Files to be deleted for the main visitor
-  let deleteFilesDetails = []; // Files to be deleted for visitor details
-  let _origVisitorDetailsList = []; // To track original visitor details for deletion check
+  let _colorValue = "Green";
+  let deleteFiles: any[] = [];
+  let deleteFilesDetails: any[] = [];
+  let _origVisitorDetailsList: IVisitorDetails[] = [];
 
-  /**
-   * Handles chip click to download a file
-   * @param e Event
-   * @param fileName Name of the file to download
-   * @param controlType 'inputFields' for main visitor files, or other for visitor details files
-   */
-  const handleChipClick = (e, fileName: string, controlType: string) => {
-    let fileUrl = '';
-    if (controlType === 'inputFields') {
-      fileUrl = `${props.siteUrl}/VisitorsLib/${_itemId}/${fileName}`;
-    } else {
-      fileUrl = `${props.siteUrl}/VisitorDetailsLib/${_itemIdDetails}/${fileName}`;
-    }
-
-    // Create a temporary anchor element to trigger download
-    let link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = fileName; // Suggest the original filename for download
-    document.body.appendChild(link); // Append to body (required for Firefox)
-    link.click();
-    document.body.removeChild(link); // Clean up
+  // -------------------------
+  // Validation helpers
+  // -------------------------
+  const setFieldError = (name: string, msg: string) => {
+    setError((prev) => ({ ...prev, [name]: msg }));
   };
 
-  /**
-   * Handles visitor details action (view, delete, print, updateSSDApprove)
-   * This needs to be defined before `save` if `save` calls it.
-   * @param action Action to perform
-   * @param rowData Row data of the visitor detail
-   */
-  const handleVisitorDetailsAction = (action: string, rowData: IVisitorDetails) => {
-    if (action === 'view') {
-      _idx = visitorDetailsList.indexOf(rowData);
-      if (rowData.ID) {
-        _itemIdDetails = rowData.ID; // Set _itemIdDetails for file operations in dialog
-      }
-
-      const detailWithParentId = {
-        ...rowData,
-        ParentId: rowData.ParentId || _itemId // Use existing ParentId or fall back to _itemId
-      };
-
-      setVisitorDetails(detailWithParentId);
-      setVisitorDetailsMode('edit');
-      setOpenDialogFab(true);
-    } else if (action === 'delete') {
-      const idxToDelete = visitorDetailsList.indexOf(rowData);
-      if (idxToDelete > -1) {
-        const tempList = [...visitorDetailsList];
-        tempList.splice(idxToDelete, 1);
-        setVisitorDetailsList(tempList);
-
-        // If the deleted item had an ID, add it to the list for server-side deletion
-        if (rowData.ID) {
-          deleteFilesDetails.push({ Id: rowData.ID, Filename: null }); // Filename null indicates deleting the detail record itself
-        }
-
-        if (tempList.length === 0) {
-          const tempErrors = { ...errorFields };
-          tempErrors.Details = "Visitor Details are required. Please add visitor names.";
-          setError(tempErrors);
-        }
-      }
-    } else if (action === 'print') {
-      _idx = visitorDetailsList.indexOf(rowData);
-      if (rowData.ID) {
-        _itemIdDetails = rowData.ID; // Set _itemIdDetails for print dialog
-      }
-
-      setVisitorDetails(rowData);
-      setOpenDialogIDFab(true);
-    } else if (action === 'updateSSDApprove') {
-      // Update the SSDApprove value in the visitor details list
-      const idx = visitorDetailsList.findIndex(item => item.ID === rowData.ID);
-      if (idx !== -1) {
-        const tempList = [...visitorDetailsList];
-        tempList[idx] = rowData; // Use the updated rowData directly
-        setVisitorDetailsList(tempList);
-        
-        // Only update status if the user is an SSD user
-        if (isSSDUser) {
-          console.log("SSD Approve value:", rowData.SSDApprove);
-          
-          if (rowData.SSDApprove === 'Yes') {
-            // If SSD approver ticks the checkbox, update status to "Approved by SSD" (ID 4)
-            console.log("Setting status to Approved by SSD (4)");
-            setInputs(prev => ({
-              ...prev,
-              StatusId: 4,
-              Status: { Title: 'Approved by SSD' }
-            }));
-          } else if (rowData.SSDApprove === 'No') {
-            // If SSD approver unticks the checkbox, update status to "Denied by SSD" (ID 7)
-            console.log("Setting status to Denied by SSD (7)");
-            setInputs(prev => ({
-              ...prev,
-              StatusId: 7,
-              Status: { Title: 'Denied by SSD' }
-            }));
-          }
-        }
-      }
-    }
-  };
-
-
-  /**
-   * Validates input fields for main visitor form
-   * @param name Field name
-   * @param value Field value
-   */
-  const validateInputs = (name, value) => {
+  const validateInputs = (name: string, value: any) => {
     const tempErrors = { ...errorFields };
 
-    // Skip validation for EmpNo field (Contact Person) - TEMPORARY FOR TESTING DELETE this Terence !!!
-    // Consider removing this temporary skip in production code.
+    // Skip EmpNo validation temporarily (preserved from original)
     if (name === "EmpNo") {
       tempErrors[name] = "";
       setError(tempErrors);
       return;
     }
 
-    if (!value || (typeof value === 'string' && value.trim().length === 0)) {
+    if (isEmptyString(value)) {
       tempErrors[name] = "This is a required input field";
-      setError(tempErrors);
     } else {
       if (name === "DateTimeVisit" || name === "DateTimeArrival") {
         const visitDate = inputFields.DateTimeVisit ? new Date(inputFields.DateTimeVisit) : null;
         const arrivalDate = inputFields.DateTimeArrival ? new Date(inputFields.DateTimeArrival) : null;
-
         if (visitDate && arrivalDate && visitDate > arrivalDate) {
           tempErrors.DateTimeVisit = "From Date should be earlier than To Date";
           tempErrors.DateTimeArrival = "To Date should be later than From Date";
-          setError(tempErrors);
         } else {
           tempErrors.DateTimeVisit = "";
           tempErrors.DateTimeArrival = "";
-          setError(tempErrors);
         }
       } else {
         tempErrors[name] = "";
-        setError(tempErrors);
       }
     }
+    setError(tempErrors);
   };
 
-  /**
-   * Validates visitor details input fields
-   * @param name Field name
-   * @param value Field value
-   */
-  const validateInputsDetails = (name, value) => {
+  const validateInputsDetails = (name: string, value: any) => {
     const tempErrors = { ...errorDetails };
-
-    if (!value || (typeof value === 'string' && value.trim().length === 0)) {
+    if (isEmptyString(value)) {
       tempErrors[name] = "This is a required input field";
-      setErrorDetails(tempErrors);
     } else {
       tempErrors[name] = "";
-      setErrorDetails(tempErrors);
     }
+    setErrorDetails(tempErrors);
   };
 
-
-  /**
-   * Validates the main form before submission
-   * @param t Action type
-   * @returns Whether the form is valid
-   */
-  const validateOnSubmit = (t: string): boolean => {
+  const validateOnSubmit = (t: string) => {
     let isValid = true;
     const tempErrors = { ...errorFields };
-    const requiredFields = [];
+    const requiredFields: string[] = [];
 
-    // Determine required fields based on user role and action
     if ((isEncoder || isReceptionist) && (inputFields.StatusId === 1 || inputFields.StatusId === 2)) {
-      requiredFields.push("Purpose", "DeptId", "Bldg", "RoomNo", "DateTimeVisit", "DateTimeArrival",
-        'CompanyName', 'Address', 'VisContactNo', 'ApproverId'
+      requiredFields.push(
+        "Purpose",
+        "DeptId",
+        "Bldg",
+        "RoomNo",
+        "DateTimeVisit",
+        "DateTimeArrival",
+        "CompanyName",
+        "Address",
+        "VisContactNo",
+        "ApproverId"
       );
-      // EmpNo (Contact Person) is still in the list, but validation is skipped via validateInputs
-      if (inputFields.Purpose === 'Others') {
-        requiredFields.push('PurposeOthers');
-      }
-    } else if ((isApproverUser || isWalkinApproverUser) && inputFields.StatusId === 2 && t === 'deny') {
-      requiredFields.push('Remarks1');
-    } else if (isSSDUser && inputFields.StatusId === 3 && t === 'deny') {
-      requiredFields.push('Remarks2');
+      if (inputFields.Purpose === "Others") requiredFields.push("PurposeOthers");
+    } else if ((isApproverUser || isWalkinApproverUser) && inputFields.StatusId === 2 && t === "deny") {
+      requiredFields.push("Remarks1");
+    } else if (isSSDUser && inputFields.StatusId === 3 && t === "deny") {
+      requiredFields.push("Remarks2");
     }
 
-    const validationErrorsFound = [];
+    const validationErrorsFound: string[] = [];
 
-    // Validate each required field
     for (const field of requiredFields) {
       if (field === "EmpNo" && inputFields.Purpose === "For receiving") {
-        // Special handling for EmpNo, skip validation if purpose is "For receiving"
         tempErrors[field] = "";
       } else if (field === "DateTimeVisit" || field === "DateTimeArrival") {
-        const visitDate = inputFields.DateTimeVisit ? new Date(inputFields.DateTimeVisit) : null;
-        const arrivalDate = inputFields.DateTimeArrival ? new Date(inputFields.DateTimeArrival) : null;
-
-        if (!visitDate || !arrivalDate) {
+        const v = inputFields.DateTimeVisit ? new Date(inputFields.DateTimeVisit) : null;
+        const a = inputFields.DateTimeArrival ? new Date(inputFields.DateTimeArrival) : null;
+        if (!v || !a) {
           tempErrors[field] = "This is a required input field";
           validationErrorsFound.push(field);
-        } else if (visitDate > arrivalDate) {
+        } else if (v > a) {
           tempErrors.DateTimeVisit = "From Date should be earlier than To Date";
           tempErrors.DateTimeArrival = "To Date should be later than From Date";
-          validationErrorsFound.push(field); // Add both to indicate issues
-        } else {
-          tempErrors[field] = "";
-        }
-      } else if (field === "ApproverId" && t === 'savedraft') {
-        tempErrors[field] = ""; // Approver is not required for draft saves
+          validationErrorsFound.push(field);
+        } else tempErrors[field] = "";
+      } else if (field === "ApproverId" && t === "savedraft") {
+        tempErrors[field] = "";
       } else {
-        if (!inputFields[field]) {
+        if (isEmptyString((inputFields as any)[field])) {
           tempErrors[field] = "This is a required input field";
           validationErrorsFound.push(field);
-        } else {
-          tempErrors[field] = "";
-        }
+        } else tempErrors[field] = "";
       }
     }
 
-    // Validate visitor details list
     if (visitorDetailsList.length === 0) {
       tempErrors.Details = "Visitor Details are required. Please add visitor names by clicking the (+) button.";
-      validationErrorsFound.push('Details');
+      validationErrorsFound.push("Details");
     }
 
-    // Validate visitor details files and other fields for receptionist completion
-    if ((inputFields.StatusId === 4) || (inputFields.StatusId === 9)) {
+    if (inputFields.StatusId === 4 || inputFields.StatusId === 9) {
       for (let i = 0; i < visitorDetailsList.length; i++) {
-        const rowData = visitorDetailsList[i];
-        let hasFiles = (rowData.Files && rowData.Files.length > 0) || (rowData.initFiles && rowData.initFiles.length > 0);
-
-        if (!hasFiles || !rowData.AccessCard || !rowData.GateNo || !rowData.IDPresented) {
-          // If any detail is incomplete, set an error for the main form's details section
-          tempErrors.Details = `Please complete Visitor Details of ${rowData.Title || `Visitor ${i + 1}`} on row ${i + 1} before saving!`;
-          validationErrorsFound.push('Details');
-          alert(`Please complete Visitor Details of ${rowData.Title || `Visitor ${i + 1}`} on row ${i + 1} before saving!`);
-          handleVisitorDetailsAction('view', rowData); // Open the dialog for the problematic row
-          isValid = false; // Set overall form validity to false
-          break; // Stop checking further details as one is already invalid
+        const row = visitorDetailsList[i];
+        const hasFiles = (row.Files && row.Files.length > 0) || (row.initFiles && row.initFiles.length > 0);
+        if (!hasFiles || !row.AccessCard || !row.GateNo || !row.IDPresented) {
+          tempErrors.Details = `Please complete Visitor Details of ${row.Title || `Visitor ${i + 1}`} on row ${i + 1} before saving!`;
+          validationErrorsFound.push("Details");
+          alert(tempErrors.Details);
+          handleVisitorDetailsAction("view", row);
+          isValid = false;
+          break;
         }
       }
     }
 
-
-    if (validationErrorsFound.length > 0) {
-      isValid = false;
-    }
-
+    if (validationErrorsFound.length > 0) isValid = false;
     setError(tempErrors);
     return isValid;
   };
 
-  /**
-   * Validates visitor details before submission
-   * @returns Whether the visitor details are valid
-   */
-  const validateOnSubmitDetails = (): boolean => {
+  const validateOnSubmitDetails = () => {
     let isValid = true;
     const tempErrors = { ...errorDetails };
-    const requiredDetailFields = [];
+    const requiredDetailFields: string[] = [];
 
-    // Determine required fields for visitor details based on user role and main visitor status
     if ((isEncoder || isReceptionist) && (inputFields.StatusId === 1 || inputFields.StatusId === 2)) {
-      requiredDetailFields.push('Title'); // Only Title is always required
-      if (visitorDetails.Car) { // Only require these if 'Car' is checked
-        requiredDetailFields.push('PlateNo', 'TypeofVehicle', 'Color', 'DriverLastName');
-      }
+      requiredDetailFields.push("Title");
+      if (visitorDetails.Car) requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverLastName");
     } else if (isReceptionist && (inputFields.StatusId === 4 || inputFields.StatusId === 9)) {
-      requiredDetailFields.push('Title', 'AccessCard', 'IDPresented', 'GateNo');
-      if (visitorDetails.Car) {
-        requiredDetailFields.push('PlateNo', 'TypeofVehicle', 'Color', 'DriverLastName');
-      }
-
-      // Check for files specifically for receptionist completion status
+      requiredDetailFields.push("Title", "AccessCard", "IDPresented", "GateNo");
+      if (visitorDetails.Car) requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverLastName");
       if (!visitorDetails.Files || visitorDetails.Files.length === 0) {
         tempErrors.Files = "Please upload a file.";
         isValid = false;
-      } else {
-        tempErrors.Files = "";
-      }
+      } else tempErrors.Files = "";
     }
 
-    const detailValidationErrorsFound = [];
-
-    // Validate each required detail field
+    const detailValidationErrorsFound: string[] = [];
     for (const field of requiredDetailFields) {
-      // Special handling for car-related fields if 'Car' is not checked
       if (!visitorDetails.Car && (field === "PlateNo" || field === "TypeofVehicle" || field === "Color" || field === "DriverLastName")) {
-        tempErrors[field] = ""; // Clear error if car is not selected
+        tempErrors[field] = "";
       } else {
-        if (!visitorDetails[field]) {
+        if (isEmptyString((visitorDetails as any)[field])) {
           tempErrors[field] = "This is a required input field";
           detailValidationErrorsFound.push(field);
-        } else {
-          tempErrors[field] = "";
-        }
+        } else tempErrors[field] = "";
       }
     }
 
-    if (detailValidationErrorsFound.length > 0) {
-      isValid = false;
-    }
-
+    if (detailValidationErrorsFound.length > 0) isValid = false;
     setErrorDetails(tempErrors);
     return isValid;
   };
 
-
-  /**
-   * Sends email notifications
-   */
+  // -------------------------
+  // Email & Save flows
+  // -------------------------
   const sendEmail = async () => {
     const emailService = new EmailService(props.siteUrl, currentUser.Email);
     await emailService.sendNotification(
@@ -568,8 +416,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       SSDUsers,
       visitorDetailsList
     );
-
-    // Set success message
     const message = emailService.getSuccessMessage(
       sAction,
       inputFields,
@@ -580,61 +426,36 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       isWalkinApproverUser,
       isSSDUser
     );
-
     setSuccessMessage(message);
   };
 
-  /**
-   * Saves the visitor and visitor details data to SharePoint.
-   */
   const save = async () => {
     try {
       setProgress(true);
-
-      // Check if record has been modified by another user
       const origVisitor = await sharePointService.getVisitorById(_itemId);
       if (origVisitor && origVisitor.Modified !== modifiedDate) {
         alert("Record has been changed by another user! Please refresh the page to see the latest updates.");
-        window.open(props.siteUrl, "_self"); // Redirect or refresh as needed
+        window.open(props.siteUrl, "_self");
         return;
       }
 
-      // Save main visitor information
-      const updatedVisitor = await sharePointService.saveVisitor(
-        inputFields,
-        sAction,
-        currentUser
-      );
-
-      // Update reference number after saving the main visitor
+      // Save main visitor
+      const updatedVisitor = await sharePointService.saveVisitor(inputFields, sAction, currentUser);
       _refno = updatedVisitor.Title;
 
-      // Handle main visitor files (upload and delete)
-      await fileService.uploadVisitorFiles(
-        _itemId,
-        inputFields.Files,
-        inputFields.origFiles,
-        deleteFiles
-      );
+      // File upload/delete for main visitor
+      await fileService.uploadVisitorFiles(_itemId, inputFields.Files, inputFields.origFiles, deleteFiles);
 
-      // Send email notification based on the action
+      // send email
       await sendEmail();
 
-      // Save/Update visitor details
+      // Save / update visitor details and upload their files
       for (const visitorDetail of visitorDetailsList) {
-        // Ensure ParentId is correctly set to the main visitor's ID before saving.
-        const detailToSave = {
-          ...visitorDetail,
-          ParentId: _itemId
-        };
-
-        // Determine the StatusId based on SSDApprove value
+        const detailToSave = { ...visitorDetail, ParentId: _itemId };
         let detailStatusId = updatedVisitor.StatusId;
         if (isSSDUser && visitorDetail.SSDApprove !== undefined) {
-          // If SSD user has approved or denied this specific visitor
-          detailStatusId = visitorDetail.SSDApprove === 'Yes' ? 4 : 7;
+          detailStatusId = visitorDetail.SSDApprove === "Yes" ? 4 : 7;
         }
-
         const savedDetail = await sharePointService.saveVisitorDetails(
           detailToSave,
           _itemId,
@@ -646,156 +467,94 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           detailStatusId,
           updatedVisitor.RequestDate
         );
-
-        // If it's a new detail, update its ID after saving to allow file uploads
-        if (!visitorDetail.ID && savedDetail.ID) {
-          visitorDetail.ID = savedDetail.ID; // Update the ID in the local state for file uploads
-        }
-
-        // Upload files for visitor details
-        if (visitorDetail.ID) { // Ensure ID exists for file uploads
-          await fileService.uploadVisitorDetailsFiles(
-            visitorDetail.ID,
-            visitorDetail.Files,
-            visitorDetail.origFiles
-          );
+        if (!visitorDetail.ID && savedDetail.ID) visitorDetail.ID = savedDetail.ID;
+        if (visitorDetail.ID) {
+          await fileService.uploadVisitorDetailsFiles(visitorDetail.ID, visitorDetail.Files, visitorDetail.origFiles);
         }
       }
 
-      // Delete files associated with removed visitor details
+      // Delete visitor details files and deleted details
       await fileService.deleteVisitorDetailsFiles(deleteFilesDetails);
 
-      // Delete visitor details that were removed from the list
       for (const origDetail of _origVisitorDetailsList) {
-        const exists = visitorDetailsList.some(detail => detail.ID === origDetail.ID);
-        if (!exists && origDetail.ID) { // Only delete if it had an ID (was previously saved)
+        const exists = visitorDetailsList.some((d) => d.ID === origDetail.ID);
+        if (!exists && origDetail.ID) {
           await sharePointService.deleteVisitorDetails(origDetail.ID);
         }
       }
 
-      setSavingDone(true); // Indicate that saving is complete
+      setSavingDone(true);
 
-      // Redirect after saving based on conditions
       setTimeout(() => {
         let url = props.siteUrl;
-        if (_sourceURL) {
-          url = _sourceURL;
+        if (_sourceURL) url = _sourceURL;
+        if ((inputFields.StatusId === 4 || inputFields.StatusId === 9) && isReceptionist) {
+          url = window.location.href;
         }
-
-        // Specific redirection logic for receptionists after completion
-        if (((inputFields.StatusId === 4) || (inputFields.StatusId === 9)) && (isReceptionist)) {
-          url = window.location.href; // Stay on the current page
-        }
-
         window.open(url, "_self");
-      }, 1000); // Short delay for Snackbar to show
+      }, 1000);
     } catch (error) {
       console.error("Error saving data:", error);
-      setProgress(false); // Hide progress indicator on error
+      setProgress(false);
     }
   };
 
-  /**
-   * Handles confirmation dialog close
-   * This needs to be defined before `onClickSubmit` and `onClickCancel` if they call it,
-   * and before `save` if `save` calls it.
-   * @param confirmed Whether the user confirmed the action
-   */
+  // -------------------------
+  // Dialog handlers
+  // -------------------------
   const handleCloseDialog = (confirmed: boolean) => {
     setOpenDialog(false);
-
-    if (confirmed) {
-      if ((dialogMessage.includes("submit")) ||
-        (dialogMessage.includes("save")) ||
-        (dialogMessage.includes("approve")) ||
-        (dialogMessage.includes("deny")) ||
-        (dialogMessage.includes("complete"))) {
-        save();
-      } else if (dialogMessage.includes("discard")) {
-        let url = props.siteUrl;
-        if (_sourceURL) {
-          url = _sourceURL;
-        }
-        window.open(url, "_self");
-      }
+    if (!confirmed) return;
+    const msg = dialogMessage.toLowerCase();
+    if (msg.includes("submit") || msg.includes("save") || msg.includes("approve") || msg.includes("deny") || msg.includes("complete")) {
+      save();
+    } else if (msg.includes("discard")) {
+      const url = _sourceURL || props.siteUrl;
+      window.open(url, "_self");
     }
   };
 
-  /**
-   * Handles print ID dialog close
-   */
-  const handleCloseDialogIDFab = () => {
-    setOpenDialogIDFab(false);
-  };
+  const handleCloseDialogIDFab = () => setOpenDialogIDFab(false);
 
-  /**
-   * Handles visitor details dialog close or save
-   * @param confirmed Whether the user confirmed the action (clicked save/add)
-   */
   const handleCloseDialogFab = (confirmed: boolean) => {
-    // Check if the user is an approver or SSD user (view-only mode for details)
     const isViewOnly = isApproverUser || isSSDUser;
-
     if (confirmed) {
-      // Allow edits only if the user is in edit mode and not in view-only mode
-      if (isEdit && !isViewOnly) {
-        if (validateOnSubmitDetails()) {
-          // Ensure ParentId is set correctly to the main visitor's ID
-          const detailToSave = {
-            ...visitorDetails,
-            ParentId: _itemId
-          };
-
-          if (visitorDetailsMode === 'add') {
-            // Add new visitor detail to the list
-            setVisitorDetailsList(prevList => [...prevList, detailToSave]);
-            // Clear overall 'Details' error if a detail is added
-            setError(prevErrors => ({ ...prevErrors, Details: "" }));
-          } else {
-            // Update existing visitor detail in the list
-            const updatedList = [...visitorDetailsList];
-            if (_idx !== -1) {
-              updatedList[_idx] = detailToSave;
-              setVisitorDetailsList(updatedList);
-            }
-          }
+      if (visitorIsEditMode && !isViewOnly) {
+        if (!validateOnSubmitDetails()) return;
+        const detailToSave = { ...visitorDetails, ParentId: _itemId };
+        if (visitorDetailsMode === "add") {
+          setVisitorDetailsList((prev) => [...prev, detailToSave]);
+          setError((prev) => ({ ...prev, Details: "" }));
         } else {
-          // If validation fails, keep the dialog open
-          return;
+          const updated = [...visitorDetailsList];
+          if (_idx !== -1) {
+            updated[_idx] = detailToSave;
+            setVisitorDetailsList(updated);
+          }
         }
       }
     }
-
-    setOpenDialogFab(false); // Close the dialog
+    setOpenDialogFab(false);
   };
 
-
-  /**
-   * Initializes the component
-   */
+  // -------------------------
+  // Initialization
+  // -------------------------
   useEffect(() => {
     (async () => {
       try {
         setProgress(true);
-
-        // Get URL parameters
         _sourceURL = document.referrer;
-        _itemId = parseInt(getUrlParameter('pid'));
-        //_itemId = 7; // Hardcoded for testing, ideally use getUrlParameter
-
-        // Get current user
+        _itemId = parseInt(getUrlParameter("pid"));
+        //_itemId = 13;
         const user = await sharePointService.getCurrentUser();
         setCurrentUser(user);
-        console.log("User", user);
 
-        // Check user groups
         const groups = await sharePointService.getCurrentUserGroups();
         let isUser = false;
         let isencoder = false;
         let isreceptionist = false;
-        console.log("Groups:", groups);
 
-        // Check if user is in Receptionist group
         for (let i = 0; i < groups.length; i++) {
           if (groups[i].LoginName === Receptionist_Group) {
             setReceptionist(true);
@@ -805,17 +564,13 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           }
         }
 
-        // Get visitor data
         const visitor = await sharePointService.getVisitorById(_itemId);
         if (!visitor) {
           setProgress(false);
-          // Handle case where visitor is not found, e.g., redirect or show error
           return;
         }
 
-        setModifiedDate(visitor.Modified); // to check if record has been updated
-
-        // Check if user is in UsersPerDept (Encoder role)
+        setModifiedDate(visitor.Modified);
         const users_per_dept = await sharePointService.getDepartments(user.Id);
         if (users_per_dept.length > 0) {
           isUser = true;
@@ -824,378 +579,264 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         }
         setUsersPerDept(users_per_dept);
 
-        // Show print button for receptionist if status is approved or completed
         if ((visitor.StatusId === 4 || visitor.StatusId === 9) && isreceptionist) {
           setHidePrint(false);
           const colorlist = await sharePointService.getIDColors();
           setcolorList(colorlist);
         }
 
-        // Check if user is an approver (Department Approver or Walk-in Approver)
-        if (visitor.ExternalType === 'Pre-arranged') {
+        if (visitor.ExternalType === "Pre-arranged") {
           const approvers = await sharePointService.getApprovers(visitor.DeptId, user.Id);
           setApprovers(approvers);
-
-          const filtuser = approvers.filter(item => item.NameId === user.Id);
-          if (filtuser.length > 0) {
-            isUser = true;
-          }
-        } else if (visitor.ExternalType === 'Walk-in') {
-          const walkinapprovers = await sharePointService.getWalkinApprovers(visitor.DeptId);
-          setWalkinApprovers(walkinapprovers);
-
-          const filtuser = walkinapprovers.filter(item => item.NameId === user.Id);
-          if (filtuser.length > 0) {
-            isUser = true;
-          }
+          if (approvers.filter((a) => a.NameId === user.Id).length > 0) isUser = true;
+        } else if (visitor.ExternalType === "Walk-in") {
+          const walkin = await sharePointService.getWalkinApprovers(visitor.DeptId);
+          setWalkinApprovers(walkin);
+          if (walkin.filter((a) => a.NameId === user.Id).length > 0) isUser = true;
         }
 
-        // Set specific approver roles if current user is the assigned approver
         if (visitor.ApproverId === user.Id) {
-          if (visitor.ExternalType === "Pre-arranged") {
-            setApproverUser(true);
-          } else {
-            setisWalkinApproverUser(true);
-          }
+          if (visitor.ExternalType === "Pre-arranged") setApproverUser(true);
+          else setisWalkinApproverUser(true);
           isUser = true;
         }
 
-        // Re-confirm encoder status for Pre-arranged visitors
-        if ((visitor.ExternalType === "Pre-arranged") && (isencoder)) {
-          setEncoder(true);
-        }
+        if (visitor.ExternalType === "Pre-arranged" && isencoder) setEncoder(true);
 
-        // Check if user is in SSD group
-        console.log("groups: ", groups.length);
         for (let i = 0; i < groups.length; i++) {
           if (groups[i].LoginName === SSD_Group) {
-            console.log("Login name: ", groups[i].LoginName, " SSD Group: ", SSD_Group);
             setSSDUser(true);
             isUser = true;
             break;
           }
         }
 
-        // Log the current user type for debugging
-        console.log("Current User Type:", {
-          "Is Encoder": isencoder,
-          "Is Receptionist": isreceptionist,
-          "Is Department Approver": isApproverUser,
-          "Is SSD Approver": isSSDUser,
-          "Is Walk-in Approver": isWalkinApproverUser,
-          "IsEdit": isEdit
-        });
-
-        // If the user is authorized, fetch lookup data and visitor details
         if (isUser) {
           _deptName = visitor.Dept.Title;
-
-          // Get lookup data for various dropdowns
           const purpose = await sharePointService.getPurposes();
           setPurpose(purpose);
-
           const building = await sharePointService.getBuildings();
           setBldg(building);
 
           const depts = await sharePointService.getDepartments();
-
-          // Filter departments based on user role (encoder or receptionist)
           if (isencoder) {
-            const mappedrows = [];
-            depts.forEach(row => {
-              const filtered = users_per_dept.filter(item => item.DeptId === row.Id);
-              if (filtered.length > 0) {
-                mappedrows.push(row);
-              }
+            const mappedrows: any[] = [];
+            depts.forEach((row: any) => {
+              const filtered = users_per_dept.filter((item: any) => item.DeptId === row.Id);
+              if (filtered.length > 0) mappedrows.push(row);
             });
             setDept(mappedrows);
-          } else if (isreceptionist) {
-            setDept(depts);
-          }
+          } else if (isreceptionist) setDept(depts);
 
-          // Get contact information for the current visitor's contact person
           const optionContacts = await sharePointService.getEmployeeByEmpNo(visitor.EmpNo);
           setContacts(optionContacts);
 
-          // Get SSD users
           const ssdUsers = await sharePointService.getSSDUsers();
-          console.log("SSD Users", ssdUsers);
           setSSD(ssdUsers);
 
-          // Get and set visitor details related to the main visitor
           const visitordetails = await sharePointService.getVisitorDetailsByParentId(_itemId);
-          _origVisitorDetailsList = visitordetails; // Store original for comparison on save
+          _origVisitorDetailsList = visitordetails;
           setVisitorDetailsList(visitordetails);
 
-          // Get gates and ID types for visitor details form
           const gates = await sharePointService.getGates();
           setGates(gates);
 
           const idpresented = await sharePointService.getIDTypes();
           setIDs(idpresented);
 
-          // Set the main visitor form data
           setInputs({ ...visitor });
         } else {
-          // If not authorized, alert and redirect
           alert("You are not authorized to access this page!");
           window.open(props.siteUrl, "_self");
         }
 
-        setProgress(false); // Hide progress indicator once all data is loaded
+        setProgress(false);
       } catch (e) {
         console.error("Initialization Error:", e);
-        setProgress(false); // Ensure progress is hidden even on error
+        setProgress(false);
       }
     })();
-  }, []); // Empty dependency array means this runs once on component mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-
-  /**
-   * Handles select field changes (dropdowns)
-   * @param event Event
-   */
-  const handleChangeCbo = async (event) => {
+  // -------------------------
+  // Change handlers
+  // -------------------------
+  const handleChangeCbo = async (event: any) => {
     const { name, value } = event.target;
-
     if (name === "DeptId") {
-      const deptfiltered = deptList.filter(item => item.Id === value);
-      if (deptfiltered.length > 0) {
-        _deptName = deptfiltered[0].Title;
-      }
-
-
-      // Fetch approvers based on external type and selected department
-      if (inputFields.ExternalType === 'Walk-in') {
+      const deptfiltered = deptList.filter((d) => d.Id === value);
+      if (deptfiltered.length > 0) _deptName = deptfiltered[0].Title;
+      if (inputFields.ExternalType === "Walk-in") {
         const walkinapprovers = await sharePointService.getWalkinApprovers(value);
         setWalkinApprovers(walkinapprovers);
-        setApprovers([]); // Clear pre-arranged approvers
+        setApprovers([]);
       } else {
         const approvers = await sharePointService.getApprovers(value, currentUser.Id);
         setApprovers(approvers);
-        setWalkinApprovers([]); // Clear walk-in approvers
+        setWalkinApprovers([]);
       }
     } else if (name === "Purpose") {
-      // Clear PurposeOthers if purpose is not 'Others'
-      if (value !== 'Others') {
-        setInputs(prev => ({ ...prev, PurposeOthers: '' }));
-        setError(prev => ({ ...prev, PurposeOthers: '' }));
+      if (value !== "Others") {
+        setInputs((prev) => ({ ...prev, PurposeOthers: "" }));
+        setError((prev) => ({ ...prev, PurposeOthers: "" }));
       }
     } else if (name === "colorAccess") {
-      const filtered = colorList.filter(item => item.Title === value);
-      if (filtered.length > 0) {
-        _colorValue = filtered[0].ColorCode;
-      }
+      const filtered = colorList.filter((c) => c.Title === value);
+      if (filtered.length > 0) _colorValue = filtered[0].ColorCode;
     }
-
-    setInputs(prev => ({ ...prev, [name]: value }));
+    setInputs((prev) => ({ ...prev, [name]: value }));
     validateInputs(name, value);
   };
 
-  /**
-   * Handles text field changes (input, textarea) for main visitor form
-   * @param e Event
-   */
-  const handleChangeTxt = (e) => {
+  const handleChangeTxt = (e: any) => {
     const { name, value, checked, type } = e.target;
-    const newValue = type === 'checkbox' ? checked : value;
-
-    setInputs(prev => ({ ...prev, [name]: newValue }));
+    const newValue = type === "checkbox" ? checked : value;
+    setInputs((prev) => ({ ...prev, [name]: newValue }));
     validateInputs(name, newValue);
   };
 
-  /**
-   * Handles text field changes for visitor details dialog
-   * @param e Event
-   */
-  const handleChangeTxtDetails = (e) => {
+  const handleChangeTxtDetails = (e: any) => {
     const { name, value, checked, type } = e.target;
-    const newValue = type === 'checkbox' ? checked : value;
-
-    setVisitorDetails(prev => {
-      const newDetails = { ...prev, [name]: newValue };
-      // Clear car-related fields if 'Car' checkbox is unchecked
-      if (name === 'Car' && newValue === false) {
+    const newValue = type === "checkbox" ? checked : value;
+    setVisitorDetails((prev) => {
+      const newDetails = { ...prev, [name]: newValue } as IVisitorDetails;
+      if (name === "Car" && newValue === false) {
         newDetails.Color = "";
         newDetails.DriverLastName = "";
         newDetails.PlateNo = "";
         newDetails.TypeofVehicle = "";
-        // Also clear their errors
-        setErrorDetails(prevErrors => ({
-          ...prevErrors,
-          PlateNo: "", TypeofVehicle: "", Color: "", DriverLastName: ""
-        }));
+        setErrorDetails((prevErr) => ({ ...prevErr, PlateNo: "", TypeofVehicle: "", Color: "", DriverLastName: "" }));
       }
       return newDetails;
     });
     validateInputsDetails(name, newValue);
   };
 
-  /**
-   * Handles date time changes for main visitor form
-   * @param e Date value
-   * @param name Field name
-   */
-  const onDateTimeVisitChange = (e, name) => {
-    setInputs(prev => ({ ...prev, [name]: e }));
+  const onDateTimeVisitChange = (e: Date, name: string) => {
+    setInputs((prev) => ({ ...prev, [name]: e }));
     validateInputs(name, e);
   };
 
-  /**
-   * Handles changes for main visitor form's dropzone files
-   * @param files Files array
-   */
-  const handleChangeDropZone = (files) => {
-    setInputs(prev => ({ ...prev, Files: files }));
-
-    // Determine files to be deleted from SharePoint
-    const filesToDelete = inputFields.origFiles.filter(origFile =>
-      !files.some(currentFile => currentFile.name === origFile.Name)
-    );
-    deleteFiles = filesToDelete; // Update the global var or manage state for it
+  const handleChangeDropZone = (files: any[]) => {
+    setInputs((prev) => ({ ...prev, Files: files }));
+    const filesToDelete = inputFields.origFiles.filter((origFile: any) => !files.some((f: any) => f.name === origFile.Name));
+    deleteFiles = filesToDelete;
   };
 
-  /**
-   * Handles changes for visitor details dialog's dropzone files
-   * @param files Files array
-   */
-  const handleChangeDropZone2 = (files) => {
-    setVisitorDetails(prev => ({ ...prev, Files: files, initFiles: files }));
-
+  const handleChangeDropZone2 = (files: any[]) => {
+    setVisitorDetails((prev) => ({ ...prev, Files: files, initFiles: files }));
     const tempErrorDetails = { ...errorDetails };
-    if (files.length > 0) {
-      tempErrorDetails.Files = "";
-    } else {
-      tempErrorDetails.Files = "Please upload a file.";
-    }
+    tempErrorDetails.Files = files.length > 0 ? "" : "Please upload a file.";
     setErrorDetails(tempErrorDetails);
 
-    // Determine files to be deleted from SharePoint for the current visitor detail
-    if (_itemIdDetails) { // Only track deletions if it's an existing record
-      const filesToDeleteForDetail = visitorDetails.origFiles.filter(origFile =>
-        !files.some(currentFile => currentFile.name === origFile.Name)
-      ).map(file => ({ Id: _itemIdDetails, Filename: file.Name }));
+    if (_itemIdDetails) {
+      const filesToDeleteForDetail = visitorDetails.origFiles
+        .filter((origFile: any) => !files.some((f: any) => f.name === origFile.Name))
+        .map((file: any) => ({ Id: _itemIdDetails, Filename: file.Name }));
 
-      // Add to global delete list, avoiding duplicates
-      filesToDeleteForDetail.forEach(fileToDelete => {
-        const exists = deleteFilesDetails.some(item =>
-          item.Id === fileToDelete.Id && item.Filename === fileToDelete.Filename
-        );
-        if (!exists) {
-          deleteFilesDetails.push(fileToDelete);
-        }
+      filesToDeleteForDetail.forEach((fileToDelete: any) => {
+        const exists = deleteFilesDetails.some((it) => it.Id === fileToDelete.Id && it.Filename === fileToDelete.Filename);
+        if (!exists) deleteFilesDetails.push(fileToDelete);
       });
     }
   };
 
-
-  /**
-   * Handles autocomplete selection for Contact Person
-   * @param event Event
-   * @param value Selected value from autocomplete
-   */
-  const handleACSelectedValue = (event, value) => {
-    setInputs(prev => {
+  const handleACSelectedValue = (event: any, value: any) => {
+    setInputs((prev) => {
       if (value) {
-        validateInputs('EmpNo', value.EmpNo); // Validate empNo when selected
-        return {
-          ...prev,
-          EmpNo: value.EmpNo,
-          DirectNo: value.DirectNo,
-          LocalNo: value.LocalNo,
-          Position: value.Position,
-        };
+        validateInputs("EmpNo", value.EmpNo);
+        return { ...prev, EmpNo: value.EmpNo, DirectNo: value.DirectNo, LocalNo: value.LocalNo, Position: value.Position };
       } else {
-        validateInputs('EmpNo', ""); // Validate empty empNo when cleared
-        setContacts([]); // Clear contacts when selection is cleared
-        return {
-          ...prev,
-          EmpNo: "",
-          DirectNo: "",
-          LocalNo: "",
-          Position: "",
-        };
+        validateInputs("EmpNo", "");
+        setContacts([]);
+        return { ...prev, EmpNo: "", DirectNo: "", LocalNo: "", Position: "" };
       }
     });
   };
 
-  /**
-   * Handles finding a user for Contact Person autocomplete
-   * @param e Event
-   */
-  const findUser = async (e) => {
+  const findUser = async (e: any) => {
     const searchTerm = e.target.value;
-    setInputs(prev => ({
-      ...prev,
-      EmpNo: "",
-      DirectNo: "",
-      LocalNo: "",
-      Position: "",
-    })); // Clear fields while typing
-
+    setInputs((prev) => ({ ...prev, EmpNo: "", DirectNo: "", LocalNo: "", Position: "" }));
     if (searchTerm.length > 2) {
-      setAC1Open(true); // Open autocomplete suggestions
+      setAC1Open(true);
       const options = await sharePointService.getEmployeesByName(searchTerm, _deptName);
       setContacts(options);
-    } else if (searchTerm.length < 3) {
-      setContacts([]); // Clear options if search term is too short
-      setAC1Open(false); // Close autocomplete suggestions
+    } else {
+      setContacts([]);
+      setAC1Open(false);
     }
   };
 
-  /**
-   * Handles add visitor details button click
-   */
   const handleAddVisitorDetails = () => {
-    setVisitorDetailsMode('add');
-    // Reset visitorDetails state for a new entry
+    setVisitorDetailsMode("add");
     setVisitorDetails({
-      ID: null,
-      Title: '',
-      FirstName: '',
-      Car: inputFields.RequireParking, // Inherit parking requirement from main form
-      AccessCard: '',
-      PlateNo: '',
-      TypeofVehicle: '',
-      Color: '',
-      DriverLastName: '',
-      DriverFirstName: '',
-      IDPresented: '',
-      GateNo: '',
-      ParentId: inputFields.ID, // Link new detail to the main visitor's ID
-      Files: [],
-      initFiles: [],
-      origFiles: []
+      ...initialVisitorDetail,
+      Car: inputFields.RequireParking,
+      ParentId: inputFields.ID,
     });
-    setErrorDetails({ // Clear any previous errors
-      Title: '', FirstName: '', Car: '', AccessCard: '', PlateNo: '',
-      TypeofVehicle: '', Color: '', DriverLastName: '', DriverFirstName: '',
-      IDPresented: '', GateNo: '', Files: ''
-    });
+    setErrorDetails({ ...initialVisitorDetailError });
     setOpenDialogFab(true);
   };
 
-  /**
-   * Handles submit button click
-   * @param e Event
-   * @param t Action type
-   */
-  const onClickSubmit = (e, t: string) => {
+  // visitor details actions
+  function handleVisitorDetailsAction(action: string, rowData: IVisitorDetails) {
+  if (action === "view") {
+    _idx = visitorDetailsList.indexOf(rowData);
+    if (rowData.ID) _itemIdDetails = rowData.ID;
+    const detailWithParentId = { ...rowData, ParentId: rowData.ParentId || _itemId };
+    setVisitorDetails(detailWithParentId);
+    setVisitorDetailsMode("edit");
+    setOpenDialogFab(true);
+  } else if (action === "delete") {
+    const idxToDelete = visitorDetailsList.indexOf(rowData);
+    if (idxToDelete > -1) {
+      const tempList = [...visitorDetailsList];
+      tempList.splice(idxToDelete, 1);
+      setVisitorDetailsList(tempList);
+      if (rowData.ID) deleteFilesDetails.push({ Id: rowData.ID, Filename: null });
+      if (tempList.length === 0) setError((prev) => ({ ...prev, Details: "Visitor Details are required. Please add visitor names." }));
+    }
+  } else if (action === "print") {
+    _idx = visitorDetailsList.indexOf(rowData);
+    if (rowData.ID) _itemIdDetails = rowData.ID;
+    setVisitorDetails(rowData);
+    setOpenDialogIDFab(true);
+  } else if (action === "updateSSDApprove") {
+    const idx = visitorDetailsList.findIndex((i) => i.ID === rowData.ID);
+    if (idx !== -1) {
+      const temp = [...visitorDetailsList];
+      temp[idx] = rowData;
+      setVisitorDetailsList(temp);
+      if (isSSDUser) {
+        if (rowData.SSDApprove === "Yes") setInputs((prev) => ({ ...prev, StatusId: 4, Status: { Title: "Approved by SSD" } }));
+        else if (rowData.SSDApprove === "No") setInputs((prev) => ({ ...prev, StatusId: 7, Status: { Title: "Denied by SSD" } }));
+        }
+      }
+    }
+  }
+
+  const handleChipClick = (e: any, fileName: string, controlType: string) => {
+    let fileUrl = "";
+    if (controlType === "inputFields") fileUrl = `${props.siteUrl}/VisitorsLib/${_itemId}/${fileName}`;
+    else fileUrl = `${props.siteUrl}/VisitorDetailsLib/${_itemIdDetails}/${fileName}`;
+    const link = document.createElement("a");
+    link.href = fileUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // submit / cancel
+  const onClickSubmit = (e: any, t: string) => {
     setsAction(t);
     let msg = "";
-
-    if (t === 'savedraft') {
-      msg = "Do you want to save and exit?";
-    } else if (t === 'submit') {
-      msg = "Do you want to submit this form?";
-    } else if (t === 'approve') {
-      msg = "Do you want to approve this request?";
-    } else if (t === 'deny') {
-      msg = "Do you want to deny this request?";
-    } else if (t === 'markcomplete') {
-      msg = "Do you want to complete this request?";
-    }
-
+    if (t === "savedraft") msg = "Do you want to save and exit?";
+    else if (t === "submit") msg = "Do you want to submit this form?";
+    else if (t === "approve") msg = "Do you want to approve this request?";
+    else if (t === "deny") msg = "Do you want to deny this request?";
+    else if (t === "markcomplete") msg = "Do you want to complete this request?";
     const isValid = validateOnSubmit(t);
     if (isValid) {
       setDialogMessage(msg);
@@ -1203,37 +844,24 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     }
   };
 
-  /**
-   * Handles cancel button click
-   */
-  const onClickCancel = (e) => {
+  const onClickCancel = (e: any) => {
     setDialogMessage("Do you want to discard changes and exit?");
     setOpenDialog(true);
   };
 
-  /**
-   * Handles close button click for the main display form
-   */
   const handleCloseDisplay = () => {
-    window.open(props.siteUrl + '/SitePages/ViewVisitorappge.aspx', "_self");
+    window.open(props.siteUrl + "/SitePages/ViewVisitorappge.aspx", "_self");
   };
 
-  /**
-   * Handles edit button click for the main form
-   */
   const handleEditClick = () => {
-    // Check if the SSD user should be able to edit based on the status
     if (isSSDUser && !(inputFields.StatusId === 3 || inputFields.StatusId === 4 || inputFields.StatusId === 7)) {
-      // Don't allow editing if the request hasn't been approved by the Approver yet
       alert("SSD users can only edit requests that have been approved by the Approver.");
       return;
     }
-    
-    // Allow editing
     setEditMode(true);
   };
 
-
+  // render
   return (
     <form noValidate autoComplete="off">
       {inputFields.ID && (
@@ -1241,14 +869,23 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           <Grid container spacing={1}>
             <HeaderSection
               visitor={inputFields}
-              showEditButton={checkVisibility('editicon', inputFields, isEdit, isEncoder, isReceptionist, isApproverUser, isWalkinApproverUser, isSSDUser)}
+              showEditButton={checkVisibility(
+                "editicon",
+                inputFields,
+                visitorIsEditMode,
+                isEncoder,
+                isReceptionist,
+                isApproverUser,
+                isWalkinApproverUser,
+                isSSDUser
+              )}
               onEditClick={handleEditClick}
             />
 
             <VisitorInformationSection
               visitor={inputFields}
               errorFields={errorFields}
-              isEdit={isEdit}
+              isEdit={visitorIsEditMode}
               isEncoder={isEncoder}
               isReceptionist={isReceptionist}
               isApproverUser={isApproverUser}
@@ -1274,7 +911,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             <VisitorDetailsSection
               visitor={inputFields}
               errorFields={errorFields}
-              isEdit={isEdit}
+              isEdit={visitorIsEditMode}
               isEncoder={isEncoder}
               isReceptionist={isReceptionist}
               isSSDUser={isSSDUser}
@@ -1289,7 +926,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             <ApprovalSection
               visitor={inputFields}
               errorFields={errorFields}
-              isEdit={isEdit}
+              isEdit={visitorIsEditMode}
               isEncoder={isEncoder}
               isReceptionist={isReceptionist}
               isApproverUser={isApproverUser}
@@ -1302,7 +939,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             />
 
             <ActionButtonsSection
-              isEdit={isEdit}
+              isEdit={visitorIsEditMode}
               isEncoder={isEncoder}
               isReceptionist={isReceptionist}
               isApproverUser={isApproverUser}
@@ -1315,19 +952,14 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             />
           </Grid>
 
-          <ConfirmationDialog
-            open={openDialog}
-            message={dialogMessage}
-            onClose={handleCloseDialog}
-          />
+          <ConfirmationDialog open={openDialog} message={dialogMessage} onClose={handleCloseDialog} />
 
-          {/* Visitor Details Dialog */}
           {openDialogFab && (
             <VisitorDetailsDialog
               open={openDialogFab}
               visitorDetails={visitorDetails}
               errorDetails={errorDetails}
-              isEdit={isEdit}
+              isEdit={visitorIsEditMode}
               idList={IDList}
               gateList={GateList}
               isApproverUser={isApproverUser}
