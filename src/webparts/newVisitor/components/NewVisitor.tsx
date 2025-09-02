@@ -1,29 +1,28 @@
-import * as React from 'react';
-import { useState, useEffect } from 'react';
-import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
-import Grid from '@material-ui/core/Grid';
-import Container from '@material-ui/core/Container';
 import Backdrop from '@material-ui/core/Backdrop';
 import CircularProgress from '@material-ui/core/CircularProgress';
+import Container from '@material-ui/core/Container';
+import Grid from '@material-ui/core/Grid';
 import Snackbar from '@material-ui/core/Snackbar';
+import { createStyles, makeStyles, Theme } from '@material-ui/core/styles';
 import MuiAlert, { AlertProps } from '@material-ui/lab/Alert';
-import { INewVisitorProps } from './INewVisitorProps';
+import * as React from 'react';
+import { useEffect, useState } from 'react';
+import { IFormErrors } from '../models/IFormErrors';
 import { IVisitor } from '../models/IVisitor';
 import { IVisitorDetails } from '../models/IVisitorDetails';
-import { IFormErrors } from '../models/IFormErrors';
-import { validateVisitorForm, validateField } from '../validations/formValidation';
-import { SharePointService } from '../services/SharePointService';
 import { EmailService } from '../services/EmailService';
 import { FileService } from '../services/FileService';
-import VisitorInformationSection from './sections/VisitorInformationSection';
-import VisitorDetailsSection from './sections/VisitorDetailsSection';
-import ApprovalSection from './sections/ApprovalSection';
-import ActionButtonsSection from './sections/ActionButtonsSection';
+import { SharePointService } from '../services/SharePointService';
+import { validateField, validateVisitorForm } from '../validations/formValidation';
 import ConfirmationDialog from './dialogs/ConfirmationDialog';
 import PrivacyModal from './dialogs/PrivacyModal';
+import { INewVisitorProps } from './INewVisitorProps';
+import ActionButtonsSection from './sections/ActionButtonsSection';
+import ApprovalSection from './sections/ApprovalSection';
+import VisitorDetailsSection from './sections/VisitorDetailsSection';
+import VisitorInformationSection from './sections/VisitorInformationSection';
 
 // Constants
-const ENCODERS_GROUP = "Encoders";
 const RECEPTIONIST_GROUP = "Receptionist";
 
 const useStyles = makeStyles((theme: Theme) =>

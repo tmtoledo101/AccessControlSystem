@@ -1,10 +1,9 @@
-import * as React from 'react';
-import { useState } from 'react'; // useState is imported but not used, can be removed if not needed for future state
-import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
-import Paper from '@material-ui/core/Paper';
-import Grid from '@material-ui/core/Grid'; // Keep Grid, as it's used in the ViewOvertime parent for layout
 import DateFnsUtils from '@date-io/date-fns';
-import { MuiPickersUtilsProvider, DatePicker } from "@material-ui/pickers";
+import Grid from '@material-ui/core/Grid'; // Keep Grid, as it's used in the ViewOvertime parent for layout
+import Paper from '@material-ui/core/Paper';
+import { createStyles, makeStyles, Theme } from '@material-ui/core/styles';
+import { DatePicker, MuiPickersUtilsProvider } from "@material-ui/pickers";
+import * as React from 'react';
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({

@@ -1,27 +1,26 @@
-import * as React from 'react';
-import { 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  DialogActions, 
+import DateFnsUtils from '@date-io/date-fns';
+import {
   Button,
-  Grid,
-  Paper,
-  Box,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
-  RadioGroup,
   FormControlLabel,
-  Radio,
-  InputLabel,
-  Select,
-  MenuItem,
   FormHelperText,
+  Grid,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Radio,
+  RadioGroup,
+  Select,
   TextField
 } from '@material-ui/core';
-import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
-import { MuiPickersUtilsProvider, TimePicker } from '@material-ui/pickers';
-import DateFnsUtils from '@date-io/date-fns';
+import { createStyles, makeStyles, Theme } from '@material-ui/core/styles';
 import Autocomplete from '@material-ui/lab/Autocomplete';
+import { MuiPickersUtilsProvider, TimePicker } from '@material-ui/pickers';
+import * as React from 'react';
 import { IEmployeeDetails, IEmployeeDetailsErrors } from '../../models/IEmployeeDetails';
 
 // Styles

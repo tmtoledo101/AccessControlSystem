@@ -14,6 +14,7 @@ import DateRangeSelector from './common/DateRangeSelector';
 import SearchBox from './common/SearchBox';
 import VisitorRequestsTable from './common/VisitorRequestsTable';
 import VisitorDetailsTable from './common/VisitorDetailsTable';
+import VisitorCountTable from './common/VisitorCountTable';
 import ActionButtons from './common/ActionButtons';
 // Import Material-UI components for radio buttons/filters
 import Radio from '@material-ui/core/Radio';
@@ -25,7 +26,7 @@ import FormLabel from '@material-ui/core/FormLabel';
 import SharePointService from './services/SharePointService';
 // Import utils
 import { setCookie, getCookie } from './utils/helper';
-import { IVisitor, IVisitorDetail, IUserDept, IViewState } from './interfaces/IViewVisitors';
+import { IVisitor, IVisitorDetail, IUserDept, IViewState, IVisitorCount } from './interfaces/IViewVisitors';
 
 // Import for Excel export
 import * as XLSX from 'xlsx';
@@ -52,11 +53,9 @@ const useStyles = makeStyles((theme: Theme) =>
 );
 
 // Constants
-const Encoders_Group = "Encoders";
 const Receptionist_Group = "Receptionist";
-const SSD_Group = "SSD";
+//const SSD_Group = "SSD";
 const SSD_Group_v2 = "SSD_v2";
-const WalkinApprover_Group = "WalkinApprover";
 const HOUsers_Group = "HOUsers";
 const SPCUsers_Group = "SPCUsers";
 
@@ -176,6 +175,8 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         }
       } else if ((tabContent === 'SSD') && (currentStateForMapUser.isSSDUser)) {
         mapUser(from.toDate(), to.toDate(), 6);
+      } else if (tabContent === 'MultiEntry' && currentStateForMapUser.isSSDUser) {
+        mapUser(from.toDate(), to.toDate(), 11);
       } else if (tabContent === 'Reports') {
         if (currentStateForMapUser.isEncoder || currentStateForMapUser.isApprover || currentStateForMapUser.isWalkinApprover ||
           currentStateForMapUser.isReceptionist || currentStateForMapUser.isSSDUser || isHOUser || isSPCUser) {
@@ -524,6 +525,10 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         });
       }
       fetchedData = filteredReports;
+    } else if ((action === 11)) {
+      // MultiEntry tab - get visitor counts
+      const visitorCounts = await SharePointService.getVisitorEntryCounts(from, to);
+      fetchedData = visitorCounts as any; // Cast to any to avoid type issues
     } else {
       alert("You are not authorized to access this page!");
       window.open(props.siteUrl, "_self");
@@ -544,47 +549,64 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       return;
     }
 
-    const reportType = state.reportView === 'Daily' ? 'Daily Visitors Report' : 'Monthly Visitors Report';
-    const fileName = `${reportType} - ${state.selectedFromDate.format('YYYY-MM-DD')} to ${state.selectedToDate.format('YYYY-MM-DD')}.xlsx`;
-
+    let reportType = '';
+    let fileName = '';
     let dataToExport: any[] = [];
 
-  // Determine the type of data and map accordingly
-  if (state.vwid === 10 || state.vwid === 1 || state.vwid === 2 || state.vwid === 5 || state.vwid === 6 || state.vwid === 7 || state.vwid === 8) {
-    dataToExport = (state.dirListItems as IVisitor[]).map(item => ({
-      'ID': item.ID,
-      'Reference Number': item.Title,
-      'Company Name': item.CompanyName,
-      'Host Name': item.Approver ? item.Approver.Title : '',
-      'Department': item.Dept ? item.Dept.Title : '',
-      'Building': item.Bldg,
-      'Request Date': item.RequestDate ? new Date(item.RequestDate) : '',
-      'Date & Time Visit': item.DateTimeVisit ? new Date(item.DateTimeVisit) : '',
-      'Date & Time Arrival': item.DateTimeArrival ? new Date(item.DateTimeArrival) : '',
-      'Purpose': item.Purpose,
-      'Status': item.Status ? item.Status.Title : '',
-      'Requires Parking': item.RequireParking ? 'Yes' : 'No',
-    }));
-  } else if (state.vwid === 9 || state.vwid === 3 || state.vwid === 4) {
-    dataToExport = (state.dirListItems as IVisitorDetail[]).map(item => ({
-      'ID': item.ID,
-      'Visitor Last Name': item.Title,
-      'Visitor First Name': item.FirstName,
-      'Request Date': item.RequestDate ? new Date(item.RequestDate) : '',
-      'Department': item.Dept ? item.Dept.Title : '',
-      'Reference No.': item.RefNo,
-      'Date From': item.DateFrom ? new Date(item.DateFrom) : '',
-      'Date To': item.DateTo ? new Date(item.DateTo) : '',
-      'Company Name': item.CompanyName,
-      'Car': item.Car ? 'Yes' : 'No',
-      'Access Card': item.AccessCard,
-      'Status': item.Status ? item.Status.Title : '',
-      'Parent ID': item.ParentId,
-      'Author': item.Author ? item.Author.Title : '',
-    }));
+    if (state.vwid === 11) {
+      // MultiEntry tab export
+      reportType = 'Visitor Entry Count Report';
+      fileName = `${reportType} - ${state.selectedFromDate.format('YYYY-MM-DD')} to ${state.selectedToDate.format('YYYY-MM-DD')}.xlsx`;
+      
+      dataToExport = (state.dirListItems as IVisitorCount[]).map(item => ({
+        //'ID': item.ID,
+        'Visitor Last Name': item.LastName,
+        'Visitor First Name': item.FirstName,
+        'Company Name': item.CompanyName,
+        'Visit Count': item.VisitCount
+      }));
     } else {
-      alert("Download not supported for this report type.");
-      return;
+      // Regular reports export
+      reportType = state.reportView === 'Daily' ? 'Daily Visitors Report' : 'Monthly Visitors Report';
+      fileName = `${reportType} - ${state.selectedFromDate.format('YYYY-MM-DD')} to ${state.selectedToDate.format('YYYY-MM-DD')}.xlsx`;
+
+      // Determine the type of data and map accordingly
+      if (state.vwid === 10 || state.vwid === 1 || state.vwid === 2 || state.vwid === 5 || state.vwid === 6 || state.vwid === 7 || state.vwid === 8) {
+        dataToExport = (state.dirListItems as IVisitor[]).map(item => ({
+          //'ID': item.ID,
+          'Reference Number': item.Title,
+          'Company Name': item.CompanyName,
+          'Host Name': item.Approver ? item.Approver.Title : '',
+          'Department': item.Dept ? item.Dept.Title : '',
+          'Building': item.Bldg,
+          'Request Date': item.RequestDate ? new Date(item.RequestDate) : '',
+          'Date & Time Visit': item.DateTimeVisit ? new Date(item.DateTimeVisit) : '',
+          'Date & Time Arrival': item.DateTimeArrival ? new Date(item.DateTimeArrival) : '',
+          'Purpose': item.Purpose,
+          'Status': item.Status ? item.Status.Title : '',
+          'Requires Parking': item.RequireParking ? 'Yes' : 'No',
+        }));
+      } else if (state.vwid === 9 || state.vwid === 3 || state.vwid === 4) {
+        dataToExport = (state.dirListItems as IVisitorDetail[]).map(item => ({
+          'ID': item.ID,
+          'Visitor Last Name': item.Title,
+          'Visitor First Name': item.FirstName,
+          'Request Date': item.RequestDate ? new Date(item.RequestDate) : '',
+          'Department': item.Dept ? item.Dept.Title : '',
+          'Reference No.': item.RefNo,
+          'Date From': item.DateFrom ? new Date(item.DateFrom) : '',
+          'Date To': item.DateTo ? new Date(item.DateTo) : '',
+          'Company Name': item.CompanyName,
+          'Car': item.Car ? 'Yes' : 'No',
+          'Access Card': item.AccessCard,
+          'Status': item.Status ? item.Status.Title : '',
+          'Parent ID': item.ParentId,
+          'Author': item.Author ? item.Author.Title : '',
+        }));
+      } else {
+        alert("Download not supported for this report type.");
+        return;
+      }
     }
 
   // Create worksheet
@@ -854,6 +876,21 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
             </Grid>
           )}
 
+          {/* MultiEntry Tab UI - Download Button */}
+          {((state.vwid === 11)) && (
+            <Grid item xs={12} sm={6} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleDownloadReport}
+                className={classes.downloadButton}
+                disabled={state.dirListItems.length === 0} // Disable if no data
+              >
+                Download Visitor Count Report
+              </Button>
+            </Grid>
+          )}
+
           <Grid item xs={12}>
             <Paper variant="outlined" className={classes.paper}>
               {(((state.vwid === 1) || (state.vwid === 2) || (state.vwid === 5) || (state.vwid === 6) || (state.vwid === 7) || (state.vwid === 8) || (state.vwid === 10)) && (state.dirListItems.length > 0)) && (
@@ -866,6 +903,12 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
                 <VisitorDetailsTable
                   data={state.dirListItems as IVisitorDetail[]}
                   onViewAction={viewAction2}
+                />
+              )}
+              {((state.vwid === 11) && (state.dirListItems.length > 0)) && (
+                <VisitorCountTable
+                  data={state.dirListItems as IVisitorCount[]}
+                  title={`Visitor Entry Count`}
                 />
               )}
             </Paper>

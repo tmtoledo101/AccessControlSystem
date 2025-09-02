@@ -8,7 +8,7 @@ import "@pnp/sp/site-users/web";
 import "@pnp/sp/fields";
 import "@pnp/sp/regional-settings/web";
 import "@pnp/sp/site-groups";
-import { IVisitor, IVisitorDetail, IUserDept } from "../interfaces/IViewVisitors";
+import { IVisitor, IVisitorDetail, IUserDept, IVisitorCount } from "../interfaces/IViewVisitors";
 
 export default class SharePointService {
   /**
@@ -149,6 +149,51 @@ export default class SharePointService {
         .orderBy("Modified", false)
         .filter(`substringof('${searchText}', Title) or substringof('${searchText}', FirstName)`)
         .get();
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get visitor entry counts within a date range
+   * @param from From date
+   * @param to To date
+   */
+  public static async getVisitorEntryCounts(from: Date, to: Date): Promise<IVisitorCount[]> {
+    try {
+      // First, get all visitor details within the date range
+      const visitorDetails = await sp.web.lists.getByTitle("VisitorDetails")
+        .items
+        .select("ID,Title,FirstName,CompanyName,ParentId")
+        .top(5000)
+        .filter(`DateFrom ge '${from.toISOString()}' and DateFrom le '${to.toISOString()}'`)
+        .get();
+      
+      // Process the data to count entries per visitor
+      const visitorMap: { [key: string]: IVisitorCount } = {};
+      
+      visitorDetails.forEach(detail => {
+        // Create a unique key using FirstName and LastName (Title)
+        const key = `${detail.FirstName}_${detail.Title}`.toLowerCase();
+        
+        if (visitorMap[key]) {
+          // Increment count if visitor already exists in map
+          visitorMap[key].VisitCount += 1;
+        } else {
+          // Add new visitor to map
+          visitorMap[key] = {
+            ID: detail.ID,
+            FirstName: detail.FirstName,
+            LastName: detail.Title,
+            CompanyName: detail.CompanyName || '',
+            VisitCount: 1
+          };
+        }
+      });
+      
+      // Convert map to array
+      return Object.values(visitorMap).sort((a, b) => b.VisitCount - a.VisitCount);
     } catch (error) {
       console.log(error);
       throw error;

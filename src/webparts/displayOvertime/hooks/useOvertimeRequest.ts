@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
-import { IOvertimeRequest, IOvertimeRequestErrors } from '../models/IOvertimeRequest';
-import { IEmployeeDetails } from '../models/IEmployeeDetails';
-import { IUser } from '../models/IUser';
+import { useCallback, useState } from 'react';
 import { IDepartment } from '../models/IDepartment';
-import { SharePointService } from '../services/SharePointService';
+import { IEmployeeDetails } from '../models/IEmployeeDetails';
+import { IOvertimeRequest, IOvertimeRequestErrors } from '../models/IOvertimeRequest';
+import { IUser } from '../models/IUser';
 import { EmailService } from '../services/EmailService';
+import { SharePointService } from '../services/SharePointService';
+import { getUserPermissions } from '../utils/permissionUtils';
 import { getUrlParameter } from '../utils/urlUtils';
 import { validateOvertimeRequest } from '../utils/validationUtils';
-import { getUserPermissions } from '../utils/permissionUtils';
 
 /**
  * Interface for save request result
@@ -46,8 +46,8 @@ export const useOvertimeRequest = (siteUrl: string, siteRelativeUrl: string) => 
   const [ssdUsers, setSsdUsers] = useState<IUser[]>([]);
   const [personnelTypeList, setPersonnelTypeList] = useState<any[]>([]);
   const [sourceUrl, setSourceUrl] = useState<string>(null);
-  const [refNo, setRefNo] = useState<string>('');
-  const [deleteFiles, setDeleteFiles] = useState<any[]>([]);
+  const [refNo] = useState<string>('');
+  const [deleteFiles] = useState<any[]>([]);
   const [originalEmployeeDetails, setOriginalEmployeeDetails] = useState<IEmployeeDetails[]>([]);
 
   /**

@@ -1,43 +1,36 @@
-import * as React from 'react';
-import { useState, useEffect } from 'react';
-import { INewOvertimeProps } from './INewOvertimeProps';
-import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
-import { Grid, Backdrop, CircularProgress, Snackbar } from '@material-ui/core';
+import { Backdrop, CircularProgress, Grid, Snackbar } from '@material-ui/core';
+import { createStyles, makeStyles, Theme } from '@material-ui/core/styles';
 import MuiAlert, { AlertProps } from '@material-ui/lab/Alert';
-import { sp } from '@pnp/sp';
 import { SPHttpClient } from '@microsoft/sp-http';
-import '@pnp/sp/webs';
-import '@pnp/sp/lists';
 import '@pnp/sp/items';
+import '@pnp/sp/lists';
 import '@pnp/sp/profiles';
-import '@pnp/sp/site-users/web';
-import '@pnp/sp/site-groups';
 import '@pnp/sp/regional-settings/web';
+import '@pnp/sp/site-groups';
+import '@pnp/sp/site-users/web';
 import '@pnp/sp/sputilities';
-import moment from 'moment';
+import '@pnp/sp/webs';
+import * as React from 'react';
+import { useEffect, useState } from 'react';
+import { INewOvertimeProps } from './INewOvertimeProps';
 
 // Custom hooks
-import { useFormState } from '../hooks/useFormState';
 import { useEmployeeDetails } from '../hooks/useEmployeeDetails';
+import { useFormState } from '../hooks/useFormState';
 
 // Components
 import { ConfirmationDialog } from './dialogs/ConfirmationDialog';
 import { EmployeeDetailsDialog } from './dialogs/EmployeeDetailsDialog';
-import { HeaderSection } from './sections/HeaderSection';
-import { RequestInfoSection } from './sections/RequestInfoSection';
+import { ActionButtonsSection } from './sections/ActionButtonsSection';
+import { ApprovalSection } from './sections/ApprovalSection';
 import { AttachmentsSection } from './sections/AttachmentsSection';
 import { EmployeeDetailsSection } from './sections/EmployeeDetailsSection';
-import { ApprovalSection } from './sections/ApprovalSection';
-import { ActionButtonsSection } from './sections/ActionButtonsSection';
+import { HeaderSection } from './sections/HeaderSection';
+import { RequestInfoSection } from './sections/RequestInfoSection';
 
 // Services
-import { SharePointService } from '../services/SharePointService';
 import { EmailService } from '../services/EmailService';
-import { FileService } from '../services/FileService';
-
-// Constants
-const ENCODERS_GROUP = 'Encoders';
-const RECEPTIONIST_GROUP = 'Receptionist';
+import { SharePointService } from '../services/SharePointService';
 
 // Styles
 const useStyles = makeStyles((theme: Theme) =>

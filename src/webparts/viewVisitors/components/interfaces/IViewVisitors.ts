@@ -1,4 +1,14 @@
 import * as moment from 'moment'; // Make sure moment is imported if you're using it for types here
+
+// Interface for visitor count in MultiEntry tab
+export interface IVisitorCount {
+  ID: number;
+  FirstName: string;
+  LastName: string;
+  VisitCount: number;
+  CompanyName: string;
+}
+
 export interface IVisitor {
   ID: number;
   Title: string;
@@ -71,30 +81,30 @@ export interface ITabItem {
   value: number;
 }
 export interface IViewState {
-  selectedFromDate: moment.Moment; // Corrected type to moment.Moment
-  selectedToDate: moment.Moment;   // Corrected type to moment.Moment
-  selectedAgendaDate: Date;
-  inputSubject: string;
-  dialogMessage: string;
-  txtSearch: string;
-  isEncoder: boolean;
-  isApprover: boolean;
-  isWalkinApprover: boolean;
-  isReceptionist: boolean;
-  isSSDUser: boolean;
-  isUser: boolean;
-  vwid: number;
-  WalkinApprovers: IUserDept[]; // Corrected type for better safety
-  dirListItems: (IVisitor | IVisitorDetail)[]; // **CRUCIAL FIX**: This array can contain a mix of IVisitor and IVisitorDetail objects
-  selectedItems: any[]; // Consider refining this type if you know what it holds
-  openDialog: boolean;
-  isSavingDone: boolean;
-  isProgress: boolean;
-  errorFields: {
-    Date: string;
-    Subject: string;
-  };
-  viewName: string;
+  selectedFromDate: moment.Moment; // Corrected type to moment.Moment
+  selectedToDate: moment.Moment;   // Corrected type to moment.Moment
+  selectedAgendaDate: Date;
+  inputSubject: string;
+  dialogMessage: string;
+  txtSearch: string;
+  isEncoder: boolean;
+  isApprover: boolean;
+  isWalkinApprover: boolean;
+  isReceptionist: boolean;
+  isSSDUser: boolean;
+  isUser: boolean;
+  vwid: number;
+  WalkinApprovers: IUserDept[]; // Corrected type for better safety
+  dirListItems: (IVisitor | IVisitorDetail | IVisitorCount)[]; // Updated to include IVisitorCount
+  selectedItems: any[]; // Consider refining this type if you know what it holds
+  openDialog: boolean;
+  isSavingDone: boolean;
+  isProgress: boolean;
+  errorFields: {
+    Date: string;
+    Subject: string;
+  };
+  viewName: string;
   menuTabs: string[];
   tabvalue: number;
   reportView: 'Daily' | 'Monthly'; // Added the missing property

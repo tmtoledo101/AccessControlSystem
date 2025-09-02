@@ -1,14 +1,13 @@
-import * as React from 'react';
-import { Grid, Paper, Box, Tooltip, Fab, Typography } from '@material-ui/core';
-import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
+import { Box, Fab, Grid, Paper, Tooltip, Typography } from '@material-ui/core';
+import { createStyles, makeStyles, Theme } from '@material-ui/core/styles';
 import AddIcon from '@material-ui/icons/Add';
-import VisibilityIcon from '@material-ui/icons/Visibility';
 import DeleteIcon from '@material-ui/icons/Delete';
+import VisibilityIcon from '@material-ui/icons/Visibility';
 import MaterialTable from 'material-table';
 import moment from 'moment';
-import { IUserPermissions } from '../../utils/permissionUtils';
+import * as React from 'react';
 import { IEmployeeDetails } from '../../models/IEmployeeDetails';
-import { STATUS } from '../../constants/status';
+import { IUserPermissions } from '../../utils/permissionUtils';
 
 // Styles
 const useStyles = makeStyles((theme: Theme) =>
