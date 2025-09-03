@@ -8,7 +8,7 @@ import "@pnp/sp/site-users/web";
 import "@pnp/sp/fields";
 import "@pnp/sp/regional-settings/web";
 import "@pnp/sp/site-groups";
-import { IVisitor, IVisitorDetail, IUserDept, IVisitorCount } from "../interfaces/IViewVisitors";
+import { IVisitor, IVisitorDetail, IUserDept, IVisitorCount, IVisitorDetailExtended } from "../interfaces/IViewVisitors";
 
 export default class SharePointService {
   /**
@@ -187,13 +187,87 @@ export default class SharePointService {
             FirstName: detail.FirstName,
             LastName: detail.Title,
             CompanyName: detail.CompanyName || '',
-            VisitCount: 1
+            VisitCount: 1,
+            isExpanded: false,
+            detailsData: []
           };
         }
       });
       
       // Convert map to array
       return Object.values(visitorMap).sort((a, b) => b.VisitCount - a.VisitCount);
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get detailed visitor information for a specific visitor
+   * @param firstName Visitor's first name
+   * @param lastName Visitor's last name
+   * @param from From date
+   * @param to To date
+   */
+  public static async getVisitorDetailedInfo(firstName: string, lastName: string, from: Date, to: Date): Promise<IVisitorDetailExtended[]> {
+    try {
+      // First, get visitor details from VisitorDetails list
+      const visitorDetails = await sp.web.lists.getByTitle("VisitorDetails")
+        .items
+        .select("ID,Title,FirstName,DateFrom,DateTo,CompanyName,Status/Title,ParentId")
+        .expand("Status")
+        .top(5000)
+        .filter(`(Title eq '${lastName}' and FirstName eq '${firstName}') and DateFrom ge '${from.toISOString()}' and DateFrom le '${to.toISOString()}'`)
+        .get();
+
+      // Get all parent IDs to fetch data from Visitors list
+      const parentIds = visitorDetails.map(detail => detail.ParentId).filter(id => id);
+      
+      // If no parent IDs, return the basic details
+      if (parentIds.length === 0) {
+        return visitorDetails.map(detail => ({
+          ...detail,
+          VisContactNo: '',
+          CreatedBy: '',
+          DateTimeArrival: null,
+          DateTimeVisit: null,
+          Bldg: ''
+        }));
+      }
+
+      // Create a filter string for the Visitors list query
+      const filterString = parentIds.map(id => `ID eq ${id}`).join(' or ');
+      
+      // Get visitor information from Visitors list
+      const visitorInfo = await sp.web.lists.getByTitle("Visitors")
+        .items
+        .select("ID,VisContactNo,Author/Title,DateTimeArrival,DateTimeVisit,Bldg")
+        .expand("Author")
+        .top(5000)
+        .filter(filterString)
+        .get();
+
+      // Create a map of visitor info by ID for easy lookup
+      const visitorInfoMap: { [key: number]: any } = {};
+      visitorInfo.forEach(info => {
+        visitorInfoMap[info.ID] = info;
+      });
+
+      // Combine the data from both lists
+      const detailedInfo = visitorDetails.map(detail => {
+        const parentInfo = visitorInfoMap[detail.ParentId] || {};
+        
+        return {
+          ...detail,
+          VisContactNo: parentInfo.VisContactNo || '',
+          CreatedBy: parentInfo.Author ? parentInfo.Author.Title : '',
+          DateTimeArrival: parentInfo.DateTimeArrival || null,
+          DateTimeVisit: parentInfo.DateTimeVisit || null,
+          Bldg: parentInfo.Bldg || ''
+        };
+      });
+
+      return detailedInfo;
     } catch (error) {
       console.log(error);
       throw error;

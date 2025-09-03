@@ -1,8 +1,7 @@
-import { IOvertimeRequest, IOvertimeRequestErrors } from '../models/IOvertimeRequest';
-import { IEmployeeDetails, IEmployeeDetailsErrors } from '../models/IEmployeeDetails';
-import { isAfter } from './dateUtils';
 import { STATUS } from '../constants/status';
-import moment from 'moment';
+import { IEmployeeDetails, IEmployeeDetailsErrors } from '../models/IEmployeeDetails';
+import { IOvertimeRequest, IOvertimeRequestErrors } from '../models/IOvertimeRequest';
+import { isAfter } from './dateUtils';
 
 /**
  * Validates an overtime request

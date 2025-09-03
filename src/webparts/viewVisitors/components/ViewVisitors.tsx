@@ -576,7 +576,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           //'ID': item.ID,
           'Reference Number': item.Title,
           'Company Name': item.CompanyName,
-          'Host Name': item.Approver ? item.Approver.Title : '',
+          'Request By': item.Approver ? item.Approver.Title : '',
           'Department': item.Dept ? item.Dept.Title : '',
           'Building': item.Bldg,
           'Request Date': item.RequestDate ? new Date(item.RequestDate) : '',
@@ -909,6 +909,8 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
                 <VisitorCountTable
                   data={state.dirListItems as IVisitorCount[]}
                   title={`Visitor Entry Count`}
+                  fromDate={state.selectedFromDate.toDate()}
+                  toDate={state.selectedToDate.toDate()}
                 />
               )}
             </Paper>

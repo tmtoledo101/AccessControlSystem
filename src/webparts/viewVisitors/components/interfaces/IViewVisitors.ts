@@ -7,6 +7,18 @@ export interface IVisitorCount {
   LastName: string;
   VisitCount: number;
   CompanyName: string;
+  // For collapsible table functionality
+  isExpanded?: boolean;
+  detailsData?: IVisitorDetailExtended[];
+}
+
+// Extended visitor detail interface with additional fields from Visitor list
+export interface IVisitorDetailExtended extends IVisitorDetail {
+  VisContactNo?: string;
+  CreatedBy?: string;
+  DateTimeArrival?: Date;
+  DateTimeVisit?: Date;
+  Bldg?: string;
 }
 
 export interface IVisitor {
