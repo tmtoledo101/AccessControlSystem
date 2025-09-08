@@ -1,100 +1,86 @@
-import * as moment from 'moment'; // Make sure moment is imported if you're using it for types here
+import * as moment from 'moment';
 
-// Interface for visitor count in MultiEntry tab
 export interface IVisitorCount {
   ID: number;
   FirstName: string;
-  LastName: string;
-  VisitCount: number;
+  LastName: string;      
+  VisitCount: number;    
   CompanyName: string;
+
   // For collapsible table functionality
   isExpanded?: boolean;
   detailsData?: IVisitorDetailExtended[];
 }
 
-// Extended visitor detail interface with additional fields from Visitor list
+/** Base detail row from "Visitors" (parent) list */
+export interface IVisitor {
+  ID: number;
+  Title: string;         
+  FirstName: string;
+  RequestDate: Date | string;
+  DeptId: number;
+  Dept: { Title: string };
+  ContactName: string;
+  DateTimeVisit: Date | string;
+  DateTimeArrival: Date | string;
+  Purpose: string;
+  StatusId: number;
+  Status: { Title: string };
+  RequireParking: boolean;
+  CompanyName: string;
+  ApproverId: number;
+  Approver: { Title: string; EMail: string };
+  SSDApprover: { Title: string };
+  Author: { Title: string; EMail: string };
+  Bldg: string;
+}
+
+/** Detail row from "VisitorDetails" list */
+export interface IVisitorDetail {
+  ID: number;
+  Title: string;         // Last Name
+  FirstName: string;
+  RequestDate: Date | string;
+  DeptId: number;
+  Dept: { Title: string };
+  RefNo: string;
+  /** PnP often returns ISO strings, so allow string | Date */
+  DateFrom: Date | string;
+  DateTo: Date | string;
+  CompanyName: string;
+  Car: boolean;
+  AccessCard: string;
+  StatusId: number;
+  Status: { Title: string };
+  ParentId: number;      // FK to "Visitors" list
+  Author: { Title: string; EMail: string };
+  // Bldg is not stored here directly; it’s enriched from parent "Visitors"
+}
+
+/** Extended detail used by the detail panel (enriched from parent) */
 export interface IVisitorDetailExtended extends IVisitorDetail {
   VisContactNo?: string;
   CreatedBy?: string;
-  DateTimeArrival?: Date;
-  DateTimeVisit?: Date;
+  DateTimeArrival?: Date | string | null;
+  DateTimeVisit?: Date | string | null;
   Bldg?: string;
 }
 
-export interface IVisitor {
-  ID: number;
-  Title: string;
-//not sure
-FirstName: string;
-  RequestDate: Date;
-  DeptId: number;
-  Dept: {
-    Title: string;
-  };
-  ContactName: string;
-  DateTimeVisit: Date;
-  DateTimeArrival: Date;
-  Purpose: string;
-  StatusId: number;
-  Status: {
-    Title: string;
-  };
-  RequireParking: boolean;
-  CompanyName: string;
-  ApproverId: number;
-  Approver: {
-    Title: string;
-    EMail: string;
-  };
-  SSDApprover: {
-    Title: string;
-  };
-  Author: {
-    Title: string;
-    EMail: string;
-  };
-  Bldg: string;
-}
-export interface IVisitorDetail {
-  ID: number;
-  Title: string;
-//not sure
-  FirstName: string;
-  RequestDate: Date;
-  DeptId: number;
-  Dept: {
-    Title: string;
-  };
-  RefNo: string;
-  DateFrom: Date;
-  DateTo: Date;
-  CompanyName: string;
-  Car: boolean;
-  AccessCard: string;
-  StatusId: number;
-  Status: {
-    Title: string;
-  };
-  ParentId: number;
-  Author: {
-    Title: string;
-    EMail: string;
-  };
-  // If your VisitorDetailsTable or related logic needs 'Bldg' (e.g., for reporting/filtering),
-  // and it's derived from the parent IVisitor, you might consider adding it here if needed
-  // for direct access on IVisitorDetail, or ensure your filtering logic handles it from IVisitor.
-}
+/** Department mapping */
 export interface IUserDept {
-  DeptId: number;
-  NameId: number;
+  DeptId: number;
+  NameId: number;
 }
+
 export interface ITabItem {
-  label: string;
-  value: number;
+  label: string;
+  value: number;
 }
+
+/** Page-level view state */
 export interface IViewState {
-  selectedFromDate: moment.Moment; // Corrected type to moment.Moment
-  selectedToDate: moment.Moment;   // Corrected type to moment.Moment
+  selectedFromDate: moment.Moment;
+  selectedToDate: moment.Moment;
   selectedAgendaDate: Date;
   inputSubject: string;
   dialogMessage: string;
@@ -106,9 +92,9 @@ export interface IViewState {
   isSSDUser: boolean;
   isUser: boolean;
   vwid: number;
-  WalkinApprovers: IUserDept[]; // Corrected type for better safety
-  dirListItems: (IVisitor | IVisitorDetail | IVisitorCount)[]; // Updated to include IVisitorCount
-  selectedItems: any[]; // Consider refining this type if you know what it holds
+  WalkinApprovers: IUserDept[];
+  dirListItems: (IVisitor | IVisitorDetail | IVisitorCount)[];
+  selectedItems: any[];
   openDialog: boolean;
   isSavingDone: boolean;
   isProgress: boolean;
@@ -117,7 +103,7 @@ export interface IViewState {
     Subject: string;
   };
   viewName: string;
-  menuTabs: string[];
-  tabvalue: number;
-  reportView: 'Daily' | 'Monthly'; // Added the missing property
+  menuTabs: string[];
+  tabvalue: number;
+  reportView: 'Daily' | 'Monthly';
 }

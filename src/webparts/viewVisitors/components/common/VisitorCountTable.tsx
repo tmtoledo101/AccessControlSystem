@@ -1,226 +1,275 @@
 import * as React from 'react';
-import { useState } from 'react';
-import MaterialTable from "material-table";
-import KeyboardArrowDownIcon from '@material-ui/icons/KeyboardArrowDown';
-import KeyboardArrowUpIcon from '@material-ui/icons/KeyboardArrowUp';
-import { IVisitorCount, IVisitorDetailExtended } from '../interfaces/IViewVisitors';
-import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
-import { 
-  IconButton, 
-  Collapse, 
-  Box, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableRow,
+import { useRef, useState } from 'react';
+import MaterialTable, { Column } from 'material-table';
+import {
+  Box,
+  Chip,
+  LinearProgress,
+  makeStyles,
+  Paper,
+  Theme,
   Typography,
-  Paper
+  createStyles,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
 } from '@material-ui/core';
-import { customDateRender } from '../utils/helper';
-import SharePointService from '../services/SharePointService';
+import { grey } from '@material-ui/core/colors';
+import KeyboardArrowDown from '@material-ui/icons/KeyboardArrowDown';
+import KeyboardArrowUp from '@material-ui/icons/KeyboardArrowUp';
 
-// Styles for the collapsible section
-const useRowStyles = makeStyles((theme: Theme) =>
+import SharePointService from '../services/SharePointService';
+import { IVisitorCount, IVisitorDetailExtended } from '../interfaces/IViewVisitors';
+
+const useStyles = makeStyles((theme: Theme) =>
   createStyles({
-    root: {
-      '& > *': {
-        borderBottom: 'unset',
+    rootPaper: {
+      overflow: 'hidden',
+      borderRadius: 12,
+    },
+    zebra: {
+      '& tbody tr:nth-of-type(even)': {
+        backgroundColor: '#fafafa',
       },
     },
-    detailsTable: {
-      marginBottom: theme.spacing(2),
+    countChip: {
+      fontWeight: 700,
+      minWidth: 36,
     },
-    detailsHeader: {
-      backgroundColor: '#f5f5f5',
-      fontWeight: 'bold',
-    },
-    collapseContainer: {
+    detailWrap: {
       padding: theme.spacing(2),
-      backgroundColor: '#fafafa',
+      background: '#fcfcfe',
     },
-    noDataMessage: {
+    detailHeader: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: theme.spacing(1),
+    },
+    detailCard: {
+      border: `1px solid ${grey[200]}`,
+      borderRadius: 10,
+      background: '#fff',
+      boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
       padding: theme.spacing(2),
-      textAlign: 'center',
-      color: theme.palette.text.secondary,
-    }
-  }),
+    },
+    smallTable: {
+      '& th, & td': {
+        paddingTop: theme.spacing(0.75),
+        paddingBottom: theme.spacing(0.75),
+        fontSize: 13,
+        whiteSpace: 'nowrap',
+      },
+      '& thead th': {
+        background: '#f3f4f6',
+        fontWeight: 700,
+      },
+    },
+    statusChip: {
+      height: 22,
+      fontSize: 12,
+      fontWeight: 600,
+    },
+  })
 );
 
-interface IVisitorCountTableProps {
-  data: IVisitorCount[];
-  onViewAction?: (event: any, rowData: any) => void;
-  title?: string;
-  fromDate: Date;
-  toDate: Date;
-}
-
-// Row component with collapsible details
-const Row: React.FC<{ row: IVisitorCount, fromDate: Date, toDate: Date }> = (props) => {
-  const { row, fromDate, toDate } = props;
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [detailsData, setDetailsData] = useState<IVisitorDetailExtended[]>([]);
-  const classes = useRowStyles();
-
-  const handleRowClick = async () => {
-    // Toggle the open state
-    setOpen(!open);
-
-    // If opening and no details data loaded yet, fetch the data
-    if (!open && (!row.detailsData || row.detailsData.length === 0)) {
-      setLoading(true);
-      try {
-        const details = await SharePointService.getVisitorDetailedInfo(
-          row.FirstName,
-          row.LastName,
-          fromDate,
-          toDate
-        );
-        setDetailsData(details);
-        // Update the row's detailsData for future reference
-        row.detailsData = details;
-      } catch (error) {
-        console.error("Error fetching visitor details:", error);
-      } finally {
-        setLoading(false);
-      }
-    } else if (row.detailsData && row.detailsData.length > 0) {
-      // Use cached data if available
-      setDetailsData(row.detailsData);
-    }
-  };
-
-  return (
-    <React.Fragment>
-      {/* Main row */}
-      <TableRow className={classes.root}>
-        <TableCell>
-          <IconButton
-            aria-label="expand row"
-            size="small"
-            onClick={handleRowClick}
-          >
-            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-          </IconButton>
-        </TableCell>
-        <TableCell>{row.LastName}</TableCell>
-        <TableCell>{row.FirstName}</TableCell>
-        <TableCell align="left">{row.VisitCount}</TableCell>
-        {/* <TableCell>{row.CompanyName}</TableCell> */}
-        {/* <TableCell>{row.VisitCount}</TableCell> */}
-      </TableRow>
-
-      {/* Collapsible details section */}
-      <TableRow>
-        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={5}>
-          <Collapse in={open} timeout="auto" unmountOnExit>
-            <Box className={classes.collapseContainer}>
-              <Typography variant="h6" gutterBottom component="div">
-                Visitor Details
-              </Typography>
-              
-              {loading ? (
-                <Typography className={classes.noDataMessage}>Loading details...</Typography>
-              ) : detailsData.length > 0 ? (
-                <Table size="small" className={classes.detailsTable}>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell className={classes.detailsHeader}>Last Name</TableCell>
-                      <TableCell className={classes.detailsHeader}>First Name</TableCell>
-                      <TableCell className={classes.detailsHeader}>Date From</TableCell>
-                      <TableCell className={classes.detailsHeader}>Date To</TableCell>
-                      <TableCell className={classes.detailsHeader}>Company Name</TableCell>
-                      <TableCell className={classes.detailsHeader}>Status</TableCell>
-                      <TableCell className={classes.detailsHeader}>Contact No.</TableCell>
-                      <TableCell className={classes.detailsHeader}>Created By</TableCell>
-                      <TableCell className={classes.detailsHeader}>Department</TableCell>
-                      <TableCell className={classes.detailsHeader}>Arrival</TableCell>
-                      <TableCell className={classes.detailsHeader}>Visit</TableCell>
-                      <TableCell className={classes.detailsHeader}>Building</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {detailsData.map((detail) => (
-                      <TableRow key={detail.ID}>
-                        <TableCell>{detail.Title}</TableCell>
-                        <TableCell>{detail.FirstName}</TableCell>
-                        <TableCell>{detail.DateFrom ? new Date(detail.DateFrom).toLocaleString() : ''}</TableCell>
-                        <TableCell>{detail.DateTo ? new Date(detail.DateTo).toLocaleString() : ''}</TableCell>
-                        <TableCell>{detail.CompanyName}</TableCell>
-                        <TableCell>{detail.Status ? detail.Status.Title : ''}</TableCell>
-                        <TableCell>{detail.VisContactNo}</TableCell>
-                        <TableCell>{detail.CreatedBy}</TableCell>
-                        <TableCell>{detail.Dept ? detail.Dept.Title : ''}</TableCell>
-                        <TableCell>{detail.DateTimeArrival ? new Date(detail.DateTimeArrival).toLocaleString() : ''}</TableCell>
-                        <TableCell>{detail.DateTimeVisit ? new Date(detail.DateTimeVisit).toLocaleString() : ''}</TableCell>
-                        <TableCell>{detail.Bldg}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <Typography className={classes.noDataMessage}>No details found for this visitor</Typography>
-              )}
-            </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-    </React.Fragment>
-  );
+// Status color (kept, though the filter will only show "Approved by Dept Head")
+const statusColor = (s?: string): 'default' | 'primary' | 'secondary' => {
+  const val = (s || '').toLowerCase();
+  if (val.indexOf('approved') >= 0) return 'primary';
+  if (val.indexOf('rejected') >= 0 || val.indexOf('cancel') >= 0) return 'secondary';
+  return 'default';
 };
 
-const VisitorCountTable: React.FC<IVisitorCountTableProps> = (props) => {
-  const { data, title = "Visitor Entry Count", fromDate, toDate } = props;
+// material-table expects forwardRef component for icons
+const DetailPanelIcon = React.forwardRef<SVGSVGElement, any>((props, ref) => {
+  return props && props.open
+    ? <KeyboardArrowUp ref={ref} {...props} />
+    : <KeyboardArrowDown ref={ref} {...props} />;
+});
+
+interface VisitorCountTableProps {
+  data: IVisitorCount[];
+  fromDate: Date;
+  toDate: Date;
+  title?: string;
+}
+
+const VisitorCountTable: React.FC<VisitorCountTableProps> = ({
+  data,
+  fromDate,
+  toDate,
+  title = 'Visitor Entry Count',
+}) => {
+  const classes = useStyles();
+
+  // cache details per "Last|First"
+  const cacheRef = useRef<{ [k: string]: IVisitorDetailExtended[] }>({});
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
+
+  const columns: Column<IVisitorCount>[] = [
+    {
+      title: "Visitor's Last Name",
+      field: 'LastName',
+      defaultSort: 'asc',
+    },
+    {
+      title: "Visitor's First Name",
+      field: 'FirstName',
+    },
+    {
+      title: 'Visit Count',
+      field: 'VisitCount',
+      type: 'numeric',
+      render: (rowData: IVisitorCount) => (
+        <Chip
+          className={classes.countChip}
+          size="small"
+          label={rowData.VisitCount}
+        />
+      ),
+      customSort: (a: IVisitorCount, b: IVisitorCount) => {
+        const av = a && a.VisitCount ? a.VisitCount : 0;
+        const bv = b && b.VisitCount ? b.VisitCount : 0;
+        return av - bv;
+      },
+      filtering: false,
+    },
+  ];
 
   return (
-    <Paper>
-      <MaterialTable
+    <Paper className={classes.rootPaper}>
+      <MaterialTable<IVisitorCount>
         title={title}
-        columns={[
-          {
-            title: '', // Expand/collapse column
-            field: 'expand',
-            width: 50,
-            sorting: false,
-            filtering: false,
-          },
-          { 
-            title: "Visitor's Last Name", 
-            field: 'LastName' 
-          },
-          { 
-            title: "Visitor's First Name", 
-            field: 'FirstName' 
-          },
-/*           { 
-            title: "Company Name", 
-            field: 'CompanyName' 
-          }, */
-          { 
-            title: 'Visit Count', 
-            field: 'VisitCount',
-            type: 'numeric'
-          }
-        ]}
+        columns={columns}
         data={data}
         options={{
           filtering: true,
-          pageSize: 10,
-          pageSizeOptions: [5, 10, 20, data.length],
-          search: false,
           grouping: true,
-          selection: false,
+          pageSize: 10,
+          pageSizeOptions: [5, 10, 20, Math.max(25, data.length)],
+          search: false,
+          padding: 'dense',
+          headerStyle: { backgroundColor: '#f7f7f9', fontWeight: 700 },
+          rowStyle: () => ({ fontSize: 14 }),
           sorting: true,
-          headerStyle: {
-            backgroundColor: '#f5f5f5',
-            fontWeight: 'bold'
-          },
-          // Disable default row click to prevent conflicts with our custom Row component
-          rowStyle: { cursor: 'default' }
+          selection: false,
+          detailPanelColumnAlignment: 'right',
         }}
         components={{
-          Row: (props) => <Row {...props} row={props.data} fromDate={fromDate} toDate={toDate} />
+          Container: (props: any) => <div {...props} className={classes.zebra} />,
+        }}
+        detailPanel={(rowData: IVisitorCount) => {
+          const cacheKey = (rowData.LastName || '') + '|' + (rowData.FirstName || '');
+          const rows = cacheRef.current[cacheKey] || [];
+          const isLoading = loadingKey === cacheKey;
+
+          //Approved by Dept Head checker
+          const approvedRows = rows.filter((d) => {
+            const statusTitle = d && d.Status ? d.Status.Title : '';
+            return statusTitle && statusTitle.toLowerCase() === 'approved by dept head';
+          });
+
+          return (
+            <Box className={classes.detailWrap}>
+              <Box className={classes.detailHeader}>
+                <Typography variant="subtitle1">
+                  Visitor Details — {rowData.LastName}, {rowData.FirstName}
+                </Typography>
+                <Chip size="small" variant="outlined" label={(approvedRows.length + ' record(s)')} />
+              </Box>
+
+              {isLoading && <LinearProgress />}
+
+              {!isLoading && approvedRows.length === 0 && (
+                <Box className={classes.detailCard}>
+                  <Typography align="center" color="textSecondary">
+                    No details found for this visitor.
+                  </Typography>
+                </Box>
+              )}
+
+              {!isLoading && approvedRows.length > 0 && (
+                <Box className={classes.detailCard}>
+                  <Table size="small" className={classes.smallTable}>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Last Name</TableCell>
+                        <TableCell>First Name</TableCell>
+                        <TableCell>Date From</TableCell>
+                        <TableCell>Date To</TableCell>
+                        <TableCell>Company</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell>Contact No.</TableCell>
+                        <TableCell>Created By</TableCell>
+                        <TableCell>Department</TableCell>
+                        <TableCell>Arrival</TableCell>
+                        <TableCell>Visit</TableCell>
+                        <TableCell>Building</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {approvedRows.map((d) => {
+                        const statusTitle = d && d.Status ? d.Status.Title : '';
+                        const deptTitle = d && d.Dept ? d.Dept.Title : '';
+                        return (
+                          <TableRow key={d.ID}>
+                            <TableCell>{d.Title}</TableCell>
+                            <TableCell>{d.FirstName}</TableCell>
+                            <TableCell>{d.DateFrom ? new Date(d.DateFrom).toLocaleString() : ''}</TableCell>
+                            <TableCell>{d.DateTo ? new Date(d.DateTo).toLocaleString() : ''}</TableCell>
+                            <TableCell>{d.CompanyName}</TableCell>
+                            <TableCell>
+                              <Chip
+                                size="small"
+                                className={classes.statusChip}
+                                color={statusColor(statusTitle)}
+                                label={statusTitle || ''}
+                              />
+                            </TableCell>
+                            <TableCell>{d.VisContactNo}</TableCell>
+                            <TableCell>{d.CreatedBy}</TableCell>
+                            <TableCell>{deptTitle}</TableCell>
+                            <TableCell>{d.DateTimeArrival ? new Date(d.DateTimeArrival).toLocaleString() : ''}</TableCell>
+                            <TableCell>{d.DateTimeVisit ? new Date(d.DateTimeVisit).toLocaleString() : ''}</TableCell>
+                            <TableCell>{d.Bldg}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </Box>
+              )}
+            </Box>
+          );
+        }}
+        onRowClick={async (_evt, rowData, togglePanel) => {
+          if (togglePanel) togglePanel();
+          const r = rowData as IVisitorCount;
+          const cacheKey = (r.LastName || '') + '|' + (r.FirstName || '');
+          if (!cacheRef.current[cacheKey]) {
+            try {
+              setLoadingKey(cacheKey);
+              const details = await SharePointService.getVisitorDetailedInfo(
+                r.FirstName,
+                r.LastName,
+                fromDate,
+                toDate
+              );
+              cacheRef.current[cacheKey] = details || [];
+            } catch (e) {
+              // tslint:disable-next-line:no-console
+              console.error('Error fetching visitor details:', e);
+              cacheRef.current[cacheKey] = [];
+            } finally {
+              setLoadingKey(null);
+            }
+          }
+        }}
+        icons={{
+          DetailPanel: DetailPanelIcon,
         }}
       />
     </Paper>

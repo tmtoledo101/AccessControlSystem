@@ -4,7 +4,7 @@ import { IViewVisitorsProps } from './IViewVisitorsProps';
 import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
 import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
-import Button from '@material-ui/core/Button'; // Import Button for the download button
+import Button from '@material-ui/core/Button';
 import moment from 'moment';
 import { sp } from "@pnp/sp";
 // Import common components
@@ -32,7 +32,6 @@ import { IVisitor, IVisitorDetail, IUserDept, IViewState, IVisitorCount } from '
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
-
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     root: {
@@ -45,7 +44,7 @@ const useStyles = makeStyles((theme: Theme) =>
     formControl: {
       margin: theme.spacing(1),
     },
-    downloadButton: { // Style for the download button
+    downloadButton: {
       marginTop: theme.spacing(2),
       marginBottom: theme.spacing(2),
     },
@@ -54,16 +53,15 @@ const useStyles = makeStyles((theme: Theme) =>
 
 // Constants
 const Receptionist_Group = "Receptionist";
-//const SSD_Group = "SSD";
 const SSD_Group_v2 = "SSD_v2";
 const HOUsers_Group = "HOUsers";
 const SPCUsers_Group = "SPCUsers";
 
-// Global variables (consider moving these into state or using React Context if they are shared and mutable)
+// Global (consider narrowing scope later)
 let usersPerDept: IUserDept[] = [];
 let approversPerDept: IUserDept[] = [];
 let walkinapprovers: IUserDept[] = [];
-let user: any = null; // Type this more specifically if possible
+let user: any = null;
 let isHOUser = false;
 let isSPCUser = false;
 
@@ -104,7 +102,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
   // Event handlers
   const onClickCancel = (e: React.MouseEvent) => {
-    window.open(props.siteUrl, "_self"); // This one remains _self as it's a cancel action
+    window.open(props.siteUrl, "_self");
   };
 
   const handleTabChange = (event: React.ChangeEvent<{}>, newValue: number) => {
@@ -142,7 +140,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         if (currentReportView === 'Daily') {
           newState.selectedFromDate = moment().startOf('day');
           newState.selectedToDate = moment().endOf('day');
-        } else { // Monthly
+        } else {
           newState.selectedFromDate = moment().startOf('month');
           newState.selectedToDate = moment().endOf('month');
         }
@@ -152,6 +150,9 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
       return newState;
     });
+
+
+    setState(prev => ({ ...prev, dirListItems: [] }));
 
     setTimeout(() => {
       const currentStateForMapUser = { ...state, tabvalue: newValue };
@@ -186,11 +187,9 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     }, 0);
   };
 
-  // Generic date change handler that works for both picker types
-  // This handler receives a native Date object from DateRangeSelector
-  const handleDateChangeForReport = (date: Date | null) => { // Parameter 'date' is now typed as Date | null
+  // Report date change -> moment & reload
+  const handleDateChangeForReport = (date: Date | null) => {
     if (date) {
-      // Convert the native Date object back to a moment object for internal state
       const momentDate = moment(date);
       const newFromDate = state.reportView === 'Monthly' ? momentDate.startOf('month') : momentDate.startOf('day');
       const newToDate = state.reportView === 'Monthly' ? momentDate.endOf('month') : momentDate.endOf('day');
@@ -207,11 +206,9 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     }
   };
 
-
-  // These handlers will now receive a native Date object from DateRangeSelector
-  const onFromDateChange = (date: Date | null) => { // Parameter 'date' is now typed as Date | null
+  const onFromDateChange = (date: Date | null) => {
     if (date) {
-      const newFromDate = moment(date).startOf('day'); // Convert to moment object
+      const newFromDate = moment(date).startOf('day');
       setState(prevState => {
         const newState = {
           ...prevState,
@@ -225,10 +222,9 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     }
   };
 
-  // These handlers will now receive a native Date object from DateRangeSelector
-  const onToDateChange = (date: Date | null) => { // Parameter 'date' is now typed as Date | null
+  const onToDateChange = (date: Date | null) => {
     if (date) {
-      const newToDate = moment(date).endOf('day'); // Convert to moment object
+      const newToDate = moment(date).endOf('day');
       setState(prevState => {
         const newState = {
           ...prevState,
@@ -251,7 +247,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     if (newReportView === 'Daily') {
       newFromDate = moment().startOf('day');
       newToDate = moment().endOf('day');
-    } else { // Monthly
+    } else {
       newFromDate = moment().startOf('month');
       newToDate = moment().endOf('month');
     }
@@ -267,7 +263,6 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       mapUser(newFromDate.toDate(), newToDate.toDate(), 10, newReportView);
     }, 0);
   };
-
 
   const handleChangeTxt = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
@@ -296,10 +291,6 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
             visitorBldgMap[visitor.ID] = visitor.Bldg;
           });
           filteredDetails = visitorDetails.filter(detail => {
-            // Note: Your IVisitorDetail interface doesn't have 'Bldg' directly,
-            // but your SharePointService.searchVisitorsByName or related logic
-            // might be adding it or you're relying on ParentId to get Bldg.
-            // Ensure this logic holds true if Bldg is critical for filtering here.
             const parentBldg = visitorBldgMap[detail.ParentId];
             if (isHOUser) {
               return parentBldg === "(HO) 5-Storey Building";
@@ -341,20 +332,21 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
   };
 
   const viewAction = (event: React.MouseEvent, rowData: IVisitor) => {
-    window.open(props.siteUrl + "/SitePages/DisplayVisitorappge.aspx?pid=" + rowData["ID"], "_blank"); // MODIFIED HERE
+    window.open(props.siteUrl + "/SitePages/DisplayVisitorappge.aspx?pid=" + rowData["ID"], "_blank");
   };
 
   const viewAction2 = (event: React.MouseEvent, rowData: IVisitorDetail | IVisitor) => {
     if ('ParentId' in rowData) {
-      window.open(props.siteUrl + "/SitePages/DisplayVisitorappge.aspx?pid=" + rowData.ParentId, "_blank"); // MODIFIED HERE
+      window.open(props.siteUrl + "/SitePages/DisplayVisitorappge.aspx?pid=" + rowData.ParentId, "_blank");
     } else {
-      window.open(props.siteUrl + "/SitePages/DisplayVisitorappge.aspx?pid=" + rowData.ID, "_blank"); // MODIFIED HERE
+      window.open(props.siteUrl + "/SitePages/DisplayVisitorappge.aspx?pid=" + rowData.ID, "_blank");
     }
   };
 
   async function mapUser(from: Date, to: Date, action: number, reportView: 'Daily' | 'Monthly' = 'Daily') {
     const currentState = { ...state };
-    let fetchedData: IVisitor[] | IVisitorDetail[] = [];
+
+    let fetchedData: IVisitor[] | IVisitorDetail[] | IVisitorCount[] = [];
 
     if ((action === 1)) {
       const visitors = await SharePointService.loadVisitorRequests(from, to);
@@ -526,9 +518,9 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       }
       fetchedData = filteredReports;
     } else if ((action === 11)) {
-      // MultiEntry tab - get visitor counts
+      // MultiEntry tab - visitor count (inclusive days, approved only)
       const visitorCounts = await SharePointService.getVisitorEntryCounts(from, to);
-      fetchedData = visitorCounts as any; // Cast to any to avoid type issues
+      fetchedData = visitorCounts;
     } else {
       alert("You are not authorized to access this page!");
       window.open(props.siteUrl, "_self");
@@ -542,7 +534,6 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     }));
   }
 
-  // New function to handle report download with better formatting
   const handleDownloadReport = () => {
     if (state.dirListItems.length === 0) {
       alert("No data to download.");
@@ -557,31 +548,31 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       // MultiEntry tab export
       reportType = 'Visitor Entry Count Report';
       fileName = `${reportType} - ${state.selectedFromDate.format('YYYY-MM-DD')} to ${state.selectedToDate.format('YYYY-MM-DD')}.xlsx`;
-      
+
       dataToExport = (state.dirListItems as IVisitorCount[]).map(item => ({
-        //'ID': item.ID,
         'Visitor Last Name': item.LastName,
         'Visitor First Name': item.FirstName,
         'Company Name': item.CompanyName,
         'Visit Count': item.VisitCount
       }));
     } else {
-      // Regular reports export
       reportType = state.reportView === 'Daily' ? 'Daily Visitors Report' : 'Monthly Visitors Report';
       fileName = `${reportType} - ${state.selectedFromDate.format('YYYY-MM-DD')} to ${state.selectedToDate.format('YYYY-MM-DD')}.xlsx`;
 
-      // Determine the type of data and map accordingly
       if (state.vwid === 10 || state.vwid === 1 || state.vwid === 2 || state.vwid === 5 || state.vwid === 6 || state.vwid === 7 || state.vwid === 8) {
         dataToExport = (state.dirListItems as IVisitor[]).map(item => ({
-          //'ID': item.ID,
           'Reference Number': item.Title,
           'Company Name': item.CompanyName,
           'Request By': item.Approver ? item.Approver.Title : '',
           'Department': item.Dept ? item.Dept.Title : '',
           'Building': item.Bldg,
           'Request Date': item.RequestDate ? new Date(item.RequestDate) : '',
-          'Date & Time Visit': item.DateTimeVisit ? new Date(item.DateTimeVisit) : '',
-          'Date & Time Arrival': item.DateTimeArrival ? new Date(item.DateTimeArrival) : '',
+          'Date & Time Visit': item.DateTimeVisit
+            ? new Date(item.DateTimeVisit).toLocaleString()
+            : '',
+          'Date & Time Arrival': item.DateTimeArrival
+            ? new Date(item.DateTimeArrival).toLocaleString()
+            : '',
           'Purpose': item.Purpose,
           'Status': item.Status ? item.Status.Title : '',
           'Requires Parking': item.RequireParking ? 'Yes' : 'No',
@@ -609,63 +600,51 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       }
     }
 
-  // Create worksheet
-  const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const headers = Object.keys(dataToExport[0] || {});
+    XLSX.utils.sheet_add_aoa(ws, [headers], { origin: "A1" });
 
-  // Add headers formatting (bold)
-  const headers = Object.keys(dataToExport[0] || {});
-  XLSX.utils.sheet_add_aoa(ws, [headers], { origin: "A1" });
+    const colWidths = headers.map((header) => {
+      let maxLength = header.length;
+      dataToExport.forEach((row) => {
+        let value = row[header];
+        if (value && (header.includes("Date") || header.includes("Time"))) {
+          value = moment(value).format("MM/DD/YYYY HH:mm");
+        }
+        if (value) {
+          const cellLength = value.toString().length;
+          if (cellLength > maxLength) {
+            maxLength = cellLength;
+          }
+        }
+      });
+      return { wch: maxLength + 2 };
+    });
+    (ws as any)['!cols'] = colWidths;
 
-  // AutoFit column widths based on formatted values
-  const colWidths = headers.map((header) => {
-    let maxLength = header.length;
-    dataToExport.forEach((row) => {
-      let value = row[header];
+    (ws as any)['!autofilter'] = { ref: `A1:${String.fromCharCode(64 + headers.length)}${dataToExport.length + 1}` };
 
-      //Format date fields before measuring
-      if (value && (header.includes("Date") || header.includes("Time"))) {
-        value = moment(value).format("MM/DD/YYYY HH:mm"); 
-      }
-
-      if (value) {
-        const cellLength = value.toString().length;
-        if (cellLength > maxLength) {
-          maxLength = cellLength;
+    headers.forEach((header, idx) => {
+      if (header.toLowerCase().includes("date") || header.toLowerCase().includes("time")) {
+        for (let r = 2; r <= dataToExport.length + 1; r++) {
+          const cellRef = XLSX.utils.encode_cell({ c: idx, r: r - 1 });
+          const cell = (ws as any)[cellRef];
+          if (cell && cell.t === "d") {
+            cell.z = "yyyy-mm-dd hh:mm";
+          }
         }
       }
     });
-    return { wch: maxLength + 2 };
-  });
-  ws['!cols'] = colWidths;
 
-  // Add autofilter
-  ws['!autofilter'] = { ref: `A1:${String.fromCharCode(64 + headers.length)}${dataToExport.length + 1}` };
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, reportType);
 
-  // Apply date formatting
-  headers.forEach((header, idx) => {
-    if (header.toLowerCase().includes("date") || header.toLowerCase().includes("time")) {
-      for (let r = 2; r <= dataToExport.length + 1; r++) {
-        const cellRef = XLSX.utils.encode_cell({ c: idx, r: r - 1 });
-        const cell = ws[cellRef];
-        if (cell && cell.t === "d") {
-          cell.z = "yyyy-mm-dd hh:mm";
-        }
-      }
-    }
-  });
-
-  // Build workbook
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, reportType);
-
-  // Save file
-  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  saveAs(new Blob([wbout], { type: 'application/octet-stream' }), fileName);
-};
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    saveAs(new Blob([wbout], { type: 'application/octet-stream' }), fileName);
+  };
 
   // Initialize component
   useEffect(() => {
-    console.log('loaded view visitors');
     (async () => {
       try {
         sp.setup({
@@ -692,13 +671,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
             break;
           }
         }
-        //for (let i = 0; i < groups.length; i++) {
-        //  if (groups[i].LoginName === SSD_Group) {
-        //    isSSDUser = true;
-        //    break;
-        //  }
 
-        //MultipleEntry
         for (let i = 0; i < groups.length; i++) {
           if (groups[i].LoginName === SSD_Group_v2) {
             isSSDUser = true;
@@ -721,11 +694,6 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           temptabs.push('Dept. Approver');
         }
 
-        //if (isSSDUser) {
-        //  temptabs.push('SSD');
-        //}
-
-        //MultipleEntry
         if (isSSDUser) {
           temptabs.push('MultiEntry');
         }
@@ -815,13 +783,11 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
             />
           </Grid>
 
-          {/* Conditional rendering for DateRangeSelector based on vwid */}
           {((state.vwid !== 9) && (state.vwid !== 0) && (state.vwid !== 10)) && (
             <Grid item xs={12} sm={6}>
               <DateRangeSelector
                 fromDate={state.selectedFromDate.toDate()}
                 toDate={state.selectedToDate.toDate()}
-                // These handlers now correctly expect Date | null
                 onFromDateChange={onFromDateChange}
                 onToDateChange={onToDateChange}
                 pickerType="date"
@@ -838,7 +804,6 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
             </Grid>
           )}
 
-          {/* Reports Tab UI */}
           {((state.vwid === 10)) && (
             <Grid item xs={12}>
               <FormControl component="fieldset" className={classes.formControl}>
@@ -854,20 +819,18 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
                   <DateRangeSelector
                     fromDate={state.selectedFromDate.toDate()}
                     toDate={state.selectedToDate.toDate()}
-                    // These handlers now correctly expect Date | null
                     onFromDateChange={handleDateChangeForReport}
                     onToDateChange={handleDateChangeForReport}
                     pickerType={state.reportView === 'Daily' ? 'date' : 'month'}
                   />
                 </Grid>
-                {/* Download Button */}
                 <Grid item xs={12} sm={6} style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-start' }}>
                   <Button
                     variant="contained"
                     color="primary"
                     onClick={handleDownloadReport}
                     className={classes.downloadButton}
-                    disabled={state.dirListItems.length === 0} // Disable if no data
+                    disabled={state.dirListItems.length === 0}
                   >
                     Download Report
                   </Button>
@@ -876,7 +839,6 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
             </Grid>
           )}
 
-          {/* MultiEntry Tab UI - Download Button */}
           {((state.vwid === 11)) && (
             <Grid item xs={12} sm={6} style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button
@@ -884,7 +846,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
                 color="primary"
                 onClick={handleDownloadReport}
                 className={classes.downloadButton}
-                disabled={state.dirListItems.length === 0} // Disable if no data
+                disabled={state.dirListItems.length === 0}
               >
                 Download Visitor Count Report
               </Button>
