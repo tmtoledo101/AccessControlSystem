@@ -519,7 +519,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       fetchedData = filteredReports;
     } else if ((action === 11)) {
       // MultiEntry tab - visitor count (inclusive days, approved only)
-      const visitorCounts = await SharePointService.getVisitorEntryCounts(from, to);
+      const visitorCounts = await SharePointService.getVisitorEntryCounts(from, to, 14, 'exact');
       fetchedData = visitorCounts;
     } else {
       alert("You are not authorized to access this page!");

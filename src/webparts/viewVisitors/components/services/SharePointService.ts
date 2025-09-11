@@ -57,7 +57,6 @@ export default class SharePointService {
     try {
       return await sp.web.currentUser();
     } catch (error) {
-      // tslint:disable-next-line:no-console
       console.log(error);
       throw error;
     }
@@ -68,7 +67,6 @@ export default class SharePointService {
     try {
       return await sp.web.currentUser.groups();
     } catch (error) {
-      // tslint:disable-next-line:no-console
       console.log(error);
       throw error;
     }
@@ -86,7 +84,6 @@ export default class SharePointService {
         .filter(`NameId eq ${userId}`)
         .get();
     } catch (error) {
-      // tslint:disable-next-line:no-console
       console.log(error);
       throw error;
     }
@@ -103,7 +100,6 @@ export default class SharePointService {
         .filter(`NameId eq ${userId}`)
         .get();
     } catch (error) {
-      // tslint:disable-next-line:no-console
       console.log(error);
       throw error;
     }
@@ -122,7 +118,6 @@ export default class SharePointService {
         .filter(`NameId eq ${userId}`)
         .get();
     } catch (error) {
-      // tslint:disable-next-line:no-console
       console.log(error);
       throw error;
     }
@@ -151,7 +146,6 @@ export default class SharePointService {
         )
         .get();
     } catch (error) {
-      // tslint:disable-next-line:no-console
       console.log(error);
       throw error;
     }
@@ -177,7 +171,6 @@ export default class SharePointService {
         )
         .get();
     } catch (error) {
-      // tslint:disable-next-line:no-console
       console.log(error);
       throw error;
     }
@@ -198,7 +191,6 @@ export default class SharePointService {
         .filter(`substringof('${q}', Title) or substringof('${q}', FirstName)`)
         .get();
     } catch (error) {
-      // tslint:disable-next-line:no-console
       console.log(error);
       throw error;
     }
@@ -206,17 +198,26 @@ export default class SharePointService {
 
   /**
    * Get visitor entry counts within a date range
-   * - Uses overlap filter (DateTo >= from && DateFrom <= to)
-   * - Counts only Status = "Approved by Dept Head"
+   * - Overlap filter: (DateTo >= from && DateFrom <= to)
+   * - Counts only Status = "Approved by Dept Head" (or prefix "Approved by")
    * - Sums inclusive days per visitor (DateFrom..DateTo), clipped to [from..to]
+   * - Returns only visitors with VisitCount > minCount (default 14)
    */
   public static async getVisitorEntryCounts(
     from: Date,
-    to: Date
+    to: Date,
+    minCount?: number,
+    statusMatch?: 'exact' | 'prefix'
   ): Promise<IVisitorCount[]> {
     try {
-      // Pull only fields we actually need
-      const visitorDetails = await sp.web.lists
+      var min = (typeof minCount === 'number') ? minCount : 14;
+      var usePrefix = statusMatch === 'prefix';
+
+      var statusFilter = usePrefix
+        ? "startswith(Status/Title,'Approved by')"
+        : "Status/Title eq 'Approved by SSD'";
+
+      var visitorDetails: any[] = await sp.web.lists
         .getByTitle("VisitorDetails")
         .items.select(
           "ID,Title,FirstName,CompanyName,DateFrom,DateTo,Status/Title"
@@ -224,24 +225,20 @@ export default class SharePointService {
         .expand("Status")
         .top(5000)
         .filter(
-          `DateTo ge '${from.toISOString()}' and DateFrom le '${to.toISOString()}'`
+          "DateTo ge '" + from.toISOString() + "' and DateFrom le '" + to.toISOString() + "' and " + statusFilter
         )
         .get();
 
-      const APPROVED = "approved by dept head";
+      var map: { [key: string]: IVisitorCount } = {};
 
-      // Aggregate by FirstName + LastName (Title)
-      const map: { [key: string]: IVisitorCount } = {};
+      for (var i = 0; i < visitorDetails.length; i++) {
+        var d: any = visitorDetails[i];
+        var add = inclusiveDaysInRange(d.DateFrom, d.DateTo, from, to);
+        if (add <= 0) continue;
 
-      for (const d of visitorDetails) {
-        const statusTitle = d && d.Status && d.Status.Title ? d.Status.Title : "";
-        if (statusTitle.toLowerCase() !== APPROVED) continue;
-
-        const lastName = d.Title || "";
-        const firstName = d.FirstName || "";
-        const key = `${firstName}__${lastName}`.toLowerCase();
-
-        const add = inclusiveDaysInRange(d.DateFrom, d.DateTo, from, to);
+        var lastName = d.Title || "";
+        var firstName = d.FirstName || "";
+        var key = (firstName + "__" + lastName).toLowerCase();
 
         if (!map[key]) {
           map[key] = {
@@ -254,18 +251,23 @@ export default class SharePointService {
             detailsData: [],
           };
         } else {
-          map[key].VisitCount += add;
+          map[key].VisitCount = (map[key].VisitCount || 0) + add;
         }
       }
 
-      // Convert to array and sort by VisitCount (desc), then by name
-      return Object.values(map).sort((a, b) => {
+      // ✅ Plain ES5 filter (no ??)
+      var filtered = Object.keys(map)
+        .map(k => map[k])
+        .filter(v => (v.VisitCount ? v.VisitCount : 0) > min);
+
+        filtered.sort((a, b) => {
         if (b.VisitCount !== a.VisitCount) return b.VisitCount - a.VisitCount;
-        const ln = a.LastName.localeCompare(b.LastName);
+        var ln = a.LastName.localeCompare(b.LastName);
         return ln !== 0 ? ln : a.FirstName.localeCompare(b.FirstName);
       });
+
+      return filtered;
     } catch (error) {
-      // tslint:disable-next-line:no-console
       console.log(error);
       throw error;
     }
@@ -274,87 +276,91 @@ export default class SharePointService {
   /**
    * Get detailed visitor information for a specific visitor
    * - Uses overlap date filter
-   * - (Optionally) you can also filter Approved only by appending: and (Status/Title eq 'Approved by Dept Head')
+   * - approvedOnly: adds server-side "Approved by Dept Head" filter (default true)
    */
-public static async getVisitorDetailedInfo(
-  firstName: string,
-  lastName: string,
-  from: Date,
-  to: Date
-): Promise<IVisitorDetailExtended[]> {
-  try {
-    const fn = odataEscape(firstName || "");
-    const ln = odataEscape(lastName || "");
+  public static async getVisitorDetailedInfo(
+    firstName: string,
+    lastName: string,
+    from: Date,
+    to: Date,
+    approvedOnly: boolean = true,
+    statusMatch: "exact" | "prefix" = "exact" // align with counts method if needed
+  ): Promise<IVisitorDetailExtended[]> {
+    try {
+      const fn = odataEscape(firstName || "");
+      const ln = odataEscape(lastName || "");
 
-    // 1) Detail rows for this visitor that OVERLAP the window
-    const visitorDetails = await sp.web.lists
-      .getByTitle("VisitorDetails")
-      .items
-      .select(
-        "ID,Title,FirstName,DateFrom,DateTo,CompanyName,Status/Title,Dept/Title,ParentId"
-      )
-      .expand("Status,Dept")
-      .top(5000)
-      .filter(
-        `(Title eq '${ln}' and FirstName eq '${fn}') and (DateTo ge '${from.toISOString()}' and DateFrom le '${to.toISOString()}')`
-      )
-      .get();
+      const statusFilter =
+        approvedOnly
+          ? statusMatch === "prefix"
+            ? ` and startswith(Status/Title,'Approved by')`
+            : ` and (Status/Title eq 'Approved by SSD')`
+          : "";
 
-    // 2) Collect parent IDs to enrich from "Visitors"
-    const parentIds = visitorDetails
-      .map((d: any) => d.ParentId)
-      .filter((id: any) => id);
+      // 1) Detail rows for this visitor that OVERLAP the window (+ optional status filter)
+      const visitorDetails = await sp.web.lists
+        .getByTitle("VisitorDetails")
+        .items.select(
+          "ID,Title,FirstName,DateFrom,DateTo,CompanyName,Status/Title,Dept/Title,ParentId"
+        )
+        .expand("Status,Dept")
+        .top(5000)
+        .filter(
+          `(Title eq '${ln}' and FirstName eq '${fn}') and (DateTo ge '${from.toISOString()}' and DateFrom le '${to.toISOString()}')${statusFilter}`
+        )
+        .get();
 
-    if (parentIds.length === 0) {
-      // Return basic details with empty enrichments
-      return visitorDetails.map((detail: any) => ({
-        ...detail,
-        VisContactNo: "",
-        CreatedBy: "",
-        DateTimeArrival: null,
-        DateTimeVisit: null,
-        Bldg: "",
-      }));
-    }
+      // 2) Collect parent IDs to enrich from "Visitors"
+      const parentIds = visitorDetails
+        .map((d: any) => d.ParentId)
+        .filter((id: any) => id);
 
-    // SharePoint REST doesn't accept "in (...)" so OR-chain
-    const filterString = parentIds.map((id) => `ID eq ${id}`).join(" or ");
-
-    // 3) Enrich from "Visitors"
-    const visitorInfo = await sp.web.lists
-      .getByTitle("Visitors")
-      .items
-      .select(
-        "ID,VisContactNo,Author/Title,DateTimeArrival,DateTimeVisit,Bldg"
-      )
-      .expand("Author")
-      .top(5000)
-      .filter(filterString)
-      .get();
-
-    const infoById: { [key: number]: any } = {};
-    visitorInfo.forEach((v: any) => (infoById[v.ID] = v));
-
-    // 4) Merge & return
-    const detailedInfo: IVisitorDetailExtended[] = visitorDetails.map(
-      (detail: any) => {
-        const parent = infoById[detail.ParentId] || {};
-        return {
+      if (parentIds.length === 0) {
+        // Return basic details with empty enrichments
+        return visitorDetails.map((detail: any) => ({
           ...detail,
-          VisContactNo: parent.VisContactNo || "",
-          CreatedBy: parent.Author ? parent.Author.Title : "",
-          DateTimeArrival: parent.DateTimeArrival || null,
-          DateTimeVisit: parent.DateTimeVisit || null,
-          Bldg: parent.Bldg || "",
-        } as IVisitorDetailExtended;
+          VisContactNo: "",
+          CreatedBy: "",
+          DateTimeArrival: null,
+          DateTimeVisit: null,
+          Bldg: "",
+        }));
       }
-    );
 
-    return detailedInfo;
-  } catch (error) {
-    // tslint:disable-next-line:no-console
-    console.log(error);
-    throw error;
-  }
+      // SharePoint REST doesn't accept "in (...)" so OR-chain
+      const filterString = parentIds.map((id) => `ID eq ${id}`).join(" or ");
+
+      // 3) Enrich from "Visitors"
+      const visitorInfo = await sp.web.lists
+        .getByTitle("Visitors")
+        .items.select("ID,VisContactNo,Author/Title,DateTimeArrival,DateTimeVisit,Bldg")
+        .expand("Author")
+        .top(5000)
+        .filter(filterString)
+        .get();
+
+      const infoById: { [key: number]: any } = {};
+      visitorInfo.forEach((v: any) => (infoById[v.ID] = v));
+
+      // 4) Merge & return
+      const detailedInfo: IVisitorDetailExtended[] = visitorDetails.map(
+        (detail: any) => {
+          const parent = infoById[detail.ParentId] || {};
+          return {
+            ...detail,
+            VisContactNo: parent.VisContactNo || "",
+            CreatedBy: parent.Author ? parent.Author.Title : "",
+            DateTimeArrival: parent.DateTimeArrival || null,
+            DateTimeVisit: parent.DateTimeVisit || null,
+            Bldg: parent.Bldg || "",
+          } as IVisitorDetailExtended;
+        }
+      );
+
+      return detailedInfo;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
   }
 }
