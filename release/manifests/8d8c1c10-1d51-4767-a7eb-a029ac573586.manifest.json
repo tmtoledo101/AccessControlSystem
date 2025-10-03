@@ -2,7 +2,7 @@
   "id": "8d8c1c10-1d51-4767-a7eb-a029ac573586",
   "alias": "ViewVisitorsWebPart",
   "componentType": "WebPart",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "manifestVersion": 2,
   "requiresCustomScript": false,
   "supportedHosts": [
@@ -18,14 +18,14 @@
         "default": "Other"
       },
       "title": {
-        "default": "ViewVisitors"
+        "default": "ViewVisitors_2025"
       },
       "description": {
-        "default": "ViewVisitors description"
+        "default": "A web part to view and monitor visitor records with enhanced 2025 features."
       },
       "officeFabricIconFontName": "Page",
       "properties": {
-        "description": "ViewVisitors"
+        "description": "ViewVisitors_2025"
       }
     }
   ],
@@ -37,7 +37,7 @@
     "scriptResources": {
       "displayinternal-web-part": {
         "type": "path",
-        "path": "displayinternal-web-part_d5c735b35146287284fa.js"
+        "path": "displayinternal-web-part_5bd90a426cfccbcb13ea.js"
       },
       "@microsoft/sp-property-pane": {
         "type": "component",

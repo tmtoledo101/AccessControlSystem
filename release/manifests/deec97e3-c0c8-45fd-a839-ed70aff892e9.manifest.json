@@ -2,7 +2,7 @@
   "id": "deec97e3-c0c8-45fd-a839-ed70aff892e9",
   "alias": "NewOvertimeWebPart",
   "componentType": "WebPart",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "manifestVersion": 2,
   "requiresCustomScript": false,
   "supportedHosts": [
@@ -18,14 +18,14 @@
         "default": "Other"
       },
       "title": {
-        "default": "NewOvertime"
+        "default": "NewOvertime_2025"
       },
       "description": {
-        "default": "NewOvertime description"
+        "default": "A web part to create and submit new employee overtime requests with enhanced 2025 features."
       },
       "officeFabricIconFontName": "Page",
       "properties": {
-        "description": "NewOvertime"
+        "description": "NewOvertime_2025"
       }
     }
   ],
@@ -37,7 +37,7 @@
     "scriptResources": {
       "displayinternal-web-part": {
         "type": "path",
-        "path": "displayinternal-web-part_d5c735b35146287284fa.js"
+        "path": "displayinternal-web-part_5bd90a426cfccbcb13ea.js"
       },
       "@microsoft/sp-property-pane": {
         "type": "component",

@@ -97,7 +97,8 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     viewName: '',
     menuTabs: [],
     tabvalue: 6,
-    reportView: 'Daily'
+    // IMPORTANT: ensure IViewState.reportView type allows 'Custom'
+    reportView: 'Daily' as any
   });
 
   // Event handlers
@@ -110,10 +111,10 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     let from = moment(new Date()).subtract(15, 'days');
     let to = moment(new Date()).endOf('day');
 
-    setCookie('ViewVisitorTab', tabContent, 1800);
+    setCookie('ViewVisitorTab', tabContent as string, 1800);
 
     setState(prevState => {
-      const newState = {
+      const newState: IViewState = {
         ...prevState,
         selectedFromDate: from,
         selectedToDate: to,
@@ -131,18 +132,20 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         if (prevState.isEncoder || prevState.isApprover || prevState.isWalkinApprover ||
           prevState.isReceptionist || prevState.isSSDUser) {
           newState.dirListItems = [];
-          newState.vwid = 9;
+          (newState as any).vwid = 9;
         }
       }
 
       if (tabContent === 'Reports') {
-        const currentReportView = prevState.reportView;
+        const currentReportView = prevState.reportView as 'Daily' | 'Monthly' | 'Custom';
         if (currentReportView === 'Daily') {
           newState.selectedFromDate = moment().startOf('day');
           newState.selectedToDate = moment().endOf('day');
-        } else {
+        } else if (currentReportView === 'Monthly') {
           newState.selectedFromDate = moment().startOf('month');
           newState.selectedToDate = moment().endOf('month');
+        } else {
+          // 'Custom' → keep user’s last chosen range (no change)
         }
         from = newState.selectedFromDate;
         to = newState.selectedToDate;
@@ -150,7 +153,6 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
       return newState;
     });
-
 
     setState(prev => ({ ...prev, dirListItems: [] }));
 
@@ -181,28 +183,46 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       } else if (tabContent === 'Reports') {
         if (currentStateForMapUser.isEncoder || currentStateForMapUser.isApprover || currentStateForMapUser.isWalkinApprover ||
           currentStateForMapUser.isReceptionist || currentStateForMapUser.isSSDUser || isHOUser || isSPCUser) {
-          mapUser(from.toDate(), to.toDate(), 10, currentStateForMapUser.reportView);
+          mapUser(from.toDate(), to.toDate(), 10, (currentStateForMapUser.reportView as any) || 'Daily');
         }
       }
     }, 0);
   };
 
-  // Report date change -> moment & reload
+  // Report date change -> moment & reload (used for Daily/Monthly)
   const handleDateChangeForReport = (date: Date | null) => {
     if (date) {
       const momentDate = moment(date);
-      const newFromDate = state.reportView === 'Monthly' ? momentDate.startOf('month') : momentDate.startOf('day');
-      const newToDate = state.reportView === 'Monthly' ? momentDate.endOf('month') : momentDate.endOf('day');
 
-      setState(prevState => ({
-        ...prevState,
-        selectedFromDate: newFromDate,
-        selectedToDate: newToDate
-      }));
+      if ((state.reportView as any) === 'Monthly') {
+        const newFromDate = momentDate.startOf('month');
+        const newToDate = momentDate.endOf('month');
 
-      setTimeout(() => {
-        mapUser(newFromDate.toDate(), newToDate.toDate(), 10, state.reportView);
-      }, 0);
+        setState(prevState => ({
+          ...prevState,
+          selectedFromDate: newFromDate,
+          selectedToDate: newToDate
+        }));
+
+        setTimeout(() => {
+          mapUser(newFromDate.toDate(), newToDate.toDate(), 10, 'Monthly');
+        }, 0);
+      } else if ((state.reportView as any) === 'Daily') {
+        const newFromDate = momentDate.startOf('day');
+        const newToDate = momentDate.endOf('day');
+
+        setState(prevState => ({
+          ...prevState,
+          selectedFromDate: newFromDate,
+          selectedToDate: newToDate
+        }));
+
+        setTimeout(() => {
+          mapUser(newFromDate.toDate(), newToDate.toDate(), 10, 'Daily');
+        }, 0);
+      } else {
+        // 'Custom' should not route here (JSX will use onFromDateChange/onToDateChange instead)
+      }
     }
   };
 
@@ -215,7 +235,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           selectedFromDate: newFromDate
         };
         setTimeout(() => {
-          mapUser(newFromDate.toDate(), prevState.selectedToDate.toDate(), prevState.vwid, prevState.reportView);
+          mapUser(newFromDate.toDate(), prevState.selectedToDate.toDate(), prevState.vwid, (prevState.reportView as any));
         }, 0);
         return newState;
       });
@@ -231,7 +251,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           selectedToDate: newToDate
         };
         setTimeout(() => {
-          mapUser(prevState.selectedFromDate.toDate(), newToDate.toDate(), prevState.vwid, prevState.reportView);
+          mapUser(prevState.selectedFromDate.toDate(), newToDate.toDate(), prevState.vwid, (prevState.reportView as any));
         }, 0);
         return newState;
       });
@@ -239,22 +259,24 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
   };
 
   const handleReportViewChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newReportView = event.target.value as 'Daily' | 'Monthly';
+    const newReportView = event.target.value as 'Daily' | 'Monthly' | 'Custom';
 
-    let newFromDate: moment.Moment;
-    let newToDate: moment.Moment;
+    let newFromDate = state.selectedFromDate;
+    let newToDate = state.selectedToDate;
 
     if (newReportView === 'Daily') {
       newFromDate = moment().startOf('day');
       newToDate = moment().endOf('day');
-    } else {
+    } else if (newReportView === 'Monthly') {
       newFromDate = moment().startOf('month');
       newToDate = moment().endOf('month');
+    } else {
+      // 'Custom' → preserve current From/To as-is
     }
 
     setState(prevState => ({
       ...prevState,
-      reportView: newReportView,
+      reportView: newReportView as any,
       selectedFromDate: newFromDate,
       selectedToDate: newToDate
     }));
@@ -308,7 +330,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         } else if (currentState.isEncoder || currentState.isApprover || currentState.isWalkinApprover) {
           let mappedrows: IVisitorDetail[] = [];
           filteredDetails.map(row => {
-            let filtered = [];
+            let filtered: IUserDept[] = [];
             if (currentState.isEncoder) {
               filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
             } else if (currentState.isApprover) {
@@ -343,7 +365,12 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     }
   };
 
-  async function mapUser(from: Date, to: Date, action: number, reportView: 'Daily' | 'Monthly' = 'Daily') {
+  async function mapUser(
+    from: Date,
+    to: Date,
+    action: number,
+    reportView: 'Daily' | 'Monthly' | 'Custom' = 'Daily'
+  ) {
     const currentState = { ...state };
 
     let fetchedData: IVisitor[] | IVisitorDetail[] | IVisitorCount[] = [];
@@ -352,7 +379,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       const visitors = await SharePointService.loadVisitorRequests(from, to);
       let mappedrows: IVisitor[] = [];
       visitors.map(row => {
-        let filtered = [];
+        let filtered: IUserDept[] = [];
         let includeRow = true;
         if (currentState.isEncoder) {
           filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
@@ -397,7 +424,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           visitorBldgMap[visitor.ID] = visitor.Bldg;
         });
         filteredDetails = visitorDetails.filter(detail => {
-          const parentBldg = visitorBldgMap[detail.ParentId];
+          const parentBldg = (visitorBldgMap as any)[detail.ParentId];
           if (isHOUser) {
             return parentBldg === "(HO) 5-Storey Building";
           } else if (isSPCUser) {
@@ -408,7 +435,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       }
       let mappedrows: IVisitorDetail[] = [];
       filteredDetails.map(row => {
-        let filtered = [];
+        let filtered: IUserDept[] = [];
         if (currentState.isEncoder) {
           filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
         } else if (currentState.isApprover) {
@@ -431,7 +458,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           visitorBldgMap[visitor.ID] = visitor.Bldg;
         });
         filteredDetails = visitorDetails.filter(detail => {
-          const parentBldg = visitorBldgMap[detail.ParentId];
+          const parentBldg = (visitorBldgMap as any)[detail.ParentId];
           if (isHOUser) {
             return parentBldg === "(HO) 5-Storey Building";
           } else if (isSPCUser) {
@@ -509,6 +536,9 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           moment(from).startOf('month').toDate(),
           moment(to).endOf('month').toDate()
         );
+      } else {
+        // 'Custom' → use exact from/to
+        reportData = await SharePointService.loadVisitorRequests(from, to);
       }
       let filteredReports: IVisitor[] = reportData;
       if (isHOUser || isSPCUser) {
@@ -552,11 +582,17 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       dataToExport = (state.dirListItems as IVisitorCount[]).map(item => ({
         'Visitor Last Name': item.LastName,
         'Visitor First Name': item.FirstName,
-        'Company Name': item.CompanyName,
+        //'Company Name': item.CompanyName,
         'Visit Count': item.VisitCount
       }));
     } else {
-      reportType = state.reportView === 'Daily' ? 'Daily Visitors Report' : 'Monthly Visitors Report';
+      const isDaily = (state.reportView as any) === 'Daily';
+      const isMonthly = (state.reportView as any) === 'Monthly';
+      reportType = isDaily
+        ? 'Daily Visitors Report'
+        : isMonthly
+          ? 'Monthly Visitors Report'
+          : 'Custom Visitors Report';
       fileName = `${reportType} - ${state.selectedFromDate.format('YYYY-MM-DD')} to ${state.selectedToDate.format('YYYY-MM-DD')}.xlsx`;
 
       if (state.vwid === 10 || state.vwid === 1 || state.vwid === 2 || state.vwid === 5 || state.vwid === 6 || state.vwid === 7 || state.vwid === 8) {
@@ -811,6 +847,8 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
                 <RadioGroup row aria-label="report-view" name="report-view" value={state.reportView} onChange={handleReportViewChange}>
                   <FormControlLabel value="Daily" control={<Radio />} label="Daily Visitors" />
                   <FormControlLabel value="Monthly" control={<Radio />} label="Monthly Visitors" />
+                  {/* NEW: Custom Range */}
+                  <FormControlLabel value="Custom" control={<Radio />} label="Custom Range" />
                 </RadioGroup>
               </FormControl>
 
@@ -819,9 +857,10 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
                   <DateRangeSelector
                     fromDate={state.selectedFromDate.toDate()}
                     toDate={state.selectedToDate.toDate()}
-                    onFromDateChange={handleDateChangeForReport}
-                    onToDateChange={handleDateChangeForReport}
-                    pickerType={state.reportView === 'Daily' ? 'date' : 'month'}
+                    // Daily/Monthly snap via single handler; Custom uses independent handlers
+                    onFromDateChange={(state.reportView as any) === 'Custom' ? onFromDateChange : handleDateChangeForReport}
+                    onToDateChange={(state.reportView as any) === 'Custom' ? onToDateChange : handleDateChangeForReport}
+                    pickerType={(state.reportView as any) === 'Monthly' ? 'month' : 'date'}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6} style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-start' }}>

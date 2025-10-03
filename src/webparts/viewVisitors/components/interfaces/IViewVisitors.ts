@@ -105,5 +105,5 @@ export interface IViewState {
   viewName: string;
   menuTabs: string[];
   tabvalue: number;
-  reportView: 'Daily' | 'Monthly';
+  reportView: 'Daily' | 'Monthly' | 'Custom';
 }

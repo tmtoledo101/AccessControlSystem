@@ -178,7 +178,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
   const Encoders_Group = "Encoders";
   const Receptionist_Group = "Receptionist";
-  const SSD_Group = "SSD";
+  //const SSD_Group = "SSD";
+  const SSD_Group = "SSD_v2";
   const WalkinApprover_Group = "WalkinApprover";
 
   const sharePointService = new SharePointService(props.siteUrl, props.siteRelativeUrl);
@@ -545,8 +546,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       try {
         setProgress(true);
         _sourceURL = document.referrer;
-        _itemId = parseInt(getUrlParameter("pid"));
-        //_itemId = 13;
+        //_itemId = parseInt(getUrlParameter("pid"));
+        _itemId = 19;
         const user = await sharePointService.getCurrentUser();
         setCurrentUser(user);
 

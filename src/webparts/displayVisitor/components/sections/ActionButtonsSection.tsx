@@ -230,12 +230,12 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
             Close
           </Button>
           <Button
-            name="saveSSD" // Distinct name for clarity
+            name="approve" // Distinct name for clarity
             className={classes.paperbutton}
             startIcon={<SaveIcon />}
             variant="contained"
             color="primary"
-            onClick={(e) => onSubmit(e, 'saveSSD')} // Distinct action for clarity
+            onClick={(e) => onSubmit(e, 'approve')} // Distinct action for clarity
           >
             Save
           </Button>
