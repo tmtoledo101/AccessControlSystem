@@ -51,6 +51,14 @@ function inclusiveDaysInRange(
   return Math.floor((e.getTime() - s.getTime()) / MS_PER_DAY) + 1; // inclusive
 }
 
+/** OData filter for VisitorType lookup by Title(s). */
+function buildVisitorTypeFilter(lookupInternalName: string, titles: string[]): string {
+  const left = lookupInternalName + "/Title";
+  return titles
+    .map(t => `${left} eq '${odataEscape(t)}'`)
+    .join(" or ");
+}
+
 export default class SharePointService {
   /** Get current user */
   public static async getCurrentUser() {
@@ -106,9 +114,7 @@ export default class SharePointService {
   }
 
   /** Get walk-in approvers */
-  public static async getWalkinApprovers(
-    userId: number
-  ): Promise<IUserDept[]> {
+  public static async getWalkinApprovers(userId: number): Promise<IUserDept[]> {
     try {
       return await sp.web.lists
         .getByTitle("WalkinApprovers")
@@ -128,10 +134,7 @@ export default class SharePointService {
    * @param from From date
    * @param to   To date
    */
-  public static async loadVisitorRequests(
-    from: Date,
-    to: Date
-  ): Promise<IVisitor[]> {
+  public static async loadVisitorRequests(from: Date, to: Date): Promise<IVisitor[]> {
     try {
       return await sp.web.lists
         .getByTitle("Visitors")
@@ -155,10 +158,7 @@ export default class SharePointService {
    * Load visitor details that OVERLAP the window
    * (DateTo >= from) AND (DateFrom <= to)
    */
-  public static async loadVisitorDetails(
-    from: Date,
-    to: Date
-  ): Promise<IVisitorDetail[]> {
+  public static async loadVisitorDetails(from: Date, to: Date): Promise<IVisitorDetail[]> {
     try {
       return await sp.web.lists
         .getByTitle("VisitorDetails")
@@ -177,9 +177,7 @@ export default class SharePointService {
   }
 
   /** Search visitors by name */
-  public static async searchVisitorsByName(
-    searchText: string
-  ): Promise<IVisitorDetail[]> {
+  public static async searchVisitorsByName(searchText: string): Promise<IVisitorDetail[]> {
     try {
       const q = odataEscape(searchText || "");
       return await sp.web.lists
@@ -200,6 +198,7 @@ export default class SharePointService {
    * Get visitor entry counts within a date range
    * - Overlap filter: (DateTo >= from && DateFrom <= to)
    * - Counts only Status = "Approved by Dept Head" (or prefix "Approved by")
+   * - NOW also filters VisitorType to: Service Provider, Project Contractor
    * - Sums inclusive days per visitor (DateFrom..DateTo), clipped to [from..to]
    * - Returns only visitors with VisitCount > minCount (default 14)
    */
@@ -217,15 +216,22 @@ export default class SharePointService {
         ? "startswith(Status/Title,'Approved by')"
         : "Status/Title eq 'Approved by SSD'";
 
+      // ---- VisitorType filter (change VT if your internal name is encoded) ----
+      const VT = "VisitorType"; // e.g., "Visitor_x0020_Type"
+      const allowedVisitorTypes = ["Service Provider", "Project Contractor"];
+      const vtFilter = buildVisitorTypeFilter(VT, allowedVisitorTypes);
+
       var visitorDetails: any[] = await sp.web.lists
         .getByTitle("VisitorDetails")
         .items.select(
-          "ID,Title,FirstName,CompanyName,DateFrom,DateTo,Status/Title"
+          `ID,Title,FirstName,CompanyName,DateFrom,DateTo,Status/Title,${VT}/Title,${VT}Id`
         )
-        .expand("Status")
+        .expand(`Status,${VT}`)
         .top(5000)
         .filter(
-          "DateTo ge '" + from.toISOString() + "' and DateFrom le '" + to.toISOString() + "' and " + statusFilter
+          "DateTo ge '" + from.toISOString() + "' and " +
+          "DateFrom le '" + to.toISOString() + "' and " +
+          statusFilter + " and (" + vtFilter + ")"
         )
         .get();
 
@@ -255,12 +261,11 @@ export default class SharePointService {
         }
       }
 
-      // ✅ Plain ES5 filter (no ??)
       var filtered = Object.keys(map)
         .map(k => map[k])
         .filter(v => (v.VisitCount ? v.VisitCount : 0) > min);
 
-        filtered.sort((a, b) => {
+      filtered.sort((a, b) => {
         if (b.VisitCount !== a.VisitCount) return b.VisitCount - a.VisitCount;
         var ln = a.LastName.localeCompare(b.LastName);
         return ln !== 0 ? ln : a.FirstName.localeCompare(b.FirstName);
@@ -277,6 +282,7 @@ export default class SharePointService {
    * Get detailed visitor information for a specific visitor
    * - Uses overlap date filter
    * - approvedOnly: adds server-side "Approved by Dept Head" filter (default true)
+   * - NOW also filters VisitorType to: Service Provider, Project Contractor
    */
   public static async getVisitorDetailedInfo(
     firstName: string,
@@ -292,21 +298,30 @@ export default class SharePointService {
 
       const statusFilter =
         approvedOnly
-          ? statusMatch === "prefix"
+          ? (statusMatch === "prefix"
             ? ` and startswith(Status/Title,'Approved by')`
-            : ` and (Status/Title eq 'Approved by SSD')`
+            : ` and (Status/Title eq 'Approved by SSD')`)
           : "";
 
-      // 1) Detail rows for this visitor that OVERLAP the window (+ optional status filter)
+      // ---- VisitorType filter (change VT if your internal name is encoded) ----
+      const VT = "VisitorType"; // e.g., "Visitor_x0020_Type"
+      const allowedVisitorTypes = ["Service Provider", "Project Contractor"];
+      const vtFilter = " and (" + buildVisitorTypeFilter(VT, allowedVisitorTypes) + ")";
+
+      // 1) Detail rows for this visitor that OVERLAP the window (+ status + visitor type filters)
       const visitorDetails = await sp.web.lists
         .getByTitle("VisitorDetails")
         .items.select(
-          "ID,Title,FirstName,DateFrom,DateTo,CompanyName,Status/Title,Dept/Title,ParentId"
+          "ID,Title,FirstName,DateFrom,DateTo,CompanyName,Status/Title,Dept/Title,ParentId," +
+          `${VT}Id,${VT}/Title`
         )
-        .expand("Status,Dept")
+        .expand(`Status,Dept,${VT}`)
         .top(5000)
         .filter(
-          `(Title eq '${ln}' and FirstName eq '${fn}') and (DateTo ge '${from.toISOString()}' and DateFrom le '${to.toISOString()}')${statusFilter}`
+          `(Title eq '${ln}' and FirstName eq '${fn}')` +
+          ` and (DateTo ge '${from.toISOString()}' and DateFrom le '${to.toISOString()}')` +
+          statusFilter +
+          vtFilter
         )
         .get();
 
@@ -343,19 +358,17 @@ export default class SharePointService {
       visitorInfo.forEach((v: any) => (infoById[v.ID] = v));
 
       // 4) Merge & return
-      const detailedInfo: IVisitorDetailExtended[] = visitorDetails.map(
-        (detail: any) => {
-          const parent = infoById[detail.ParentId] || {};
-          return {
-            ...detail,
-            VisContactNo: parent.VisContactNo || "",
-            CreatedBy: parent.Author ? parent.Author.Title : "",
-            DateTimeArrival: parent.DateTimeArrival || null,
-            DateTimeVisit: parent.DateTimeVisit || null,
-            Bldg: parent.Bldg || "",
-          } as IVisitorDetailExtended;
-        }
-      );
+      const detailedInfo: IVisitorDetailExtended[] = visitorDetails.map((detail: any) => {
+        const parent = infoById[detail.ParentId] || {};
+        return {
+          ...detail,
+          VisContactNo: parent.VisContactNo || "",
+          CreatedBy: parent.Author ? parent.Author.Title : "",
+          DateTimeArrival: parent.DateTimeArrival || null,
+          DateTimeVisit: parent.DateTimeVisit || null,
+          Bldg: parent.Bldg || "",
+        } as IVisitorDetailExtended;
+      });
 
       return detailedInfo;
     } catch (error) {

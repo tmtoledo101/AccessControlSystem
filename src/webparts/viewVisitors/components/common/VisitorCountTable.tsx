@@ -46,7 +46,9 @@ const useStyles = makeStyles((theme: Theme) =>
   })
 );
 
-// Status color
+// ---------- helpers ----------
+
+// map status to chip color
 const statusColor = (s?: string): 'default' | 'primary' | 'secondary' => {
   const val = (s || '').toLowerCase();
   if (val.indexOf('approved') >= 0) return 'primary';
@@ -54,9 +56,20 @@ const statusColor = (s?: string): 'default' | 'primary' | 'secondary' => {
   return 'default';
 };
 
+// robust renderer for VisitorType (handles lookup object, string, multi-choice)
+function getVisitorTypeText(d: any): string {
+  if (!d || d.VisitorType == null) return '';
+  const v = d.VisitorType;
+
+  if (Array.isArray(v)) return v.filter(Boolean).join(', ');
+  if (typeof v === 'object') return (v.Title || v.Value || v.value || '');
+  if (typeof v === 'string') return v;
+
+  return '';
+}
+
 // material-table expects forwardRef component for icons
 const DetailPanelIcon = React.forwardRef<SVGSVGElement, any>((props, ref) => {
-  // some versions pass { open: boolean } on props
   const isOpen = props && props.open;
   return isOpen
     ? <KeyboardArrowUp ref={ref} {...props} />
@@ -107,7 +120,7 @@ const DetailPanelContent: React.FC<{
         if (!alive) return;
         cacheRef.current[cacheKey] = details || [];
         setRows(details || []);
-      } catch (e) {
+      } catch (_e) {
         if (!alive) return;
         setError('Failed to load details.');
         setRows([]);
@@ -116,11 +129,8 @@ const DetailPanelContent: React.FC<{
       }
     };
 
-    // kick off
     load();
-
     return () => { alive = false; };
-    // NOTE: avoid optional chaining in deps; keep simple array
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firstName, lastName, fromDate, toDate, cacheKey]);
 
@@ -128,8 +138,17 @@ const DetailPanelContent: React.FC<{
   const list = rows || [];
   const approvedRows = list.filter(d => {
   const statusTitle = d && d.Status ? (d.Status.Title || '') : '';
-  return statusTitle.toLowerCase() === 'approved by ssd';
-  });
+  const visitorTypeTitle =
+    d && d.VisitorType
+      ? (typeof d.VisitorType === 'object' ? d.VisitorType.Title : d.VisitorType)
+      : '';
+
+  const isAllowedType =
+    visitorTypeTitle === 'Service Provider' ||
+    visitorTypeTitle === 'Project Contractor';
+
+  return statusTitle.toLowerCase() === 'approved by ssd' && isAllowedType;
+});
 
   return (
     <Box className={classes.detailWrap}>
@@ -166,6 +185,7 @@ const DetailPanelContent: React.FC<{
                 <TableCell>Date From</TableCell>
                 <TableCell>Date To</TableCell>
                 <TableCell>Company</TableCell>
+                <TableCell>Visitor Type</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Contact No.</TableCell>
                 <TableCell>Created By</TableCell>
@@ -177,15 +197,16 @@ const DetailPanelContent: React.FC<{
             </TableHead>
             <TableBody>
               {approvedRows.map(d => {
-                  const statusTitle = d && d.Status ? (d.Status.Title || '') : '';
-                  const deptTitle = d && d.Dept ? (d.Dept.Title || '') : '';
-                  return (
+                const statusTitle = d && d.Status ? (d.Status.Title || '') : '';
+                const deptTitle = d && d.Dept ? (d.Dept.Title || '') : '';
+                return (
                   <TableRow key={d.ID}>
                     <TableCell>{d.Title}</TableCell>
                     <TableCell>{d.FirstName}</TableCell>
                     <TableCell>{d.DateFrom ? new Date(d.DateFrom).toLocaleString() : ''}</TableCell>
                     <TableCell>{d.DateTo ? new Date(d.DateTo).toLocaleString() : ''}</TableCell>
                     <TableCell>{d.CompanyName}</TableCell>
+                    <TableCell>{getVisitorTypeText(d)}</TableCell>
                     <TableCell>
                       <Chip
                         size="small"

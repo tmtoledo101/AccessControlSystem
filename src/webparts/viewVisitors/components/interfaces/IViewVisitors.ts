@@ -33,6 +33,7 @@ export interface IVisitor {
   SSDApprover: { Title: string };
   Author: { Title: string; EMail: string };
   Bldg: string;
+  VisitorType: {Title: string};
 }
 
 /** Detail row from "VisitorDetails" list */
@@ -54,6 +55,7 @@ export interface IVisitorDetail {
   Status: { Title: string };
   ParentId: number;      // FK to "Visitors" list
   Author: { Title: string; EMail: string };
+  VisitorType: {Title: string};
   // Bldg is not stored here directly; it’s enriched from parent "Visitors"
 }
 
