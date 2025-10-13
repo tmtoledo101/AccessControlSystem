@@ -7,7 +7,8 @@ import Paper from '@material-ui/core/Paper';
 import Button from '@material-ui/core/Button';
 import moment from 'moment';
 import { sp } from "@pnp/sp";
-// Import common components
+
+// Common components
 import HeaderSection from './common/HeaderSection';
 import TabsNavigation from './common/TabsNavigation';
 import DateRangeSelector from './common/DateRangeSelector';
@@ -16,19 +17,31 @@ import VisitorRequestsTable from './common/VisitorRequestsTable';
 import VisitorDetailsTable from './common/VisitorDetailsTable';
 import VisitorCountTable from './common/VisitorCountTable';
 import ActionButtons from './common/ActionButtons';
-// Import Material-UI components for radio buttons/filters
+
+// Radio controls
 import Radio from '@material-ui/core/Radio';
 import RadioGroup from '@material-ui/core/RadioGroup';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import FormControl from '@material-ui/core/FormControl';
 import FormLabel from '@material-ui/core/FormLabel';
-// Import services
-import SharePointService from './services/SharePointService';
-// Import utils
-import { setCookie, getCookie } from './utils/helper';
-import { IVisitor, IVisitorDetail, IUserDept, IViewState, IVisitorCount } from './interfaces/IViewVisitors';
 
-// Import for Excel export
+// Services
+import SharePointService from './services/SharePointService';
+
+// Utils
+import { setCookie, getCookie } from './utils/helper';
+
+// Types
+import {
+  IVisitor,
+  IVisitorDetail,
+  IUserDept,
+  IViewState,
+  IVisitorCount,
+  IVisitorDetailExtended
+} from './interfaces/IViewVisitors';
+
+// Excel export
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
@@ -54,8 +67,8 @@ const useStyles = makeStyles((theme: Theme) =>
 // Constants
 const Receptionist_Group = "Receptionist";
 const SSD_Group_v2 = "SSD_v2";
-const HOUsers_Group = "HOUsers";
-const SPCUsers_Group = "SPCUsers";
+const HOUsers_Group = "HO";
+const SPCUsers_Group = "SPC";
 
 // Global (consider narrowing scope later)
 let usersPerDept: IUserDept[] = [];
@@ -97,7 +110,6 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     viewName: '',
     menuTabs: [],
     tabvalue: 6,
-    // IMPORTANT: ensure IViewState.reportView type allows 'Custom'
     reportView: 'Daily' as any
   });
 
@@ -145,7 +157,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           newState.selectedFromDate = moment().startOf('month');
           newState.selectedToDate = moment().endOf('month');
         } else {
-          // 'Custom' → keep user’s last chosen range (no change)
+          // Custom keeps last chosen range
         }
         from = newState.selectedFromDate;
         to = newState.selectedToDate;
@@ -189,7 +201,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     }, 0);
   };
 
-  // Report date change -> moment & reload (used for Daily/Monthly)
+  // Report date change
   const handleDateChangeForReport = (date: Date | null) => {
     if (date) {
       const momentDate = moment(date);
@@ -221,7 +233,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           mapUser(newFromDate.toDate(), newToDate.toDate(), 10, 'Daily');
         }, 0);
       } else {
-        // 'Custom' should not route here (JSX will use onFromDateChange/onToDateChange instead)
+        // Custom not routed here
       }
     }
   };
@@ -271,7 +283,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       newFromDate = moment().startOf('month');
       newToDate = moment().endOf('month');
     } else {
-      // 'Custom' → preserve current From/To as-is
+      // Custom preserves current range
     }
 
     setState(prevState => ({
@@ -299,37 +311,49 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         }
         return newState;
       });
+
       if (searchText.length > 2) {
         const currentState = { ...state };
+
+        // Search details
         const visitorDetails = await SharePointService.searchVisitorsByName(searchText);
+
+        // For building level filters and enrichment, load parents in the current date window
+        const visitorRequests = await SharePointService.loadVisitorRequests(
+          state.selectedFromDate.toDate(),
+          state.selectedToDate.toDate()
+        );
+
+        const visitorBldgMap: { [key: number]: string } = {};
+        visitorRequests.forEach(visitor => {
+          visitorBldgMap[visitor.ID] = visitor.Bldg;
+        });
+
+        // Apply building filter if needed
         let filteredDetails: IVisitorDetail[] = visitorDetails;
         if (isHOUser || isSPCUser) {
-          const visitorRequests = await SharePointService.loadVisitorRequests(
-            state.selectedFromDate.toDate(),
-            state.selectedToDate.toDate()
-          );
-          const visitorBldgMap: { [key: number]: string } = {};
-          visitorRequests.forEach(visitor => {
-            visitorBldgMap[visitor.ID] = visitor.Bldg;
-          });
           filteredDetails = visitorDetails.filter(detail => {
             const parentBldg = visitorBldgMap[detail.ParentId];
-            if (isHOUser) {
-              return parentBldg === "(HO) 5-Storey Building";
-            } else if (isSPCUser) {
-              return parentBldg === "SPC";
-            }
+            if (isHOUser) return parentBldg === "(HO) 5-Storey Building";
+            if (isSPCUser) return parentBldg === "SPC";
             return true;
           });
         }
+
+        // Enrich with Bldg for the table
+        const enrichedDetails: IVisitorDetailExtended[] = filteredDetails.map(d => ({
+          ...d,
+          Bldg: visitorBldgMap[d.ParentId] || ''
+        }));
+
         if (currentState.isReceptionist || currentState.isSSDUser) {
           setState(prevState => ({
             ...prevState,
-            dirListItems: filteredDetails,
+            dirListItems: enrichedDetails,
           }));
         } else if (currentState.isEncoder || currentState.isApprover || currentState.isWalkinApprover) {
-          let mappedrows: IVisitorDetail[] = [];
-          filteredDetails.map(row => {
+          const mappedrows: IVisitorDetailExtended[] = [];
+          enrichedDetails.forEach(row => {
             let filtered: IUserDept[] = [];
             if (currentState.isEncoder) {
               filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
@@ -373,11 +397,11 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
   ) {
     const currentState = { ...state };
 
-    let fetchedData: IVisitor[] | IVisitorDetail[] | IVisitorCount[] = [];
+    let fetchedData: IVisitor[] | IVisitorDetail[] | IVisitorDetailExtended[] | IVisitorCount[] = [];
 
     if ((action === 1)) {
       const visitors = await SharePointService.loadVisitorRequests(from, to);
-      let mappedrows: IVisitor[] = [];
+      const mappedrows: IVisitor[] = [];
       visitors.map(row => {
         let filtered: IUserDept[] = [];
         let includeRow = true;
@@ -416,25 +440,32 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       fetchedData = filteredVisitors;
     } else if ((action === 3)) {
       const visitorDetails = await SharePointService.loadVisitorDetails(from, to);
+
+      // Load parents for building map once
+      const visitorRequests = await SharePointService.loadVisitorRequests(from, to);
+      const visitorBldgMap: { [key: number]: string } = {};
+      visitorRequests.forEach(visitor => { visitorBldgMap[visitor.ID] = visitor.Bldg; });
+
+      // Building filter
       let filteredDetails: IVisitorDetail[] = visitorDetails;
       if (isHOUser || isSPCUser) {
-        const visitorRequests = await SharePointService.loadVisitorRequests(from, to);
-        const visitorBldgMap: { [key: number]: string } = {};
-        visitorRequests.forEach(visitor => {
-          visitorBldgMap[visitor.ID] = visitor.Bldg;
-        });
-        filteredDetails = visitorDetails.filter(detail => {
-          const parentBldg = (visitorBldgMap as any)[detail.ParentId];
-          if (isHOUser) {
-            return parentBldg === "(HO) 5-Storey Building";
-          } else if (isSPCUser) {
-            return parentBldg === "SPC";
-          }
+        filteredDetails = filteredDetails.filter(detail => {
+          const parentBldg = visitorBldgMap[detail.ParentId];
+          if (isHOUser) return parentBldg === "(HO) 5-Storey Building";
+          if (isSPCUser) return parentBldg === "SPC";
           return true;
         });
       }
-      let mappedrows: IVisitorDetail[] = [];
-      filteredDetails.map(row => {
+
+      // Enrich with Bldg
+      const enriched: IVisitorDetailExtended[] = filteredDetails.map(d => ({
+        ...d,
+        Bldg: visitorBldgMap[d.ParentId] || ''
+      }));
+
+      // Role filter
+      const mappedrows: IVisitorDetailExtended[] = [];
+      enriched.forEach(row => {
         let filtered: IUserDept[] = [];
         if (currentState.isEncoder) {
           filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
@@ -447,32 +478,37 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           mappedrows.push(row);
         }
       });
+
       fetchedData = mappedrows;
     } else if ((action === 4)) {
       const visitorDetails = await SharePointService.loadVisitorDetails(from, to);
+      const visitorRequests = await SharePointService.loadVisitorRequests(from, to);
+
+      const visitorBldgMap: { [key: number]: string } = {};
+      visitorRequests.forEach(visitor => { visitorBldgMap[visitor.ID] = visitor.Bldg; });
+
       let filteredDetails: IVisitorDetail[] = visitorDetails;
       if (isHOUser || isSPCUser) {
-        const visitorRequests = await SharePointService.loadVisitorRequests(from, to);
-        const visitorBldgMap: { [key: number]: string } = {};
-        visitorRequests.forEach(visitor => {
-          visitorBldgMap[visitor.ID] = visitor.Bldg;
-        });
-        filteredDetails = visitorDetails.filter(detail => {
-          const parentBldg = (visitorBldgMap as any)[detail.ParentId];
-          if (isHOUser) {
-            return parentBldg === "(HO) 5-Storey Building";
-          } else if (isSPCUser) {
-            return parentBldg === "SPC";
-          }
+        filteredDetails = filteredDetails.filter(detail => {
+          const parentBldg = visitorBldgMap[detail.ParentId];
+          if (isHOUser) return parentBldg === "(HO) 5-Storey Building";
+          if (isSPCUser) return parentBldg === "SPC";
           return true;
         });
       }
-      fetchedData = filteredDetails;
+
+      // Enrich with Bldg
+      const enriched: IVisitorDetailExtended[] = filteredDetails.map(d => ({
+        ...d,
+        Bldg: visitorBldgMap[d.ParentId] || ''
+      }));
+
+      fetchedData = enriched;
     } else if ((action === 5)) {
       const visitors = await SharePointService.loadVisitorRequests(from, to);
-      let mappedrows: IVisitor[] = [];
+      const mappedrows: IVisitor[] = [];
       visitors.map(row => {
-        let filtered = approversPerDept.filter((item) => item.NameId === row.ApproverId);
+        const filtered = approversPerDept.filter((item) => item.NameId === row.ApproverId);
         let isvalid = false;
         let includeRow = true;
         if ((row.StatusId === 2)) {
@@ -490,7 +526,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       fetchedData = mappedrows;
     } else if ((action === 6)) {
       const visitors = await SharePointService.loadVisitorRequests(from, to);
-      let mappedrows: IVisitor[] = [];
+      const mappedrows: IVisitor[] = [];
       visitors.map(row => {
         let isvalid = false;
         let includeRow = true;
@@ -509,9 +545,9 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       fetchedData = mappedrows;
     } else if ((action === 7)) {
       const visitors = await SharePointService.loadVisitorRequests(from, to);
-      let mappedrows: IVisitor[] = [];
+      const mappedrows: IVisitor[] = [];
       visitors.map(row => {
-        let filtered = walkinapprovers.filter((item) => item.NameId === row.ApproverId);
+        const filtered = walkinapprovers.filter((item) => item.NameId === row.ApproverId);
         let isvalid = false;
         let includeRow = true;
         if ((row.StatusId === 2)) {
@@ -537,7 +573,6 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           moment(to).endOf('month').toDate()
         );
       } else {
-        // 'Custom' → use exact from/to
         reportData = await SharePointService.loadVisitorRequests(from, to);
       }
       let filteredReports: IVisitor[] = reportData;
@@ -548,7 +583,6 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       }
       fetchedData = filteredReports;
     } else if ((action === 11)) {
-      // MultiEntry tab - visitor count (inclusive days, approved only)
       const visitorCounts = await SharePointService.getVisitorEntryCounts(from, to, 14, 'exact');
       fetchedData = visitorCounts;
     } else {
@@ -575,14 +609,12 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     let dataToExport: any[] = [];
 
     if (state.vwid === 11) {
-      // MultiEntry tab export
       reportType = 'Visitor Entry Count Report';
       fileName = `${reportType} - ${state.selectedFromDate.format('YYYY-MM-DD')} to ${state.selectedToDate.format('YYYY-MM-DD')}.xlsx`;
 
       dataToExport = (state.dirListItems as IVisitorCount[]).map(item => ({
         'Visitor Last Name': item.LastName,
         'Visitor First Name': item.FirstName,
-        //'Company Name': item.CompanyName,
         'Visit Count': item.VisitCount
       }));
     } else {
@@ -614,7 +646,8 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           'Requires Parking': item.RequireParking ? 'Yes' : 'No',
         }));
       } else if (state.vwid === 9 || state.vwid === 3 || state.vwid === 4) {
-        dataToExport = (state.dirListItems as IVisitorDetail[]).map(item => ({
+        const list = state.dirListItems as IVisitorDetailExtended[];
+        dataToExport = list.map(item => ({
           'ID': item.ID,
           'Visitor Last Name': item.Title,
           'Visitor First Name': item.FirstName,
@@ -626,6 +659,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           'Company Name': item.CompanyName,
           'Car': item.Car ? 'Yes' : 'No',
           'Access Card': item.AccessCard,
+          'Building': item.Bldg || '',
           'Status': item.Status ? item.Status.Title : '',
           'Parent ID': item.ParentId,
           'Author': item.Author ? item.Author.Title : '',
@@ -847,7 +881,6 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
                 <RadioGroup row aria-label="report-view" name="report-view" value={state.reportView} onChange={handleReportViewChange}>
                   <FormControlLabel value="Daily" control={<Radio />} label="Daily Visitors" />
                   <FormControlLabel value="Monthly" control={<Radio />} label="Monthly Visitors" />
-                  {/* NEW: Custom Range */}
                   <FormControlLabel value="Custom" control={<Radio />} label="Custom Range" />
                 </RadioGroup>
               </FormControl>
@@ -857,7 +890,6 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
                   <DateRangeSelector
                     fromDate={state.selectedFromDate.toDate()}
                     toDate={state.selectedToDate.toDate()}
-                    // Daily/Monthly snap via single handler; Custom uses independent handlers
                     onFromDateChange={(state.reportView as any) === 'Custom' ? onFromDateChange : handleDateChangeForReport}
                     onToDateChange={(state.reportView as any) === 'Custom' ? onToDateChange : handleDateChangeForReport}
                     pickerType={(state.reportView as any) === 'Monthly' ? 'month' : 'date'}
@@ -902,7 +934,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
               )}
               {(((state.vwid === 3) || (state.vwid === 4) || (state.vwid === 9)) && (state.dirListItems.length > 0)) && (
                 <VisitorDetailsTable
-                  data={state.dirListItems as IVisitorDetail[]}
+                  data={state.dirListItems as IVisitorDetailExtended[]}
                   onViewAction={viewAction2}
                 />
               )}

@@ -61,6 +61,10 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
           field: "Car",
           render: rowData => <span>{rowData.Car ? 'Yes' : 'No'}</span>
         },
+        {
+          title: "Building",
+          field: "Bldg"
+        },
         { 
           title: "Access Card", 
           field: 'AccessCard' 
