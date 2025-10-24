@@ -385,7 +385,8 @@ export class SharePointService {
         DateTo: moment(visitor.DateTimeArrival).toISOString(),
         CompanyName: visitor.CompanyName,
         StatusId: submitType,
-        VisitorType: visitorDetail.VisitorType // Added VisitorType field
+        //VisitorType: visitorDetail.VisitorType // Added VisitorType field
+        VisitorTypeId: await this.getVisitorTypeIdByTitle(visitorDetail.VisitorType)
       });
 
       await sp.web.lists.getByTitle("VisitorDetailsLib").rootFolder.folders.add(iar2.data.ID.toString());
@@ -425,4 +426,19 @@ export class SharePointService {
       throw error; // Re-throw to propagate error if necessary
     }
   }
+    /**
+   * Gets the lookup ID from the VisitorType list based on a title
+   * @param title Title of the visitor type (e.g., "Service Provider")
+   */
+  private async getVisitorTypeIdByTitle(title: string): Promise<number | null> {
+    const items = await sp.web.lists.getByTitle("VisitorType")
+      .items
+      .select("Id", "Title")
+      .filter(`Title eq '${title}'`)
+      .top(1)
+      .get();
+
+    return items.length > 0 ? items[0].Id : null;
+  }
+
 }

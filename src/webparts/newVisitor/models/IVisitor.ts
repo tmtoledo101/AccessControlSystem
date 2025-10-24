@@ -27,5 +27,6 @@ export interface IVisitor {
   
   // Added VisitorType property
   //VisitorType?: 'Visitor' | 'Service Provider' | 'Project Contractor' | string;
-  VisitorType?: string; 
+  VisitorType?: string;
+  VisitorTypeId?: number; 
 }

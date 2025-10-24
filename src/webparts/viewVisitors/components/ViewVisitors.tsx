@@ -190,7 +190,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         }
       } else if ((tabContent === 'SSD') && (currentStateForMapUser.isSSDUser)) {
         mapUser(from.toDate(), to.toDate(), 6);
-      } else if (tabContent === 'MultiEntry' && currentStateForMapUser.isSSDUser) {
+      } else if (tabContent === 'Limit Entry' && currentStateForMapUser.isSSDUser) {
         mapUser(from.toDate(), to.toDate(), 11);
       } else if (tabContent === 'Reports') {
         if (currentStateForMapUser.isEncoder || currentStateForMapUser.isApprover || currentStateForMapUser.isWalkinApprover ||
@@ -765,7 +765,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         }
 
         if (isSSDUser) {
-          temptabs.push('MultiEntry');
+          temptabs.push('Limit Entry');
         }
         if (isEncoder || isReceptionist || isSSDUser || isApprover || isWalkinApprover || isHOUser || isSPCUser) {
           temptabs.push('Reports');
