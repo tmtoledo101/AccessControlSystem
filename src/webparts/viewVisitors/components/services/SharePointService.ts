@@ -376,4 +376,22 @@ export default class SharePointService {
       throw error;
     }
   }
+    /**
+   * Update Access Card value for a specific VisitorDetails row
+   */
+  public static async updateAccessCard(id: number, newValue: string): Promise<void> {
+    try {
+      await sp.web.lists
+        .getByTitle("VisitorDetails")
+        .items.getById(id)
+        .update({
+          AccessCard: newValue
+        });
+
+      console.log(`✅ Access Card updated for ID ${id}: ${newValue}`);
+    } catch (error) {
+      console.error(`❌ Failed to update Access Card for ID ${id}`, error);
+      throw error;
+    }
+  }
 }
