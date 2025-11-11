@@ -454,8 +454,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       for (const visitorDetail of visitorDetailsList) {
         const detailToSave = { ...visitorDetail, ParentId: _itemId };
         let detailStatusId = updatedVisitor.StatusId;
-        if (isSSDUser && visitorDetail.SSDApprove !== undefined) {
-          detailStatusId = visitorDetail.SSDApprove === "Yes" ? 4 : 7;
+        if (isSSDUser && (visitorDetail as any).SSDApprove !== undefined) {
+          detailStatusId = (visitorDetail as any).SSDApprove === "Yes" ? 4 : 7;
         }
         const savedDetail = await sharePointService.saveVisitorDetails(
           detailToSave,
@@ -547,7 +547,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         setProgress(true);
         _sourceURL = document.referrer;
         //_itemId = parseInt(getUrlParameter("pid"));
-        _itemId = 19;
+        _itemId = 15;
         const user = await sharePointService.getCurrentUser();
         setCurrentUser(user);
 
@@ -619,7 +619,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           const building = await sharePointService.getBuildings();
           setBldg(building);
 
-          const depts = await sharePointService.getDepartments();
+        const depts = await sharePointService.getDepartments();
           if (isencoder) {
             const mappedrows: any[] = [];
             depts.forEach((row: any) => {
@@ -782,36 +782,36 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
   // visitor details actions
   function handleVisitorDetailsAction(action: string, rowData: IVisitorDetails) {
-  if (action === "view") {
-    _idx = visitorDetailsList.indexOf(rowData);
-    if (rowData.ID) _itemIdDetails = rowData.ID;
-    const detailWithParentId = { ...rowData, ParentId: rowData.ParentId || _itemId };
-    setVisitorDetails(detailWithParentId);
-    setVisitorDetailsMode("edit");
-    setOpenDialogFab(true);
-  } else if (action === "delete") {
-    const idxToDelete = visitorDetailsList.indexOf(rowData);
-    if (idxToDelete > -1) {
-      const tempList = [...visitorDetailsList];
-      tempList.splice(idxToDelete, 1);
-      setVisitorDetailsList(tempList);
-      if (rowData.ID) deleteFilesDetails.push({ Id: rowData.ID, Filename: null });
-      if (tempList.length === 0) setError((prev) => ({ ...prev, Details: "Visitor Details are required. Please add visitor names." }));
-    }
-  } else if (action === "print") {
-    _idx = visitorDetailsList.indexOf(rowData);
-    if (rowData.ID) _itemIdDetails = rowData.ID;
-    setVisitorDetails(rowData);
-    setOpenDialogIDFab(true);
-  } else if (action === "updateSSDApprove") {
-    const idx = visitorDetailsList.findIndex((i) => i.ID === rowData.ID);
-    if (idx !== -1) {
-      const temp = [...visitorDetailsList];
-      temp[idx] = rowData;
-      setVisitorDetailsList(temp);
-      if (isSSDUser) {
-        if (rowData.SSDApprove === "Yes") setInputs((prev) => ({ ...prev, StatusId: 4, Status: { Title: "Approved by SSD" } }));
-        else if (rowData.SSDApprove === "No") setInputs((prev) => ({ ...prev, StatusId: 7, Status: { Title: "Denied by SSD" } }));
+    if (action === "view") {
+      _idx = visitorDetailsList.indexOf(rowData);
+      if (rowData.ID) _itemIdDetails = rowData.ID;
+      const detailWithParentId = { ...rowData, ParentId: rowData.ParentId || _itemId };
+      setVisitorDetails(detailWithParentId);
+      setVisitorDetailsMode("edit");
+      setOpenDialogFab(true);
+    } else if (action === "delete") {
+      const idxToDelete = visitorDetailsList.indexOf(rowData);
+      if (idxToDelete > -1) {
+        const tempList = [...visitorDetailsList];
+        tempList.splice(idxToDelete, 1);
+        setVisitorDetailsList(tempList);
+        if (rowData.ID) deleteFilesDetails.push({ Id: rowData.ID, Filename: null });
+        if (tempList.length === 0) setError((prev) => ({ ...prev, Details: "Visitor Details are required. Please add visitor names." }));
+      }
+    } else if (action === "print") {
+      _idx = visitorDetailsList.indexOf(rowData);
+      if (rowData.ID) _itemIdDetails = rowData.ID;
+      setVisitorDetails(rowData);
+      setOpenDialogIDFab(true);
+    } else if (action === "updateSSDApprove") {
+      const idx = visitorDetailsList.findIndex((i) => i.ID === rowData.ID);
+      if (idx !== -1) {
+        const temp = [...visitorDetailsList];
+        temp[idx] = rowData;
+        setVisitorDetailsList(temp);
+        if (isSSDUser) {
+          if ((rowData as any).SSDApprove === "Yes") setInputs((prev) => ({ ...prev, StatusId: 4, Status: { Title: "Approved by SSD" } }));
+          else if ((rowData as any).SSDApprove === "No") setInputs((prev) => ({ ...prev, StatusId: 7, Status: { Title: "Denied by SSD" } }));
         }
       }
     }
@@ -854,13 +854,27 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     window.open(props.siteUrl + "/SitePages/ViewVisitorappge.aspx", "_self");
   };
 
+  // ************ FIX START: align click with visibility ************
   const handleEditClick = () => {
-    if (isSSDUser && !(inputFields.StatusId === 3 || inputFields.StatusId === 4 || inputFields.StatusId === 7)) {
-      alert("SSD users can only edit requests that have been approved by the Approver.");
+    // use the exact same rule used to show the edit icon
+    const canEdit = checkVisibility(
+      "editicon",
+      inputFields,
+      visitorIsEditMode,
+      isEncoder,
+      isReceptionist,
+      isApproverUser,
+      isWalkinApproverUser,
+      isSSDUser
+    );
+
+    if (!canEdit) {
+      alert("You don't have permission to edit this request.");
       return;
     }
     setEditMode(true);
   };
+  // ************ FIX END ************
 
   // render
   return (

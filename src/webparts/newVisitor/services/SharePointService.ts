@@ -377,7 +377,7 @@ export class SharePointService {
         PlateNo: visitorDetail.PlateNo,
         GateNo: visitorDetail.GateNo,
         IDPresented: visitorDetail.IDPresented,
-        AccessCard: visitorDetail.AccessCard,
+        AccessCardId: typeof visitorDetail.AccessCard === 'number' ? visitorDetail.AccessCard : undefined,
         RequestDate: requestDate,
         DeptId: visitor.DeptId,
         RefNo: refNo,
