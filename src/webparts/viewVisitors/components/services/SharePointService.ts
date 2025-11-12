@@ -16,12 +16,10 @@ import {
   IVisitorDetailExtended,
 } from "../interfaces/IViewVisitors";
 
-/** Escapes single quotes for OData string literals (e.g., O'Brien -> O''Brien) */
 function odataEscape(str: string = ""): string {
   return String(str).replace(/'/g, "''");
 }
 
-/** Inclusive whole-day math, optionally clipped to [clipFrom, clipTo] */
 function inclusiveDaysInRange(
   dateFrom?: string | Date | null,
   dateTo?: string | Date | null,
@@ -50,7 +48,6 @@ function inclusiveDaysInRange(
   return Math.floor((e.getTime() - s.getTime()) / MS_PER_DAY) + 1;
 }
 
-/** OData filter for VisitorType lookup by Title(s). */
 function buildVisitorTypeFilter(lookupInternalName: string, titles: string[]): string {
   const left = lookupInternalName + "/Title";
   return titles.map(t => `${left} eq '${odataEscape(t)}'`).join(" or ");
@@ -58,122 +55,82 @@ function buildVisitorTypeFilter(lookupInternalName: string, titles: string[]): s
 
 export default class SharePointService {
   public static async getCurrentUser() {
-    try {
-      return await sp.web.currentUser();
-    } catch (error) {
-      console.log(error);
-      throw error;
-    }
+    return await sp.web.currentUser();
   }
 
   public static async getCurrentUserGroups() {
-    try {
-      return await sp.web.currentUser.groups();
-    } catch (error) {
-      console.log(error);
-      throw error;
-    }
+    return await sp.web.currentUser.groups();
   }
 
   public static async getUsersPerDept(userId: number): Promise<IUserDept[]> {
-    try {
-      return await sp.web.lists
-        .getByTitle("UsersPerDept")
-        .items.select("*,Name/Title,Dept/Title")
-        .expand("Name,Dept")
-        .top(5000)
-        .orderBy("Modified", true)
-        .filter(`NameId eq ${userId}`)
-        .get();
-    } catch (error) {
-      console.log(error);
-      throw error;
-    }
+    return await sp.web.lists
+      .getByTitle("UsersPerDept")
+      .items.select("*,Name/Title,Dept/Title")
+      .expand("Name,Dept")
+      .top(5000)
+      .orderBy("Modified", true)
+      .filter(`NameId eq ${userId}`)
+      .get();
   }
 
   public static async getApprovers(userId: number): Promise<IUserDept[]> {
-    try {
-      return await sp.web.lists
-        .getByTitle("Approvers")
-        .items.select("*,Name/Title, Dept/Title")
-        .expand("Name,Dept")
-        .top(5000)
-        .filter(`NameId eq ${userId}`)
-        .get();
-    } catch (error) {
-      console.log(error);
-      throw error;
-    }
+    return await sp.web.lists
+      .getByTitle("Approvers")
+      .items.select("*,Name/Title, Dept/Title")
+      .expand("Name,Dept")
+      .top(5000)
+      .filter(`NameId eq ${userId}`)
+      .get();
   }
 
   public static async getWalkinApprovers(userId: number): Promise<IUserDept[]> {
-    try {
-      return await sp.web.lists
-        .getByTitle("WalkinApprovers")
-        .items.select("*,Name/Title, Dept/Title")
-        .expand("Name,Dept")
-        .top(5000)
-        .filter(`NameId eq ${userId}`)
-        .get();
-    } catch (error) {
-      console.log(error);
-      throw error;
-    }
+    return await sp.web.lists
+      .getByTitle("WalkinApprovers")
+      .items.select("*,Name/Title, Dept/Title")
+      .expand("Name,Dept")
+      .top(5000)
+      .filter(`NameId eq ${userId}`)
+      .get();
   }
 
   public static async loadVisitorRequests(from: Date, to: Date): Promise<IVisitor[]> {
-    try {
-      return await sp.web.lists
-        .getByTitle("Visitors")
-        .items.select(
-          "*,Approver/Title,Approver/EMail, Status/Title,Dept/Title,SSDApprover/Title,Author/Title,Author/EMail,Bldg"
-        )
-        .expand("Approver,Dept,Status,SSDApprover,Author")
-        .top(5000)
-        .orderBy("Modified", false)
-        .filter(
-          `Modified ge '${from.toISOString()}' and Modified le '${to.toISOString()}'`
-        )
-        .get();
-    } catch (error) {
-      console.log(error);
-      throw error;
-    }
+    return await sp.web.lists
+      .getByTitle("Visitors")
+      .items.select(
+        "*,Approver/Title,Approver/EMail, Status/Title,Dept/Title,SSDApprover/Title,Author/Title,Author/EMail,Bldg"
+      )
+      .expand("Approver,Dept,Status,SSDApprover,Author")
+      .top(5000)
+      .orderBy("Modified", false)
+      .filter(
+        `Modified ge '${from.toISOString()}' and Modified le '${to.toISOString()}'`
+      )
+      .get();
   }
 
   public static async loadVisitorDetails(from: Date, to: Date): Promise<IVisitorDetail[]> {
-    try {
-      return await sp.web.lists
-        .getByTitle("VisitorDetails")
-        .items.select("*, Status/Title,Dept/Title,Author/Title,Author/EMail")
-        .expand("Dept,Status,Author")
-        .top(5000)
-        .orderBy("Modified", false)
-        .filter(
-          `DateTo ge '${from.toISOString()}' and DateFrom le '${to.toISOString()}'`
-        )
-        .get();
-    } catch (error) {
-      console.log(error);
-      throw error;
-    }
+    return await sp.web.lists
+      .getByTitle("VisitorDetails")
+      .items.select("*, Status/Title,Dept/Title,Author/Title,Author/EMail")
+      .expand("Dept,Status,Author")
+      .top(5000)
+      .orderBy("Modified", false)
+      .filter(
+        `DateTo ge '${from.toISOString()}' and DateFrom le '${to.toISOString()}'`
+      )
+      .get();
   }
 
   public static async searchVisitorsByName(searchText: string): Promise<IVisitorDetail[]> {
-    try {
-      const q = odataEscape(searchText || "");
-      return await sp.web.lists
-        .getByTitle("VisitorDetails")
-        .items.select("*, Status/Title,Dept/Title,Author/Title,Author/EMail")
-        .expand("Dept,Status,Author")
-        .top(5000)
-        .orderBy("Modified", false)
-        .filter(`substringof('${q}', Title) or substringof('${q}', FirstName)`)
-        .get();
-    } catch (error) {
-      console.log(error);
-      throw error;
-    }
+    const q = odataEscape(searchText || "");
+    return await sp.web.lists
+      .getByTitle("VisitorDetails")
+      .items.select("*, Status/Title,Dept/Title,Author/Title,Author/EMail")
+      .expand("Dept,Status,Author")
+      .top(5000)
+      .orderBy("Modified", false)
+      .filter(`substringof('${q}', Title) or substringof('${q}', FirstName)`)
+      .get();
   }
 
   public static async getVisitorEntryCounts(
@@ -182,73 +139,67 @@ export default class SharePointService {
     minCount?: number,
     statusMatch?: 'exact' | 'prefix'
   ): Promise<IVisitorCount[]> {
-    try {
-      const min = typeof minCount === 'number' ? minCount : 14;
-      const usePrefix = statusMatch === 'prefix';
+    const min = typeof minCount === 'number' ? minCount : 14;
+    const usePrefix = statusMatch === 'prefix';
 
-      const statusFilter = usePrefix
-        ? "startswith(Status/Title,'Approved by')"
-        : "Status/Title eq 'Approved by SSD'";
+    const statusFilter = usePrefix
+      ? "startswith(Status/Title,'Approved by')"
+      : "Status/Title eq 'Approved by SSD'";
 
-      const VT = "VisitorType";
-      const allowedVisitorTypes = ["Service Provider", "Project Contractor"];
-      const vtFilter = buildVisitorTypeFilter(VT, allowedVisitorTypes);
+    const VT = "VisitorType";
+    const allowedVisitorTypes = ["Service Provider", "Project Contractor"];
+    const vtFilter = buildVisitorTypeFilter(VT, allowedVisitorTypes);
 
-      const visitorDetails = await sp.web.lists
-        .getByTitle("VisitorDetails")
-        .items.select(`ID,Title,FirstName,CompanyName,DateFrom,DateTo,Status/Title,${VT}/Title,${VT}Id`)
-        .expand(`Status,${VT}`)
-        .top(5000)
-        .filter(
-          "DateTo ge '" + from.toISOString() + "' and " +
-          "DateFrom le '" + to.toISOString() + "' and " +
-          statusFilter + " and (" + vtFilter + ")"
-        )
-        .get();
+    const visitorDetails = await sp.web.lists
+      .getByTitle("VisitorDetails")
+      .items.select(`ID,Title,FirstName,CompanyName,DateFrom,DateTo,Status/Title,${VT}/Title,${VT}Id`)
+      .expand(`Status,${VT}`)
+      .top(5000)
+      .filter(
+        "DateTo ge '" + from.toISOString() + "' and " +
+        "DateFrom le '" + to.toISOString() + "' and " +
+        statusFilter + " and (" + vtFilter + ")"
+      )
+      .get();
 
-      const map: { [key: string]: IVisitorCount } = {};
+    const map: { [key: string]: IVisitorCount } = {};
 
-      for (const d of visitorDetails) {
-        const add = inclusiveDaysInRange(d.DateFrom, d.DateTo, from, to);
-        if (add <= 0) continue;
+    for (const d of visitorDetails) {
+      const add = inclusiveDaysInRange(d.DateFrom, d.DateTo, from, to);
+      if (add <= 0) continue;
 
-        const lastName = d.Title || "";
-        const firstName = d.FirstName || "";
-        const key = (firstName + "__" + lastName).toLowerCase();
+      const lastName = d.Title || "";
+      const firstName = d.FirstName || "";
+      const key = (firstName + "__" + lastName).toLowerCase();
 
-        if (!map[key]) {
-          map[key] = {
-            ID: d.ID,
-            FirstName: firstName,
-            LastName: lastName,
-            CompanyName: d.CompanyName || "",
-            VisitCount: add,
-            isExpanded: false,
-            detailsData: [],
-          };
-        } else {
-          map[key].VisitCount = (map[key].VisitCount || 0) + add;
-        }
+      if (!map[key]) {
+        map[key] = {
+          ID: d.ID,
+          FirstName: firstName,
+          LastName: lastName,
+          CompanyName: d.CompanyName || "",
+          VisitCount: add,
+          isExpanded: false,
+          detailsData: [],
+        };
+      } else {
+        map[key].VisitCount = (map[key].VisitCount || 0) + add;
       }
-
-      return Object.values(map)
-        .filter(v => (v.VisitCount || 0) > min)
-        .sort((a, b) => b.VisitCount - a.VisitCount || a.LastName.localeCompare(b.LastName));
-    } catch (error) {
-      console.log(error);
-      throw error;
     }
+
+    return Object.values(map)
+      .filter(v => (v.VisitCount || 0) > min)
+      .sort((a, b) => b.VisitCount - a.VisitCount || a.LastName.localeCompare(b.LastName));
   }
 
-public static async getVisitorDetailedInfo(
-  firstName: string,
-  lastName: string,
-  from: Date,
-  to: Date,
-  approvedOnly: boolean = true,
-  statusMatch: "exact" | "prefix" = "exact"
-): Promise<IVisitorDetailExtended[]> {
-  try {
+  public static async getVisitorDetailedInfo(
+    firstName: string,
+    lastName: string,
+    from: Date,
+    to: Date,
+    approvedOnly: boolean = true,
+    statusMatch: "exact" | "prefix" = "exact"
+  ): Promise<IVisitorDetailExtended[]> {
     const fn = odataEscape(firstName || "");
     const ln = odataEscape(lastName || "");
 
@@ -267,7 +218,7 @@ public static async getVisitorDetailedInfo(
       .items.select(
         "ID,Title,FirstName,DateFrom,DateTo,CompanyName,Status/Title,Dept/Title,ParentId," +
         "VisitorTypeId,VisitorType/Title," +
-        "AccessCardId,AccessCard/Title" // ✅ Add AccessCard lookup fields
+        "AccessCardId,AccessCard/Title"
       )
       .expand("Status", "Dept", "VisitorType", "AccessCard")
       .top(5000)
@@ -305,48 +256,46 @@ public static async getVisitorDetailedInfo(
         Bldg: parent.Bldg || "",
       } as IVisitorDetailExtended;
     });
-  } catch (error) {
-    console.error("❌ Error in getVisitorDetailedInfo:", error);
-    throw error;
   }
-}
 
-
-/** ✅ Updates AccessCard lookup field using AccessCardId */
-public static async updateAccessCard(id: number, accessCardId: number): Promise<void> {
-  try {
+  public static async updateAccessCard(id: number, accessCardId: number): Promise<void> {
     await sp.web.lists
       .getByTitle("VisitorDetails")
       .items.getById(id)
       .update({
-        AccessCardId: accessCardId   // ✅ lookup field update
+        AccessCardId: accessCardId
       });
-
-    console.log(`✅ Access Card updated for ID ${id} → AccessPass ID: ${accessCardId}`);
-  } catch (error) {
-    console.error(`❌ Failed to update Access Card for ID ${id}`, error);
-    throw error;
   }
-}
 
-/** ✅ Returns lookup options for MaterialTable */
-public static async getAccessCardOptions(): Promise<{ [key: number]: string }> {
-  try {
+  public static async getAccessCardOptions(): Promise<{
+    [key: number]: { title: string; buildings: string[] };
+  }> {
     const items = await sp.web.lists
       .getByTitle("AccessPass")
-      .items.select("Id", "Title")
+      .items.select("Id", "Title", "Building/Title", "Building/Id")
+      .expand("Building")
       .top(5000)
       .get();
 
-    const lookup: { [key: number]: string } = {};
-    items.forEach(item => {
-      lookup[item.Id] = item.Title;
-    });
+    const lookup: { [key: number]: { title: string; buildings: string[] } } = {};
+
+    for (const item of items) {
+      let buildings: string[] = [];
+
+      if (item.Building && item.Building.results) {
+        for (const b of item.Building.results) {
+          if (b && b.Title) buildings.push(b.Title);
+        }
+      } else if (item.Building && item.Building.Title) {
+        buildings = [item.Building.Title];
+      }
+
+      lookup[item.Id] = {
+        title: item.Title,
+        buildings
+      };
+    }
 
     return lookup;
-  } catch (error) {
-    console.error("❌ Failed to load Access Card options", error);
-    return {};
   }
-}
 }

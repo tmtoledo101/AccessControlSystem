@@ -60,6 +60,7 @@ export interface IVisitorDetail {
   ParentId: number;      // FK to "Visitors" list
   Author: { Title: string; EMail: string };
   VisitorType: {Title: string};
+  Bldg?: string;
   // Bldg is not stored here directly; it’s enriched from parent "Visitors"
 }
 

@@ -11,11 +11,11 @@ interface IVisitorDetailsTableProps {
   title?: string;
 }
 
-const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
-  const { data, onViewAction, title = "Visitors" } = props;
-  const [accessCardLookup, setAccessCardLookup] = React.useState<{ [key: number]: string }>({});
+const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = ({ data, onViewAction, title = "Visitors" }) => {
+  const [accessCardLookup, setAccessCardLookup] = React.useState<{
+    [key: number]: { title: string; buildings: string[] };
+  }>({});
 
-  // 🔄 Load lookup values from AccessPass list
   React.useEffect(() => {
     const loadAccessPassOptions = async () => {
       try {
@@ -25,7 +25,6 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
         console.error("Failed to load access card options:", error);
       }
     };
-
     loadAccessPassOptions();
   }, []);
 
@@ -70,14 +69,43 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
           render: rowData => <span>{rowData.Car ? 'Yes' : 'No'}</span>
         },
         { title: "Building", field: "Bldg", editable: 'never' },
-
-        // ✅ LOOKUP COLUMN FIXED
         {
           title: "Access Card",
-          field: "AccessCardId",  // <-- IMPORTANT FIX
-          lookup: accessCardLookup
-        },
+          field: "AccessCardId",
+          editComponent: props => {
+          // Normalize and split the buildings string
+          const bldgRaw = props.rowData.Bldg || "";
+          const selectedBuildings = bldgRaw
+            .split(/[,;/]+/)
+            .map(b => b.trim().toLowerCase())
+            .filter(Boolean); // avoid empty strings
 
+          // Filter AccessCards that match at least one building
+          const filteredOptions = Object.entries(accessCardLookup)
+            .filter(([_, val]) =>
+              val.buildings.some(
+                accessCardBldg => selectedBuildings.includes(accessCardBldg.toLowerCase())
+              )
+            )
+            .map(([id, val]) => (
+              <option key={id} value={id}>{val.title}</option>
+            ));
+
+          return (
+            <select
+              value={props.value !== undefined && props.value !== null ? props.value : ''}
+              onChange={e => props.onChange(Number(e.target.value))}
+            >
+              <option value="">-- Select Access Card --</option>
+              {filteredOptions}
+            </select>
+          );
+        },
+          render: rowData =>
+            accessCardLookup[rowData.AccessCardId]
+              ? accessCardLookup[rowData.AccessCardId].title
+              : ''
+        },
         { title: 'Status', field: "Status.Title", editable: 'never' },
       ]}
       data={data}
