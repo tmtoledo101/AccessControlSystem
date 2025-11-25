@@ -1,6 +1,6 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
-  "id": "7fa9faa9-a510-4a37-b95e-f83ba506d087",
+  "id": "ccc3a39a-2630-4c11-bfc0-c31a1a4aadb1",
   "alias": "DisplayOvertimeWebPart",
   "componentType": "WebPart",
 
@@ -19,11 +19,11 @@
   "preconfiguredEntries": [{
     "groupId": "5c03119e-3074-46fd-976b-c60198311f70", // Other
     "group": { "default": "Other" },
-    "title": { "default": "DisplayOvertime_EmailNotif2025" },
+    "title": { "default": "DisplayOvertime" },
     "description": { "default": "DisplayOvertime description" },
     "officeFabricIconFontName": "Page",
     "properties": {
-      "description": "DisplayOvertime_EmailNotif2025"
+      "description": "DisplayOvertime"
     }
   }]
 }

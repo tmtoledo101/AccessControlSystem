@@ -1,6 +1,6 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
-  "id": "3064afc0-ace0-479e-b577-2d0ba523a307",
+  "id": "30405483-2ba2-4008-b0b6-35c90c6f7ba4",
   "alias": "NewOvertimeWebPart",
   "componentType": "WebPart",
 
@@ -19,11 +19,11 @@
   "preconfiguredEntries": [{
     "groupId": "5c03119e-3074-46fd-976b-c60198311f70", // Other
     "group": { "default": "Other" },
-    "title": { "default": "NewOvertime_EmailNotif2025" },
+    "title": { "default": "NewOvertime" },
     "description": { "default": "NewOvertime description" },
     "officeFabricIconFontName": "Page",
     "properties": {
-      "description": "NewOvertime_EmailNotif2025"
+      "description": "NewOvertime"
     }
   }]
 }

@@ -1,13 +1,13 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
   "solution": {
-    "name": "bacs-client-side-solution-EmailNotif2025",
-    "id": "10b7d8dd-2571-45f8-a3ce-b35d31fb320d",
-    "version": "2.0.0.0",
+    "name": "bacs-client-side-solution",
+    "id": "831d38b2-12a3-4d25-91dd-acd5b3d8da0c",
+    "version": "2.0.0.1",
     "includeClientSideAssets": true,
     "isDomainIsolated": false
   },
   "paths": {
-    "zippedPackage": "solution/bacs_dev.sppkg"
+    "zippedPackage": "solution/bacs.sppkg"
   }
 }

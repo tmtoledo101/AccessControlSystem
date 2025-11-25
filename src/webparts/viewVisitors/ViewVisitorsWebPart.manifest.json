@@ -1,6 +1,6 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
-  "id": "06674025-253f-44f6-8fd2-24844c71b239",
+  "id": "aa464419-e708-43f4-a820-1b9e444d7337",
   "alias": "ViewVisitorsWebPart",
   "componentType": "WebPart",
 
@@ -19,11 +19,11 @@
   "preconfiguredEntries": [{
     "groupId": "5c03119e-3074-46fd-976b-c60198311f70", // Other
     "group": { "default": "Other" },
-    "title": { "default": "ViewVisitors_EmailNotif2025" },
+    "title": { "default": "ViewVisitors" },
     "description": { "default": "ViewVisitors description" },
     "officeFabricIconFontName": "Page",
     "properties": {
-      "description": "ViewVisitors_EmailNotif2025"
+      "description": "ViewVisitors"
     }
   }]
 }
