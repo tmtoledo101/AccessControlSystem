@@ -1,13 +1,13 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
   "solution": {
-    "name": "bacs-client-side-solution_2025_KPMG_Dev",
+    "name": "bacs-client-side-solution_KPMGDEV2025",
     "id": "f9949dcc-aaaf-4975-ba67-52f94d740dcd",
-    "version": "1.0.0.3",
+    "version": "1.0.0.8",
     "includeClientSideAssets": true,
     "isDomainIsolated": false
   },
   "paths": {
-    "zippedPackage": "solution/bacs_2025.sppkg"
+    "zippedPackage": "solution/bacs_KPMGDEV2025.sppkg"
   }
 }
