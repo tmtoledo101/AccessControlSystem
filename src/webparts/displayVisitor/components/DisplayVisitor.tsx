@@ -41,7 +41,6 @@ function Alert(props: AlertProps) {
   return <MuiAlert elevation={6} variant="filled" {...props} />;
 }
 
-// small helpers
 const isEmptyString = (v: any) =>
   v === null || v === undefined || (typeof v === "string" && v.trim() === "");
 const nowDate = () => new Date();
@@ -56,13 +55,9 @@ const checkVisibility = (
   isWalkinApproverUser: boolean,
   isSSDUser: boolean
 ): boolean => {
-  const forApprover = isApproverUser && visitor.StatusId === 2;
-  const forWalkinApprover = isWalkinApproverUser && visitor.StatusId === 2;
   const forSSD =
     isSSDUser && (visitor.StatusId === 3 || visitor.StatusId === 4 || visitor.StatusId === 7);
   const forEncoder = isEncoder && (visitor.StatusId === 1 || visitor.StatusId === 2);
-  const forReceptionist = isReceptionist && (visitor.StatusId === 1 || visitor.StatusId === 2);
-
   switch (element) {
     case "editicon":
       return !isEdit && (forEncoder || forSSD);
@@ -72,231 +67,141 @@ const checkVisibility = (
 };
 
 const initialVisitor: IVisitor = {
-  ID: null,
-  Title: "",
-  ExternalType: "",
-  Purpose: "",
-  DeptId: null,
-  Dept: { Title: "" },
-  Bldg: "",
-  RoomNo: "",
-  EmpNo: "",
-  ContactName: "",
-  Position: "",
-  DirectNo: "",
-  LocalNo: "",
-  DateTimeVisit: nowDate(),
-  DateTimeArrival: nowDate(),
-  CompanyName: "",
-  Address: "",
-  VisContactNo: "",
-  VisLocalNo: "",
-  RequireParking: false,
-  Remarks1: "",
-  Remarks2: "",
-  StatusId: 0,
-  Status: { Title: "" },
-  ApproverId: null,
-  Approver: { Title: "", EMail: "", ID: null },
-  Files: [],
-  initFiles: [],
-  origFiles: [],
-  SSDApproverId: null,
-  SSDApprover: { Title: "" },
-  RequestDate: nowDate(),
-  Author: { Title: "", EMail: "" },
-  AuthorId: null,
-  colorAccess: "General",
-  SSDDate: null,
-  DeptApproverDate: null,
-  MarkCompleteDate: null,
-  Receptionist: { Title: "" },
-  ReceptionistId: null,
-  PurposeOthers: "",
+  ID: null,Title: "",ExternalType: "", Purpose: "", DeptId: null, Dept: { Title: "" }, Bldg: "",RoomNo: "",
+  EmpNo: "",ContactName: "",Position: "",DirectNo: "",LocalNo: "",
+  DateTimeVisit: nowDate(),DateTimeArrival: nowDate(),CompanyName: "",Address: "",
+  VisContactNo: "",VisLocalNo: "",
+  RequireParking: false,Remarks1: "",Remarks2: "",
+  StatusId: 0,Status: { Title: "" },
+  ApproverId: null,Approver: { Title: "", EMail: "", ID: null },
+  Files: [],initFiles: [],origFiles: [],
+  SSDApproverId: null,SSDApprover: { Title: "" },RequestDate: nowDate(),
+  Author: { Title: "", EMail: "" },AuthorId: null,colorAccess: "General",SSDDate: null,DeptApproverDate: null,
+  MarkCompleteDate: null,Receptionist: { Title: "" },ReceptionistId: null,PurposeOthers: "",
 };
 
 const initialFormError: IFormError = {
-  ExternalType: "",
-  Purpose: "",
-  DeptId: "",
-  Bldg: "",
-  RoomNo: "",
-  EmpNo: "",
-  Title: "",
-  Position: "",
-  DirectNo: "",
-  LocalNo: "",
-  DateTimeVisit: "",
-  DateTimeArrival: "",
-  CompanyName: "",
-  Address: "",
-  VisContactNo: "",
-  VisLocalNo: "",
-  RequireParking: "",
-  ApproverId: "",
-  Details: "",
-  Remarks1: "",
-  Remarks2: "",
-  PurposeOthers: "",
+  ExternalType: "",Purpose: "",DeptId: "",Bldg: "",RoomNo: "",EmpNo: "",
+  Title: "",Position: "",DirectNo: "",LocalNo: "",
+  DateTimeVisit: "",DateTimeArrival: "",
+  CompanyName: "",Address: "",
+  VisContactNo: "",VisLocalNo: "",
+  RequireParking: "",ApproverId: "",
+  Details: "",Remarks1: "",Remarks2: "",PurposeOthers: "",
 };
 
 const initialVisitorDetail: IVisitorDetails = {
-  ID: null,
-  Title: "",
-  FirstName: "",
-  Car: false,
-  AccessCard: "",
-  PlateNo: "",
-  TypeofVehicle: "",
-  Color: "",
-  DriverLastName: "",
-  DriverFirstName: "",
-  IDPresented: "",
-  GateNo: "",
-  ParentId: null,
-  Files: [],
-  initFiles: [],
-  origFiles: [],
+  ID: null,Title: "",FirstName: "",
+  Car: false,AccessCard: "",
+  PlateNo: "",TypeofVehicle: "",Color: "",DriverLastName: "",DriverFirstName: "",IDPresented: "",
+  GateNo: "",ParentId: null,
+  Files: [],initFiles: [],origFiles: [],
 };
 
 const initialVisitorDetailError: IVisitorDetailsError = {
-  Title: "",
-  FirstName: "",
-  Car: "",
-  AccessCard: "",
-  PlateNo: "",
-  TypeofVehicle: "",
-  Color: "",
-  DriverLastName: "",
-  DriverFirstName: "",
-  IDPresented: "",
-  GateNo: "",
-  Files: "",
+  Title: "",FirstName: "",Car: "",
+  AccessCard: "",PlateNo: "",TypeofVehicle: "",Color: "",
+  DriverLastName: "",DriverFirstName: "",
+  IDPresented: "",GateNo: "",Files: "",
 };
 
 const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const classes = useStyles();
   const printRef = useRef<HTMLDivElement>(null);
 
-  const Encoders_Group = "Encoders";
   const Receptionist_Group = "Receptionist";
-  //const SSD_Group = "SSD";
   const SSD_Group = "SSD_v2";
-  const WalkinApprover_Group = "WalkinApprover";
 
   const sharePointService = new SharePointService(props.siteUrl, props.siteRelativeUrl);
   const fileService = new FileService(props.siteRelativeUrl);
 
-  // UI state
-  const [openDialog, setOpenDialog] = useState(false);
-  const [openDialogFab, setOpenDialogFab] = useState(false);
-  const [openDialogIDFab, setOpenDialogIDFab] = useState(false);
-  const [isProgress, setProgress] = useState(false);
-  const [isSavingDone, setSavingDone] = useState(false);
-  const [dialogMessage, setDialogMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [openDialog, setOpenDialog] = useState(false),
+    [openDialogFab, setOpenDialogFab] = useState(false),
+    [openDialogIDFab, setOpenDialogIDFab] = useState(false),
+    [isProgress, setProgress] = useState(false),
+    [isSavingDone, setSavingDone] = useState(false),
+    [dialogMessage, setDialogMessage] = useState(""),
+    [successMessage, setSuccessMessage] = useState("");
 
-  // role flags
-  const [isEncoder, setEncoder] = useState(false);
-  const [isReceptionist, setReceptionist] = useState(false);
-  const [isApproverUser, setApproverUser] = useState(false);
-  const [isSSDUser, setSSDUser] = useState(false);
-  const [isWalkinApproverUser, setisWalkinApproverUser] = useState(false);
+  const [isEncoder, setEncoder] = useState(false),
+    [isReceptionist, setReceptionist] = useState(false),
+    [isApproverUser, setApproverUser] = useState(false),
+    [isSSDUser, setSSDUser] = useState(false),
+    [isWalkinApproverUser, setisWalkinApproverUser] = useState(false);
 
-  // lookups & lists
-  const [SSDUsers, setSSD] = useState<any[]>([]);
-  const [WalkinApprovers, setWalkinApprovers] = useState<any[]>([]);
-  const [colorList, setcolorList] = useState<any[]>([]);
-  const [purposeList, setPurpose] = useState<any[]>([]);
-  const [deptList, setDept] = useState<any[]>([]);
-  const [bldgList, setBldg] = useState<any[]>([]);
-  const [approverList, setApprovers] = useState<any[]>([]);
-  const [contactList, setContacts] = useState<any[]>([]);
-  const [IDList, setIDs] = useState<any[]>([]);
-  const [GateList, setGates] = useState<any[]>([]);
-  const [usersPerDept, setUsersPerDept] = useState<any[]>([]);
-  const [isAC1Open, setAC1Open] = useState(false);
+  const [SSDUsers, setSSD] = useState<any[]>([]),
+    [WalkinApprovers, setWalkinApprovers] = useState<any[]>([]),
+    [colorList, setcolorList] = useState<any[]>([]),
+    [purposeList, setPurpose] = useState<any[]>([]),
+    [deptList, setDept] = useState<any[]>([]),
+    [bldgList, setBldg] = useState<any[]>([]),
+    [approverList, setApprovers] = useState<any[]>([]),
+    [contactList, setContacts] = useState<any[]>([]),
+    [IDList, setIDs] = useState<any[]>([]),
+    [GateList, setGates] = useState<any[]>([]),
+    [usersPerDept, setUsersPerDept] = useState<any[]>([]),
+    [isAC1Open, setAC1Open] = useState(false);
 
-  // form & details
-  const [inputFields, setInputs] = useState<IVisitor>({ ...initialVisitor });
-  const [errorFields, setError] = useState<IFormError>({ ...initialFormError });
-  const [visitorDetails, setVisitorDetails] = useState<IVisitorDetails>({ ...initialVisitorDetail });
-  const [visitorDetailsList, setVisitorDetailsList] = useState<IVisitorDetails[]>([]);
-  const [errorDetails, setErrorDetails] = useState<IVisitorDetailsError>({
-    ...initialVisitorDetailError,
-  });
+  const [inputFields, setInputs] = useState<IVisitor>({ ...initialVisitor }),
+    [errorFields, setError] = useState<IFormError>({ ...initialFormError }),
+    [visitorDetails, setVisitorDetails] = useState<IVisitorDetails>({ ...initialVisitorDetail }),
+    [visitorDetailsList, setVisitorDetailsList] = useState<IVisitorDetails[]>([]),
+    [errorDetails, setErrorDetails] = useState<IVisitorDetailsError>({
+      ...initialVisitorDetailError,
+    });
 
-  // misc
   const [approverDetails, setApproverDetails] = useState<IApproverDetails>({
-    email: "",
-    name: "",
-  });
-  const [visitorDetailsMode, setVisitorDetailsMode] = useState<"add" | "edit">("add");
-  const [sAction, setsAction] = useState("");
-  const [modifiedDate, setModifiedDate] = useState<Date | null>(null);
-  const [isHidePrint, setHidePrint] = useState(true);
-  const [visitorIsEditMode, setEditMode] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+      email: "",
+      name: "",
+    }),
+    [visitorDetailsMode, setVisitorDetailsMode] = useState<"add" | "edit">("add"),
+    [sAction, setsAction] = useState(""),
+    [modifiedDate, setModifiedDate] = useState<Date | null>(null),
+    [isHidePrint, setHidePrint] = useState(true),
+    [visitorIsEditMode, setEditMode] = useState(false),
+    [currentUser, setCurrentUser] = useState<any>(null);
 
-  // internal mutable vars
-  let _idx = -1;
-  let _deptName = "";
-  let _itemId = 0;
-  let _itemIdDetails = 0;
-  let _sourceURL: string | null = null;
-  let _refno = "";
-  let _colorValue = "Green";
+  let _idx = -1,
+    _deptName = "",
+    _itemId = 0,
+    _itemIdDetails = 0,
+    _sourceURL: string | null = null,
+    _refno = "",
+    _colorValue = "Green";
   let deleteFiles: any[] = [];
   let deleteFilesDetails: any[] = [];
   let _origVisitorDetailsList: IVisitorDetails[] = [];
 
-  // -------------------------
-  // Validation helpers
-  // -------------------------
-  const setFieldError = (name: string, msg: string) => {
-    setError((prev) => ({ ...prev, [name]: msg }));
-  };
-
   const validateInputs = (name: string, value: any) => {
     const tempErrors = { ...errorFields };
-
     if (name === "EmpNo") {
       tempErrors[name] = "";
       setError(tempErrors);
       return;
     }
-
     if (isEmptyString(value)) {
       tempErrors[name] = "This is a required input field";
-    } else {
-      if (name === "DateTimeVisit" || name === "DateTimeArrival") {
-        const visitDate = inputFields.DateTimeVisit
-          ? new Date(inputFields.DateTimeVisit)
-          : null;
-        const arrivalDate = inputFields.DateTimeArrival
-          ? new Date(inputFields.DateTimeArrival)
-          : null;
-        if (visitDate && arrivalDate && visitDate > arrivalDate) {
-          tempErrors.DateTimeVisit = "From Date should be earlier than To Date";
-          tempErrors.DateTimeArrival = "To Date should be later than From Date";
-        } else {
-          tempErrors.DateTimeVisit = "";
-          tempErrors.DateTimeArrival = "";
-        }
+    } else if (name === "DateTimeVisit" || name === "DateTimeArrival") {
+      const visitDate = inputFields.DateTimeVisit
+        ? new Date(inputFields.DateTimeVisit)
+        : null;
+      const arrivalDate = inputFields.DateTimeArrival
+        ? new Date(inputFields.DateTimeArrival)
+        : null;
+      if (visitDate && arrivalDate && visitDate > arrivalDate) {
+        tempErrors.DateTimeVisit = "From Date should be earlier than To Date";
+        tempErrors.DateTimeArrival = "To Date should be later than From Date";
       } else {
-        tempErrors[name] = "";
+        tempErrors.DateTimeVisit = "";
+        tempErrors.DateTimeArrival = "";
       }
-    }
+    } else tempErrors[name] = "";
     setError(tempErrors);
   };
 
   const validateInputsDetails = (name: string, value: any) => {
     const tempErrors = { ...errorDetails };
-    if (isEmptyString(value)) {
-      tempErrors[name] = "This is a required input field";
-    } else {
-      tempErrors[name] = "";
-    }
+    tempErrors[name] = isEmptyString(value) ? "This is a required input field" : "";
     setErrorDetails(tempErrors);
   };
 
@@ -307,16 +212,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
     if ((isEncoder || isReceptionist) && (inputFields.StatusId === 1 || inputFields.StatusId === 2)) {
       requiredFields.push(
-        "Purpose",
-        "DeptId",
-        "Bldg",
-        "RoomNo",
-        "DateTimeVisit",
-        "DateTimeArrival",
-        "CompanyName",
-        "Address",
-        "VisContactNo",
-        "ApproverId"
+        "Purpose","DeptId","Bldg","RoomNo",
+        "DateTimeVisit","DateTimeArrival",
+        "CompanyName","Address","VisContactNo","ApproverId"
       );
       if (inputFields.Purpose === "Others") requiredFields.push("PurposeOthers");
     } else if ((isApproverUser || isWalkinApproverUser) && inputFields.StatusId === 2 && t === "deny") {
@@ -343,12 +241,10 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         } else tempErrors[field] = "";
       } else if (field === "ApproverId" && t === "savedraft") {
         tempErrors[field] = "";
-      } else {
-        if (isEmptyString((inputFields as any)[field])) {
-          tempErrors[field] = "This is a required input field";
-          validationErrorsFound.push(field);
-        } else tempErrors[field] = "";
-      }
+      } else if (isEmptyString((inputFields as any)[field])) {
+        tempErrors[field] = "This is a required input field";
+        validationErrorsFound.push(field);
+      } else tempErrors[field] = "";
     }
 
     if (visitorDetailsList.length === 0) {
@@ -410,12 +306,10 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           field === "DriverLastName")
       ) {
         tempErrors[field] = "";
-      } else {
-        if (isEmptyString((visitorDetails as any)[field])) {
-          tempErrors[field] = "This is a required input field";
-          detailValidationErrorsFound.push(field);
-        } else tempErrors[field] = "";
-      }
+      } else if (isEmptyString((visitorDetails as any)[field])) {
+        tempErrors[field] = "This is a required input field";
+        detailValidationErrorsFound.push(field);
+      } else tempErrors[field] = "";
     }
 
     if (detailValidationErrorsFound.length > 0) isValid = false;
@@ -423,9 +317,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     return isValid;
   };
 
-  // -------------------------
-  // Email & Save flows
-  // -------------------------
   const sendEmail = async () => {
     const emailService = new EmailService(props.siteUrl, currentUser.Email);
     await emailService.sendNotification(
@@ -465,7 +356,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         return;
       }
 
-      // Save main visitor
       const updatedVisitor = await sharePointService.saveVisitor(
         inputFields,
         sAction,
@@ -473,7 +363,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       );
       _refno = updatedVisitor.Title;
 
-      // File upload/delete for main visitor
       await fileService.uploadVisitorFiles(
         _itemId,
         inputFields.Files,
@@ -481,20 +370,15 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         deleteFiles
       );
 
-      // send email
       await sendEmail();
 
-      // Save / update visitor details and upload their files
       for (const visitorDetail of visitorDetailsList) {
         const detailToSave = { ...visitorDetail, ParentId: _itemId };
         let detailStatusId = updatedVisitor.StatusId;
 
-        // SSD logic
         if (isSSDUser && (visitorDetail as any).SSDApprove !== undefined) {
           detailStatusId = (visitorDetail as any).SSDApprove === "Yes" ? 4 : 7;
-        }
-        // Parking Request logic (Approver)
-        else if (isApproverUser && (visitorDetail as any).ParkingRequest !== undefined) {
+        } else if (isApproverUser && (visitorDetail as any).ParkingRequest !== undefined) {
           detailStatusId = (visitorDetail as any).ParkingRequest === "Yes" ? 4 : 7;
         }
 
@@ -519,7 +403,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         }
       }
 
-      // Delete visitor details files and deleted details
       await fileService.deleteVisitorDetailsFiles(deleteFilesDetails);
 
       for (const origDetail of _origVisitorDetailsList) {
@@ -545,9 +428,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     }
   };
 
-  // -------------------------
-  // Dialog handlers
-  // -------------------------
   const handleCloseDialog = (confirmed: boolean) => {
     setOpenDialog(false);
     if (!confirmed) return;
@@ -570,35 +450,29 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
   const handleCloseDialogFab = (confirmed: boolean) => {
     const isViewOnly = isApproverUser || isSSDUser;
-    if (confirmed) {
-      if (visitorIsEditMode && !isViewOnly) {
-        if (!validateOnSubmitDetails()) return;
-        const detailToSave = { ...visitorDetails, ParentId: _itemId };
-        if (visitorDetailsMode === "add") {
-          setVisitorDetailsList((prev) => [...prev, detailToSave]);
-          setError((prev) => ({ ...prev, Details: "" }));
-        } else {
-          const updated = [...visitorDetailsList];
-          if (_idx !== -1) {
-            updated[_idx] = detailToSave;
-            setVisitorDetailsList(updated);
-          }
+    if (confirmed && visitorIsEditMode && !isViewOnly) {
+      if (!validateOnSubmitDetails()) return;
+      const detailToSave = { ...visitorDetails, ParentId: _itemId };
+      if (visitorDetailsMode === "add") {
+        setVisitorDetailsList((prev) => [...prev, detailToSave]);
+        setError((prev) => ({ ...prev, Details: "" }));
+      } else {
+        const updated = [...visitorDetailsList];
+        if (_idx !== -1) {
+          updated[_idx] = detailToSave;
+          setVisitorDetailsList(updated);
         }
       }
     }
     setOpenDialogFab(false);
   };
 
-  // -------------------------
-  // Initialization
-  // -------------------------
   useEffect(() => {
     (async () => {
       try {
         setProgress(true);
         _sourceURL = document.referrer;
-        //_itemId = parseInt(getUrlParameter("pid"));
-        _itemId = 111;
+        _itemId = parseInt(getUrlParameter("pid"));
         const user = await sharePointService.getCurrentUser();
         setCurrentUser(user);
 
@@ -607,7 +481,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         let isencoder = false;
         let isreceptionist = false;
 
-        // Approver from Approvers list
         const isApproverFromList = await sharePointService.isCurrentUserApprover();
         console.log("isApproverFromList (Approvers list):", isApproverFromList);
         if (isApproverFromList) {
@@ -677,6 +550,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           _deptName = visitor.Dept.Title;
           const purpose = await sharePointService.getPurposes();
           setPurpose(purpose);
+
           const building = await sharePointService.getBuildings();
           setBldg(building);
 
@@ -720,9 +594,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // -------------------------
-  // Change handlers
-  // -------------------------
   const handleChangeCbo = async (event: any) => {
     const { name, value } = event.target;
     if (name === "DeptId") {
@@ -862,7 +733,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     setOpenDialogFab(true);
   };
 
-  // visitor details actions
   function handleVisitorDetailsAction(action: string, rowData: IVisitorDetails) {
     if (action === "view") {
       _idx = visitorDetailsList.indexOf(rowData);
@@ -916,7 +786,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         const temp = [...visitorDetailsList];
         temp[idx] = rowData;
         setVisitorDetailsList(temp);
-
       }
     }
   }
@@ -934,17 +803,17 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     document.body.removeChild(link);
   };
 
-  // submit / cancel
   const onClickSubmit = (e: any, t: string) => {
     setsAction(t);
-    let msg = "";
-    if (t === "savedraft") msg = "Do you want to save and exit?";
-    else if (t === "submit") msg = "Do you want to submit this form?";
-    else if (t === "approve") msg = "Do you want to approve this request?";
-    else if (t === "deny") msg = "Do you want to deny this request?";
-    else if (t === "markcomplete") msg = "Do you want to complete this request?";
-    const isValid = validateOnSubmit(t);
-    if (isValid) {
+    const msgMap: Record<string, string> = {
+      savedraft: "Do you want to save and exit?",
+      submit: "Do you want to submit this form?",
+      approve: "Do you want to approve this request?",
+      deny: "Do you want to deny this request?",
+      markcomplete: "Do you want to complete this request?",
+    };
+    const msg = msgMap[t] || "Do you want to proceed?";
+    if (validateOnSubmit(t)) {
       setDialogMessage(msg);
       setOpenDialog(true);
     }
@@ -970,7 +839,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       isWalkinApproverUser,
       isSSDUser
     );
-
     if (!canEdit) {
       alert("You don't have permission to edit this request.");
       return;
@@ -978,7 +846,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     setEditMode(true);
   };
 
-  // render
   return (
     <form noValidate autoComplete="off">
       {inputFields.ID && (
