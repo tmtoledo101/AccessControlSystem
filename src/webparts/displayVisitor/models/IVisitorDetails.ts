@@ -19,6 +19,7 @@ export interface IVisitorDetails {
   initFiles: any[];
   origFiles: any[];
   SSDApprove?: string; // Yes/No value for SSD approval
+  ParkingRequest?: string; // Yes/No value for Parking Request
 }
 
 /**

@@ -42,7 +42,8 @@ function Alert(props: AlertProps) {
 }
 
 // small helpers
-const isEmptyString = (v: any) => v === null || v === undefined || (typeof v === "string" && v.trim() === "");
+const isEmptyString = (v: any) =>
+  v === null || v === undefined || (typeof v === "string" && v.trim() === "");
 const nowDate = () => new Date();
 
 const checkVisibility = (
@@ -57,7 +58,8 @@ const checkVisibility = (
 ): boolean => {
   const forApprover = isApproverUser && visitor.StatusId === 2;
   const forWalkinApprover = isWalkinApproverUser && visitor.StatusId === 2;
-  const forSSD = isSSDUser && (visitor.StatusId === 3 || visitor.StatusId === 4 || visitor.StatusId === 7);
+  const forSSD =
+    isSSDUser && (visitor.StatusId === 3 || visitor.StatusId === 4 || visitor.StatusId === 7);
   const forEncoder = isEncoder && (visitor.StatusId === 1 || visitor.StatusId === 2);
   const forReceptionist = isReceptionist && (visitor.StatusId === 1 || visitor.StatusId === 2);
 
@@ -220,10 +222,15 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const [errorFields, setError] = useState<IFormError>({ ...initialFormError });
   const [visitorDetails, setVisitorDetails] = useState<IVisitorDetails>({ ...initialVisitorDetail });
   const [visitorDetailsList, setVisitorDetailsList] = useState<IVisitorDetails[]>([]);
-  const [errorDetails, setErrorDetails] = useState<IVisitorDetailsError>({ ...initialVisitorDetailError });
+  const [errorDetails, setErrorDetails] = useState<IVisitorDetailsError>({
+    ...initialVisitorDetailError,
+  });
 
   // misc
-  const [approverDetails, setApproverDetails] = useState<IApproverDetails>({ email: "", name: "" });
+  const [approverDetails, setApproverDetails] = useState<IApproverDetails>({
+    email: "",
+    name: "",
+  });
   const [visitorDetailsMode, setVisitorDetailsMode] = useState<"add" | "edit">("add");
   const [sAction, setsAction] = useState("");
   const [modifiedDate, setModifiedDate] = useState<Date | null>(null);
@@ -231,7 +238,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const [visitorIsEditMode, setEditMode] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // internal mutable vars (kept from original logic)
+  // internal mutable vars
   let _idx = -1;
   let _deptName = "";
   let _itemId = 0;
@@ -253,7 +260,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const validateInputs = (name: string, value: any) => {
     const tempErrors = { ...errorFields };
 
-    // Skip EmpNo validation temporarily (preserved from original)
     if (name === "EmpNo") {
       tempErrors[name] = "";
       setError(tempErrors);
@@ -264,8 +270,12 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       tempErrors[name] = "This is a required input field";
     } else {
       if (name === "DateTimeVisit" || name === "DateTimeArrival") {
-        const visitDate = inputFields.DateTimeVisit ? new Date(inputFields.DateTimeVisit) : null;
-        const arrivalDate = inputFields.DateTimeArrival ? new Date(inputFields.DateTimeArrival) : null;
+        const visitDate = inputFields.DateTimeVisit
+          ? new Date(inputFields.DateTimeVisit)
+          : null;
+        const arrivalDate = inputFields.DateTimeArrival
+          ? new Date(inputFields.DateTimeArrival)
+          : null;
         if (visitDate && arrivalDate && visitDate > arrivalDate) {
           tempErrors.DateTimeVisit = "From Date should be earlier than To Date";
           tempErrors.DateTimeArrival = "To Date should be later than From Date";
@@ -342,16 +352,21 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     }
 
     if (visitorDetailsList.length === 0) {
-      tempErrors.Details = "Visitor Details are required. Please add visitor names by clicking the (+) button.";
+      tempErrors.Details =
+        "Visitor Details are required. Please add visitor names by clicking the (+) button.";
       validationErrorsFound.push("Details");
     }
 
     if (inputFields.StatusId === 4 || inputFields.StatusId === 9) {
       for (let i = 0; i < visitorDetailsList.length; i++) {
         const row = visitorDetailsList[i];
-        const hasFiles = (row.Files && row.Files.length > 0) || (row.initFiles && row.initFiles.length > 0);
+        const hasFiles =
+          (row.Files && row.Files.length > 0) ||
+          (row.initFiles && row.initFiles.length > 0);
         if (!hasFiles || !row.AccessCard || !row.GateNo || !row.IDPresented) {
-          tempErrors.Details = `Please complete Visitor Details of ${row.Title || `Visitor ${i + 1}`} on row ${i + 1} before saving!`;
+          tempErrors.Details = `Please complete Visitor Details of ${
+            row.Title || `Visitor ${i + 1}`
+          } on row ${i + 1} before saving!`;
           validationErrorsFound.push("Details");
           alert(tempErrors.Details);
           handleVisitorDetailsAction("view", row);
@@ -373,10 +388,12 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
     if ((isEncoder || isReceptionist) && (inputFields.StatusId === 1 || inputFields.StatusId === 2)) {
       requiredDetailFields.push("Title");
-      if (visitorDetails.Car) requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverLastName");
+      if (visitorDetails.Car)
+        requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverLastName");
     } else if (isReceptionist && (inputFields.StatusId === 4 || inputFields.StatusId === 9)) {
       requiredDetailFields.push("Title", "AccessCard", "IDPresented", "GateNo");
-      if (visitorDetails.Car) requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverLastName");
+      if (visitorDetails.Car)
+        requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverLastName");
       if (!visitorDetails.Files || visitorDetails.Files.length === 0) {
         tempErrors.Files = "Please upload a file.";
         isValid = false;
@@ -385,7 +402,13 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
     const detailValidationErrorsFound: string[] = [];
     for (const field of requiredDetailFields) {
-      if (!visitorDetails.Car && (field === "PlateNo" || field === "TypeofVehicle" || field === "Color" || field === "DriverLastName")) {
+      if (
+        !visitorDetails.Car &&
+        (field === "PlateNo" ||
+          field === "TypeofVehicle" ||
+          field === "Color" ||
+          field === "DriverLastName")
+      ) {
         tempErrors[field] = "";
       } else {
         if (isEmptyString((visitorDetails as any)[field])) {
@@ -435,17 +458,28 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       setProgress(true);
       const origVisitor = await sharePointService.getVisitorById(_itemId);
       if (origVisitor && origVisitor.Modified !== modifiedDate) {
-        alert("Record has been changed by another user! Please refresh the page to see the latest updates.");
+        alert(
+          "Record has been changed by another user! Please refresh the page to see the latest updates."
+        );
         window.open(props.siteUrl, "_self");
         return;
       }
 
       // Save main visitor
-      const updatedVisitor = await sharePointService.saveVisitor(inputFields, sAction, currentUser);
+      const updatedVisitor = await sharePointService.saveVisitor(
+        inputFields,
+        sAction,
+        currentUser
+      );
       _refno = updatedVisitor.Title;
 
       // File upload/delete for main visitor
-      await fileService.uploadVisitorFiles(_itemId, inputFields.Files, inputFields.origFiles, deleteFiles);
+      await fileService.uploadVisitorFiles(
+        _itemId,
+        inputFields.Files,
+        inputFields.origFiles,
+        deleteFiles
+      );
 
       // send email
       await sendEmail();
@@ -454,9 +488,16 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       for (const visitorDetail of visitorDetailsList) {
         const detailToSave = { ...visitorDetail, ParentId: _itemId };
         let detailStatusId = updatedVisitor.StatusId;
+
+        // SSD logic
         if (isSSDUser && (visitorDetail as any).SSDApprove !== undefined) {
           detailStatusId = (visitorDetail as any).SSDApprove === "Yes" ? 4 : 7;
         }
+        // Parking Request logic (Approver)
+        else if (isApproverUser && (visitorDetail as any).ParkingRequest !== undefined) {
+          detailStatusId = (visitorDetail as any).ParkingRequest === "Yes" ? 4 : 7;
+        }
+
         const savedDetail = await sharePointService.saveVisitorDetails(
           detailToSave,
           _itemId,
@@ -470,7 +511,11 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         );
         if (!visitorDetail.ID && savedDetail.ID) visitorDetail.ID = savedDetail.ID;
         if (visitorDetail.ID) {
-          await fileService.uploadVisitorDetailsFiles(visitorDetail.ID, visitorDetail.Files, visitorDetail.origFiles);
+          await fileService.uploadVisitorDetailsFiles(
+            visitorDetail.ID,
+            visitorDetail.Files,
+            visitorDetail.origFiles
+          );
         }
       }
 
@@ -507,7 +552,13 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     setOpenDialog(false);
     if (!confirmed) return;
     const msg = dialogMessage.toLowerCase();
-    if (msg.includes("submit") || msg.includes("save") || msg.includes("approve") || msg.includes("deny") || msg.includes("complete")) {
+    if (
+      msg.includes("submit") ||
+      msg.includes("save") ||
+      msg.includes("approve") ||
+      msg.includes("deny") ||
+      msg.includes("complete")
+    ) {
       save();
     } else if (msg.includes("discard")) {
       const url = _sourceURL || props.siteUrl;
@@ -547,7 +598,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         setProgress(true);
         _sourceURL = document.referrer;
         //_itemId = parseInt(getUrlParameter("pid"));
-        _itemId = 109;
+        _itemId = 111;
         const user = await sharePointService.getCurrentUser();
         setCurrentUser(user);
 
@@ -555,6 +606,14 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         let isUser = false;
         let isencoder = false;
         let isreceptionist = false;
+
+        // Approver from Approvers list
+        const isApproverFromList = await sharePointService.isCurrentUserApprover();
+        console.log("isApproverFromList (Approvers list):", isApproverFromList);
+        if (isApproverFromList) {
+          setApproverUser(true);
+          isUser = true;
+        }
 
         for (let i = 0; i < groups.length; i++) {
           if (groups[i].LoginName === Receptionist_Group) {
@@ -589,11 +648,13 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         if (visitor.ExternalType === "Pre-arranged") {
           const approvers = await sharePointService.getApprovers(visitor.DeptId, user.Id);
           setApprovers(approvers);
-          if (approvers.filter((a) => a.NameId === user.Id).length > 0) isUser = true;
         } else if (visitor.ExternalType === "Walk-in") {
           const walkin = await sharePointService.getWalkinApprovers(visitor.DeptId);
           setWalkinApprovers(walkin);
-          if (walkin.filter((a) => a.NameId === user.Id).length > 0) isUser = true;
+          if (walkin.filter((a) => a.NameId === user.Id).length > 0) {
+            setisWalkinApproverUser(true);
+            isUser = true;
+          }
         }
 
         if (visitor.ApproverId === user.Id) {
@@ -619,7 +680,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           const building = await sharePointService.getBuildings();
           setBldg(building);
 
-        const depts = await sharePointService.getDepartments();
+          const depts = await sharePointService.getDepartments();
           if (isencoder) {
             const mappedrows: any[] = [];
             depts.forEach((row: any) => {
@@ -657,8 +718,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         setProgress(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // -------------------------
   // Change handlers
@@ -707,7 +767,13 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         newDetails.DriverLastName = "";
         newDetails.PlateNo = "";
         newDetails.TypeofVehicle = "";
-        setErrorDetails((prevErr) => ({ ...prevErr, PlateNo: "", TypeofVehicle: "", Color: "", DriverLastName: "" }));
+        setErrorDetails((prevErr) => ({
+          ...prevErr,
+          PlateNo: "",
+          TypeofVehicle: "",
+          Color: "",
+          DriverLastName: "",
+        }));
       }
       return newDetails;
     });
@@ -721,7 +787,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
   const handleChangeDropZone = (files: any[]) => {
     setInputs((prev) => ({ ...prev, Files: files }));
-    const filesToDelete = inputFields.origFiles.filter((origFile: any) => !files.some((f: any) => f.name === origFile.Name));
+    const filesToDelete = inputFields.origFiles.filter(
+      (origFile: any) => !files.some((f: any) => f.name === origFile.Name)
+    );
     deleteFiles = filesToDelete;
   };
 
@@ -737,7 +805,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         .map((file: any) => ({ Id: _itemIdDetails, Filename: file.Name }));
 
       filesToDeleteForDetail.forEach((fileToDelete: any) => {
-        const exists = deleteFilesDetails.some((it) => it.Id === fileToDelete.Id && it.Filename === fileToDelete.Filename);
+        const exists = deleteFilesDetails.some(
+          (it) => it.Id === fileToDelete.Id && it.Filename === fileToDelete.Filename
+        );
         if (!exists) deleteFilesDetails.push(fileToDelete);
       });
     }
@@ -747,7 +817,13 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     setInputs((prev) => {
       if (value) {
         validateInputs("EmpNo", value.EmpNo);
-        return { ...prev, EmpNo: value.EmpNo, DirectNo: value.DirectNo, LocalNo: value.LocalNo, Position: value.Position };
+        return {
+          ...prev,
+          EmpNo: value.EmpNo,
+          DirectNo: value.DirectNo,
+          LocalNo: value.LocalNo,
+          Position: value.Position,
+        };
       } else {
         validateInputs("EmpNo", "");
         setContacts([]);
@@ -758,7 +834,13 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
   const findUser = async (e: any) => {
     const searchTerm = e.target.value;
-    setInputs((prev) => ({ ...prev, EmpNo: "", DirectNo: "", LocalNo: "", Position: "" }));
+    setInputs((prev) => ({
+      ...prev,
+      EmpNo: "",
+      DirectNo: "",
+      LocalNo: "",
+      Position: "",
+    }));
     if (searchTerm.length > 2) {
       setAC1Open(true);
       const options = await sharePointService.getEmployeesByName(searchTerm, _deptName);
@@ -796,7 +878,11 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         tempList.splice(idxToDelete, 1);
         setVisitorDetailsList(tempList);
         if (rowData.ID) deleteFilesDetails.push({ Id: rowData.ID, Filename: null });
-        if (tempList.length === 0) setError((prev) => ({ ...prev, Details: "Visitor Details are required. Please add visitor names." }));
+        if (tempList.length === 0)
+          setError((prev) => ({
+            ...prev,
+            Details: "Visitor Details are required. Please add visitor names.",
+          }));
       }
     } else if (action === "print") {
       _idx = visitorDetailsList.indexOf(rowData);
@@ -810,16 +896,35 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         temp[idx] = rowData;
         setVisitorDetailsList(temp);
         if (isSSDUser) {
-          if ((rowData as any).SSDApprove === "Yes") setInputs((prev) => ({ ...prev, StatusId: 4, Status: { Title: "Approved by SSD" } }));
-          else if ((rowData as any).SSDApprove === "No") setInputs((prev) => ({ ...prev, StatusId: 7, Status: { Title: "Denied by SSD" } }));
+          if ((rowData as any).SSDApprove === "Yes")
+            setInputs((prev) => ({
+              ...prev,
+              StatusId: 4,
+              Status: { Title: "Approved by SSD" },
+            }));
+          else if ((rowData as any).SSDApprove === "No")
+            setInputs((prev) => ({
+              ...prev,
+              StatusId: 7,
+              Status: { Title: "Denied by SSD" },
+            }));
         }
+      }
+    } else if (action === "updateParkingRequest") {
+      const idx = visitorDetailsList.findIndex((i) => i.ID === rowData.ID);
+      if (idx !== -1) {
+        const temp = [...visitorDetailsList];
+        temp[idx] = rowData;
+        setVisitorDetailsList(temp);
+
       }
     }
   }
 
   const handleChipClick = (e: any, fileName: string, controlType: string) => {
     let fileUrl = "";
-    if (controlType === "inputFields") fileUrl = `${props.siteUrl}/VisitorsLib/${_itemId}/${fileName}`;
+    if (controlType === "inputFields")
+      fileUrl = `${props.siteUrl}/VisitorsLib/${_itemId}/${fileName}`;
     else fileUrl = `${props.siteUrl}/VisitorDetailsLib/${_itemIdDetails}/${fileName}`;
     const link = document.createElement("a");
     link.href = fileUrl;
@@ -854,9 +959,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     window.open(props.siteUrl + "/SitePages/ViewVisitorappge.aspx", "_self");
   };
 
-  // ************ FIX START: align click with visibility ************
   const handleEditClick = () => {
-    // use the exact same rule used to show the edit icon
     const canEdit = checkVisibility(
       "editicon",
       inputFields,
@@ -874,7 +977,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     }
     setEditMode(true);
   };
-  // ************ FIX END ************
 
   // render
   return (
@@ -967,7 +1069,11 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             />
           </Grid>
 
-          <ConfirmationDialog open={openDialog} message={dialogMessage} onClose={handleCloseDialog} />
+          <ConfirmationDialog
+            open={openDialog}
+            message={dialogMessage}
+            onClose={handleCloseDialog}
+          />
 
           {openDialogFab && (
             <VisitorDetailsDialog
@@ -1005,7 +1111,11 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             <CircularProgress color="inherit" />
           </Backdrop>
 
-          <Snackbar open={isSavingDone} autoHideDuration={2000} onClose={() => setSavingDone(false)}>
+          <Snackbar
+            open={isSavingDone}
+            autoHideDuration={2000}
+            onClose={() => setSavingDone(false)}
+          >
             <Alert severity="success" onClose={() => setSavingDone(false)}>
               Data has been saved successfully.
               {successMessage && <div>{successMessage}</div>}

@@ -59,19 +59,28 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
     isWalkinApproverUser, 
     onAction 
   } = props;
+
+  // Helpful debug
+  console.log("VisitorDetailsTable roles:", {
+    isSSDUser,
+    isApproverUser,
+    isWalkinApproverUser,
+    isEdit,
+    isHidePrint
+  });
   
   // Check if user is an approver or SSD user (these users should not see print button)
-  const isViewOnlyUser = isSSDUser || isApproverUser || isWalkinApproverUser;
+  const isViewOnlyUser = !!(isSSDUser || isApproverUser || isWalkinApproverUser);
   
   // Define columns array
-  const columns = [
+  const columns: any[] = [
     { title: 'Last Name', field: 'Title' },
     { title: 'First Name', field: 'FirstName' },
     { title: 'Access Card', field: 'AccessCard' },
     {
       title: 'Car',
       field: 'Car',
-      render: rowData => <span>{rowData.Car ? 'With' : 'Without'}</span>
+      render: (rowData: IVisitorDetails) => <span>{rowData.Car ? 'With' : 'Without'}</span>
     },
     { title: 'Plate No.', field: 'PlateNo' },
     { title: 'Type of Vehicle', field: 'TypeofVehicle' },
@@ -86,18 +95,35 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
     columns.push({
       title: 'SSD Approve?',
       field: 'SSDApprove',
-      render: rowData => (
+      render: (rowData: IVisitorDetails) => (
         <input 
           type="checkbox" 
           checked={rowData.SSDApprove === 'Yes'} 
           disabled={!isEdit}
-          onChange={(e) => {
-            // Handle checkbox change
-            const newValue = e.target.checked ? 'Yes' : 'No';
-            // Create a copy of the row data with the updated value
-            const updatedRowData = { ...rowData, SSDApprove: newValue };
-            // Call the action to update the value
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+            const newValue: 'Yes' | 'No' = e.target.checked ? 'Yes' : 'No';
+            const updatedRowData: IVisitorDetails = { ...rowData, SSDApprove: newValue };
             onAction('updateSSDApprove', updatedRowData);
+          }}
+        />
+      )
+    });
+  }
+  
+  // Add Parking Request column if user is an Approver
+  if (isApproverUser) {
+    columns.push({
+      title: 'Parking Request?',
+      field: 'ParkingRequest',
+      render: (rowData: IVisitorDetails) => (
+        <input 
+          type="checkbox" 
+          checked={rowData.ParkingRequest === 'Yes'} 
+          disabled={!isEdit}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+            const newValue: 'Yes' | 'No' = e.target.checked ? 'Yes' : 'No';
+            const updatedRowData: IVisitorDetails = { ...rowData, ParkingRequest: newValue };
+            onAction('updateParkingRequest', updatedRowData);
           }}
         />
       )

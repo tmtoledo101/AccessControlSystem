@@ -10,7 +10,7 @@ import { IItemAddResult } from "@pnp/sp/items";
 import { IVisitor } from "../models/IVisitor";
 import { IVisitorDetails } from "../models/IVisitorDetails";
 import { toISOString } from "../helpers/dateHelpers";
-import moment from 'moment';
+import moment from "moment";
 
 export class SharePointService {
   private siteUrl: string;
@@ -30,6 +30,24 @@ export class SharePointService {
   }
 
   /**
+   * Checks if current user is in the Approvers list
+   * @returns Whether the current user is an approver
+   */
+  public async isCurrentUserApprover(): Promise<boolean> {
+    const currentUser = await this.getCurrentUser();
+
+    const items = await sp.web.lists
+      .getByTitle("Approvers")
+      .items.select("Id", "Name/Id")
+      .expand("Name")
+      .top(1)
+      .filter(`NameId eq ${currentUser.Id}`)
+      .get();
+
+    return items.length > 0;
+  }
+
+  /**
    * Gets the current user's groups
    * @returns Array of groups the current user belongs to
    */
@@ -43,34 +61,36 @@ export class SharePointService {
    * @returns Visitor information
    */
   public async getVisitorById(id: number): Promise<any> {
-    const visitors = await sp.web.lists.getByTitle("Visitors")
-      .items
-      .select("*,Receptionist/Title, Approver/Title,Approver/EMail,Approver/ID, Status/Title,Dept/Title,SSDApprover/Title,Author/Title,Author/EMail")
-      .expand('Receptionist,Approver,Dept,Status,SSDApprover,Author')
+    const visitors = await sp.web.lists
+      .getByTitle("Visitors")
+      .items.select(
+        "*,Receptionist/Title, Approver/Title,Approver/EMail,Approver/ID, Status/Title,Dept/Title,SSDApprover/Title,Author/Title,Author/EMail"
+      )
+      .expand("Receptionist,Approver,Dept,Status,SSDApprover,Author")
       .top(5000)
       .filter(`ID eq ${id}`)
       .get();
-    
+
     if (visitors.length > 0) {
       const visitor = visitors[0];
-      
+
       // Get files
-      const visitorsLib = await sp.web.getFolderByServerRelativeUrl(this.siteRelativeUrl + '/VisitorsLib/' + id)
-        .files
-        .select("*")
+      const visitorsLib = await sp.web
+        .getFolderByServerRelativeUrl(this.siteRelativeUrl + "/VisitorsLib/" + id)
+        .files.select("*")
         .top(5000)
-        .expand('ListItemAllFields')
+        .expand("ListItemAllFields")
         .get();
-      
-      const files = visitorsLib.map(row => row.Name);
+
+      const files = visitorsLib.map((row) => row.Name);
       visitor.Files = [];
       visitor.initFiles = files;
       visitor.origFiles = visitorsLib;
-      visitor.colorAccess = 'General';
-      
+      visitor.colorAccess = "General";
+
       return visitor;
     }
-    
+
     return null;
   }
 
@@ -80,31 +100,38 @@ export class SharePointService {
    * @returns Array of visitor details
    */
   public async getVisitorDetailsByParentId(parentId: number): Promise<any[]> {
-    const visitorDetails = await sp.web.lists.getByTitle("VisitorDetails")
-      .items
-      .select("*,SSDApprove")
+    const visitorDetails = await sp.web.lists
+      .getByTitle("VisitorDetails")
+      .items.select("*,SSDApprove,ParkingRequest")
       .top(5000)
       .filter(`ParentId eq ${parentId}`)
       .get();
-    
-    await Promise.all(visitorDetails.map(async (row) => {
-      const visitorDetailsLib = await sp.web.getFolderByServerRelativeUrl(this.siteRelativeUrl + '/VisitorDetailsLib/' + row.ID.toString())
-        .files
-        .select("*")
-        .top(5000)
-        .expand('ListItemAllFields')
-        .get();
-      
-      const files = visitorDetailsLib.map(fileRow => fileRow.Name);
-      row.Files = [];
-      row.initFiles = files;
-      row.origFiles = visitorDetailsLib;
-      
-      // Map SSD Approve field to SSDApprove property
-      // SharePoint Yes/No fields are returned as boolean values, so we need to convert them to 'Yes'/'No' strings
-      row.SSDApprove = row.SSDApprove === true ? 'Yes' : 'No';
-    }));
-    
+
+    await Promise.all(
+      visitorDetails.map(async (row) => {
+        const visitorDetailsLib = await sp.web
+          .getFolderByServerRelativeUrl(
+            this.siteRelativeUrl + "/VisitorDetailsLib/" + row.ID.toString()
+          )
+          .files.select("*")
+          .top(5000)
+          .expand("ListItemAllFields")
+          .get();
+
+        const files = visitorDetailsLib.map((fileRow) => fileRow.Name);
+        row.Files = [];
+        row.initFiles = files;
+        row.origFiles = visitorDetailsLib;
+
+        // SSD Approve: boolean -> 'Yes' | 'No'
+        row.SSDApprove = row.SSDApprove === true ? "Yes" : "No";
+
+        // Parking Request: boolean -> 'Yes' | 'No'
+        // If the field is missing or null, default to 'No'
+        row.ParkingRequest = row.ParkingRequest === true ? "Yes" : "No";
+      })
+    );
+
     return visitorDetails;
   }
 
@@ -113,9 +140,9 @@ export class SharePointService {
    * @returns Array of purposes
    */
   public async getPurposes(): Promise<any[]> {
-    return await sp.web.lists.getByTitle("Purpose")
-      .items
-      .select("*")
+    return await sp.web.lists
+      .getByTitle("Purpose")
+      .items.select("*")
       .top(5000)
       .filter(`Group eq 'Visitor'`)
       .get();
@@ -126,9 +153,9 @@ export class SharePointService {
    * @returns Array of buildings
    */
   public async getBuildings(): Promise<any[]> {
-    return await sp.web.lists.getByTitle("Building")
-      .items
-      .select("*")
+    return await sp.web.lists
+      .getByTitle("Building")
+      .items.select("*")
       .top(5000)
       .orderBy("Title", true)
       .get();
@@ -140,26 +167,26 @@ export class SharePointService {
    * @returns Array of departments
    */
   public async getDepartments(userId?: number): Promise<any[]> {
-    const depts = await sp.web.lists.getByTitle("Departments")
-      .items
-      .select("*")
+    const depts = await sp.web.lists
+      .getByTitle("Departments")
+      .items.select("*")
       .top(5000)
       .get();
-    
+
     if (userId) {
-      const usersPerDept = await sp.web.lists.getByTitle("UsersPerDept")
-        .items
-        .select("*,Name/Title,Dept/Title")
-        .expand('Name,Dept')
+      const usersPerDept = await sp.web.lists
+        .getByTitle("UsersPerDept")
+        .items.select("*,Name/Title,Dept/Title")
+        .expand("Name,Dept")
         .top(5000)
         .orderBy("Modified", true)
         .filter(`NameId eq ${userId}`)
         .get();
-      
+
       if (usersPerDept.length > 0) {
-        const mappedDepts = [];
-        depts.forEach(row => {
-          const filtered = usersPerDept.filter(item => item.DeptId === row.Id);
+        const mappedDepts: any[] = [];
+        depts.forEach((row) => {
+          const filtered = usersPerDept.filter((item) => item.DeptId === row.Id);
           if (filtered.length > 0) {
             mappedDepts.push(row);
           }
@@ -167,7 +194,7 @@ export class SharePointService {
         return mappedDepts;
       }
     }
-    
+
     return depts;
   }
 
@@ -178,16 +205,16 @@ export class SharePointService {
    * @returns Array of approvers
    */
   public async getApprovers(deptId: number, currentUserId: number): Promise<any[]> {
-    const approvers = await sp.web.lists.getByTitle("Approvers")
-      .items
-      .select("*,Name/Title, Name/EMail, Dept/Title")
-      .expand('Name,Dept')
+    const approvers = await sp.web.lists
+      .getByTitle("Approvers")
+      .items.select("*,Name/Title, Name/EMail, Dept/Title")
+      .expand("Name,Dept")
       .top(5000)
       .filter(`DeptId eq ${deptId}`)
       .get();
-    
+
     // Filter out current user
-    return approvers.filter(item => item.NameId !== currentUserId);
+    return approvers.filter((item) => item.NameId !== currentUserId);
   }
 
   /**
@@ -196,10 +223,10 @@ export class SharePointService {
    * @returns Array of walkin approvers
    */
   public async getWalkinApprovers(deptId: number): Promise<any[]> {
-    return await sp.web.lists.getByTitle("WalkinApprovers")
-      .items
-      .select("*,Name/Title, Name/EMail, Dept/Title")
-      .expand('Name,Dept')
+    return await sp.web.lists
+      .getByTitle("WalkinApprovers")
+      .items.select("*,Name/Title, Name/EMail, Dept/Title")
+      .expand("Name,Dept")
       .top(5000)
       .filter(`DeptId eq ${deptId}`)
       .get();
@@ -212,7 +239,6 @@ export class SharePointService {
   public async getSSDUsers(): Promise<any[]> {
     const siteGroups = await sp.web.siteGroups();
     for (let i = 0; i < siteGroups.length; i++) {
-      //if (siteGroups[i].LoginName === "SSD") {
       if (siteGroups[i].LoginName === "SSD_v2") {
         return await sp.web.siteGroups.getById(siteGroups[i].Id).users();
       }
@@ -225,9 +251,9 @@ export class SharePointService {
    * @returns Array of gates
    */
   public async getGates(): Promise<any[]> {
-    return await sp.web.lists.getByTitle("Gates")
-      .items
-      .select("*")
+    return await sp.web.lists
+      .getByTitle("Gates")
+      .items.select("*")
       .top(5000)
       .get();
   }
@@ -237,9 +263,9 @@ export class SharePointService {
    * @returns Array of ID types
    */
   public async getIDTypes(): Promise<any[]> {
-    return await sp.web.lists.getByTitle("IDPresented")
-      .items
-      .select("*")
+    return await sp.web.lists
+      .getByTitle("IDPresented")
+      .items.select("*")
       .top(5000)
       .get();
   }
@@ -249,9 +275,9 @@ export class SharePointService {
    * @returns Array of ID colors
    */
   public async getIDColors(): Promise<any[]> {
-    return await sp.web.lists.getByTitle("IDColor")
-      .items
-      .select("*")
+    return await sp.web.lists
+      .getByTitle("IDColor")
+      .items.select("*")
       .top(5000)
       .get();
   }
@@ -262,11 +288,14 @@ export class SharePointService {
    * @param deptName Department name to filter by
    * @returns Array of matching employees
    */
-  public async getEmployeesByName(name: string, deptName: string): Promise<any[]> {
+  public async getEmployeesByName(
+    name: string,
+    deptName: string
+  ): Promise<any[]> {
     if (name.length > 2) {
-      return await sp.web.lists.getByTitle("Employees")
-        .items
-        .select("*")
+      return await sp.web.lists
+        .getByTitle("Employees")
+        .items.select("*")
         .top(5000)
         .filter(`substringof('${name}', Name) and Dept eq '${deptName}'`)
         .get();
@@ -280,9 +309,9 @@ export class SharePointService {
    * @returns Matching employee
    */
   public async getEmployeeByEmpNo(empNo: string): Promise<any[]> {
-    return await sp.web.lists.getByTitle("Employees")
-      .items
-      .select("*")
+    return await sp.web.lists
+      .getByTitle("Employees")
+      .items.select("*")
       .top(5000)
       .filter(`EmpNo eq '${empNo}'`)
       .get();
@@ -294,37 +323,50 @@ export class SharePointService {
    * @returns New request number
    */
   public async createRequestNo(locationCode: string): Promise<string> {
-    const refNoCount = await sp.web.lists.getByTitle("RefNoCount")
-      .items
-      .select("*")
+    const refNoCount = await sp.web.lists
+      .getByTitle("RefNoCount")
+      .items.select("*")
       .top(5000)
       .filter(`Title eq 'Visitor'`)
       .get();
-    
+
     let last = 0;
-    
+
     if (refNoCount.length > 0) {
-      const dt = moment(refNoCount[0].DateRef).endOf('day').toISOString();
-      const dt2 = moment().endOf('day').toISOString();
-      
+      const dt = moment(refNoCount[0].DateRef).endOf("day").toISOString();
+      const dt2 = moment().endOf("day").toISOString();
+
       if (dt === dt2) {
         last = parseInt(refNoCount[0].LastNum) + 1;
-        await sp.web.lists.getByTitle("RefNoCount").items.getById(refNoCount[0].ID).update({
-          LastNum: last,
-          DateRef: moment().endOf('day').toISOString()
-        });
+        await sp.web.lists
+          .getByTitle("RefNoCount")
+          .items.getById(refNoCount[0].ID)
+          .update({
+            LastNum: last,
+            DateRef: moment().endOf("day").toISOString(),
+          });
       } else {
         last = 1;
-        await sp.web.lists.getByTitle("RefNoCount").items.getById(refNoCount[0].ID).update({
-          LastNum: last,
-          DateRef: moment().endOf('day').toISOString()
-        });
+        await sp.web.lists
+          .getByTitle("RefNoCount")
+          .items.getById(refNoCount[0].ID)
+          .update({
+            LastNum: last,
+            DateRef: moment().endOf("day").toISOString(),
+          });
       }
     }
-    
-    const lastRefNo = "" + (Number(last));
+
+    const lastRefNo = "" + Number(last);
     const pad = "000";
-    return locationCode + '-' + moment().format('YYYYMMDD') + '-' + pad.substring(0, pad.length - lastRefNo.length) + lastRefNo;
+    return (
+      locationCode +
+      "-" +
+      moment().format("YYYYMMDD") +
+      "-" +
+      pad.substring(0, pad.length - lastRefNo.length) +
+      lastRefNo
+    );
   }
 
   /**
@@ -334,7 +376,11 @@ export class SharePointService {
    * @param currentUser Current user
    * @returns Updated visitor data
    */
-  public async saveVisitor(visitor: IVisitor, action: string, currentUser: any): Promise<any> {
+  public async saveVisitor(
+    visitor: IVisitor,
+    action: string,
+    currentUser: any
+  ): Promise<any> {
     const list = sp.web.lists.getByTitle("Visitors");
     let statusId = visitor.StatusId;
     let requestDate = visitor.RequestDate;
@@ -344,11 +390,13 @@ export class SharePointService {
     let ssdApproverId = visitor.SSDApproverId;
     let receptionistId = visitor.ReceptionistId;
     let refNo = visitor.Title;
-    
+
     // Update status and dates based on action
     if (action === "submit") {
       const buildings = await this.getBuildings();
-      const bldgFiltered = buildings.filter(item => item.Title === visitor.Bldg);
+      const bldgFiltered = buildings.filter(
+        (item) => item.Title === visitor.Bldg
+      );
       refNo = await this.createRequestNo(bldgFiltered[0].LocationCode);
       requestDate = new Date();
       statusId = 2;
@@ -359,10 +407,13 @@ export class SharePointService {
       markCompleteDate = new Date();
       receptionistId = currentUser.Id;
     } else if (action === "approve") {
-      if ((visitor.StatusId === 2) && visitor.ExternalType === 'Pre-arranged') {
+      if (visitor.StatusId === 2 && visitor.ExternalType === "Pre-arranged") {
         statusId = 3;
         deptApproveDate = new Date();
-      } else if ((visitor.StatusId === 2) && visitor.ExternalType === 'Walk-in') {
+      } else if (
+        visitor.StatusId === 2 &&
+        visitor.ExternalType === "Walk-in"
+      ) {
         statusId = 9;
         deptApproveDate = new Date();
       } else if (visitor.StatusId === 3) {
@@ -371,15 +422,18 @@ export class SharePointService {
         ssdDate = new Date();
       }
     } else if (action === "deny") {
-      if ((visitor.StatusId === 2) && visitor.ExternalType === 'Pre-arranged') {
+      if (visitor.StatusId === 2 && visitor.ExternalType === "Pre-arranged") {
         statusId = 6;
-      } else if ((visitor.StatusId === 2) && visitor.ExternalType === 'Walk-in') {
+      } else if (
+        visitor.StatusId === 2 &&
+        visitor.ExternalType === "Walk-in"
+      ) {
         statusId = 8;
       } else if (visitor.StatusId === 3) {
         statusId = 7;
       }
     }
-    
+
     // Get contact name
     let contactName = "";
     if (visitor.EmpNo) {
@@ -388,7 +442,7 @@ export class SharePointService {
         contactName = contacts[0].Name;
       }
     }
-    
+
     // Update visitor
     await list.items.getById(visitor.ID).update({
       Title: refNo,
@@ -416,12 +470,16 @@ export class SharePointService {
       Remarks2: visitor.Remarks2,
       SSDApproverId: ssdApproverId,
       SSDDate: ssdDate ? toISOString(ssdDate) : null,
-      DeptApproverDate: deptApproveDate ? toISOString(deptApproveDate) : null,
-      MarkCompleteDate: markCompleteDate ? toISOString(markCompleteDate) : null,
+      DeptApproverDate: deptApproveDate
+        ? toISOString(deptApproveDate)
+        : null,
+      MarkCompleteDate: markCompleteDate
+        ? toISOString(markCompleteDate)
+        : null,
       ReceptionistId: receptionistId,
-      PurposeOthers: visitor.PurposeOthers
+      PurposeOthers: visitor.PurposeOthers,
     });
-    
+
     // Return updated visitor with new status and refNo
     return {
       ...visitor,
@@ -432,7 +490,7 @@ export class SharePointService {
       SSDDate: ssdDate,
       DeptApproverDate: deptApproveDate,
       MarkCompleteDate: markCompleteDate,
-      ReceptionistId: receptionistId
+      ReceptionistId: receptionistId,
     };
   }
 
@@ -443,30 +501,48 @@ export class SharePointService {
    * @param origFiles Original files
    * @param deleteFiles Files to delete
    */
-  public async uploadVisitorFiles(visitorId: number, files: any[], origFiles: any[], deleteFiles: any[]): Promise<void> {
+  public async uploadVisitorFiles(
+    visitorId: number,
+    files: any[],
+    origFiles: any[],
+    deleteFiles: any[]
+  ): Promise<void> {
     const folderPath = this.siteRelativeUrl + "/VisitorsLib/" + visitorId;
-    
+
     // Upload new files
-    await Promise.all(files.map(async (file) => {
-      const filtered = origFiles.filter(f => f.Name === file.name);
-      if (filtered.length === 0) {
-        if (file.size <= 10485760) {
-          // Small upload
-          await sp.web.getFolderByServerRelativeUrl(folderPath).files.add(file.name, file, true);
-        } else {
-          // Large upload
-          await sp.web.getFolderByServerRelativeUrl(folderPath).files.addChunked(file.name, file, data => {
-            console.log({ data });
-          }, true);
+    await Promise.all(
+      files.map(async (file) => {
+        const filtered = origFiles.filter((f) => f.Name === file.name);
+        if (filtered.length === 0) {
+          if (file.size <= 10485760) {
+            // Small upload
+            await sp.web
+              .getFolderByServerRelativeUrl(folderPath)
+              .files.add(file.name, file, true);
+          } else {
+            // Large upload
+            await sp.web
+              .getFolderByServerRelativeUrl(folderPath)
+              .files.addChunked(
+                file.name,
+                file,
+                (data) => {
+                  console.log({ data });
+                },
+                true
+              );
+          }
         }
-      }
-    }));
-    
+      })
+    );
+
     // Delete files
-    await Promise.all(deleteFiles.map(async (file) => {
-      const fullPath = folderPath + '/' + file.Name;
-      await sp.web.getFolderByServerRelativeUrl(fullPath).delete();
-    }));
+    await Promise.all(
+      deleteFiles.map(async (file) => {
+        const fullPath = folderPath + "/" + file.Name;
+        await sp.web.getFolderByServerRelativeUrl(fullPath).delete();
+      })
+    );
   }
 
   /**
@@ -493,69 +569,76 @@ export class SharePointService {
     statusId: number,
     requestDate: Date
   ): Promise<IVisitorDetails> {
-    //   if (!parentId || parentId === 0) {
-    //   console.error("Invalid parentId detected:", parentId);
-    //   throw new Error("Cannot save visitor details with invalid parentId");
-    // }
     if (visitorDetails.ID) {
       // Update existing visitor details
-      console.log("visitorDetails",visitorDetails);
-      await sp.web.lists.getByTitle("VisitorDetails").items.getById(visitorDetails.ID).update({
-        // ParentId: parentId,
-        Title: visitorDetails.Title,
-        FirstName: visitorDetails.FirstName,
-        Car: visitorDetails.Car,
-        Color: visitorDetails.Color,
-        DriverLastName: visitorDetails.DriverLastName,
-        DriverFirstName: visitorDetails.DriverFirstName,
-        TypeofVehicle: visitorDetails.TypeofVehicle,
-        PlateNo: visitorDetails.PlateNo,
-        GateNo: visitorDetails.GateNo,
-        IDPresented: visitorDetails.IDPresented,
-        AccessCard: visitorDetails.AccessCard,
-        RequestDate: toISOString(requestDate),
-        DeptId: deptId,
-        RefNo: refNo,
-        DateFrom: toISOString(dateTimeVisit),
-        DateTo: toISOString(dateTimeArrival),
-        CompanyName: companyName,
-        StatusId: statusId,
-      SSDApprove: visitorDetails.SSDApprove === 'Yes' ? true : false
-      });
-      
+      console.log("visitorDetails", visitorDetails);
+      await sp.web.lists
+        .getByTitle("VisitorDetails")
+        .items.getById(visitorDetails.ID)
+        .update({
+          // ParentId: parentId,
+          Title: visitorDetails.Title,
+          FirstName: visitorDetails.FirstName,
+          Car: visitorDetails.Car,
+          Color: visitorDetails.Color,
+          DriverLastName: visitorDetails.DriverLastName,
+          DriverFirstName: visitorDetails.DriverFirstName,
+          TypeofVehicle: visitorDetails.TypeofVehicle,
+          PlateNo: visitorDetails.PlateNo,
+          GateNo: visitorDetails.GateNo,
+          IDPresented: visitorDetails.IDPresented,
+          AccessCard: visitorDetails.AccessCard,
+          RequestDate: toISOString(requestDate),
+          DeptId: deptId,
+          RefNo: refNo,
+          DateFrom: toISOString(dateTimeVisit),
+          DateTo: toISOString(dateTimeArrival),
+          CompanyName: companyName,
+          StatusId: statusId,
+          SSDApprove: visitorDetails.SSDApprove === "Yes" ? true : false,
+          ParkingRequest:
+            visitorDetails.ParkingRequest === "Yes" ? true : false,
+        });
+
       return visitorDetails;
     } else {
       // Create new visitor details
-      const result: IItemAddResult = await sp.web.lists.getByTitle("VisitorDetails").items.add({
-        ParentId: parentId,
-        Title: visitorDetails.Title,
-        FirstName: visitorDetails.FirstName,
-        Car: visitorDetails.Car,
-        Color: visitorDetails.Color,
-        DriverLastName: visitorDetails.DriverLastName,
-        DriverFirstName: visitorDetails.DriverFirstName,
-        TypeofVehicle: visitorDetails.TypeofVehicle,
-        PlateNo: visitorDetails.PlateNo,
-        GateNo: visitorDetails.GateNo,
-        IDPresented: visitorDetails.IDPresented,
-        AccessCard: visitorDetails.AccessCard,
-        RequestDate: toISOString(requestDate),
-        DeptId: deptId,
-        RefNo: refNo,
-        DateFrom: toISOString(dateTimeVisit),
-        DateTo: toISOString(dateTimeArrival),
-        CompanyName: companyName,
-        StatusId: statusId,
-        SSDApprove: visitorDetails.SSDApprove === 'Yes' ? true : false
-      });
-      
+      const result: IItemAddResult = await sp.web.lists
+        .getByTitle("VisitorDetails")
+        .items.add({
+          ParentId: parentId,
+          Title: visitorDetails.Title,
+          FirstName: visitorDetails.FirstName,
+          Car: visitorDetails.Car,
+          Color: visitorDetails.Color,
+          DriverLastName: visitorDetails.DriverLastName,
+          DriverFirstName: visitorDetails.DriverFirstName,
+          TypeofVehicle: visitorDetails.TypeofVehicle,
+          PlateNo: visitorDetails.PlateNo,
+          GateNo: visitorDetails.GateNo,
+          IDPresented: visitorDetails.IDPresented,
+          AccessCard: visitorDetails.AccessCard,
+          RequestDate: toISOString(requestDate),
+          DeptId: deptId,
+          RefNo: refNo,
+          DateFrom: toISOString(dateTimeVisit),
+          DateTo: toISOString(dateTimeArrival),
+          CompanyName: companyName,
+          StatusId: statusId,
+          SSDApprove: visitorDetails.SSDApprove === "Yes" ? true : false,
+          ParkingRequest:
+            visitorDetails.ParkingRequest === "Yes" ? true : false,
+        });
+
       // Create folder for files
-      await sp.web.lists.getByTitle("VisitorDetailsLib").rootFolder.folders.add(result.data.ID.toString());
-      
+      await sp.web.lists
+        .getByTitle("VisitorDetailsLib")
+        .rootFolder.folders.add(result.data.ID.toString());
+
       return {
         ...visitorDetails,
         ID: result.data.ID,
-        ParentId: parentId
+        ParentId: parentId,
       };
     }
   }
@@ -566,35 +649,60 @@ export class SharePointService {
    * @param files Files to upload
    * @param origFiles Original files
    */
-  public async uploadVisitorDetailsFiles(visitorDetailsId: number, files: any[], origFiles: any[]): Promise<void> {
-    const folderPath = this.siteRelativeUrl + "/VisitorDetailsLib/" + visitorDetailsId;
-    
+  public async uploadVisitorDetailsFiles(
+    visitorDetailsId: number,
+    files: any[],
+    origFiles: any[]
+  ): Promise<void> {
+    const folderPath =
+      this.siteRelativeUrl + "/VisitorDetailsLib/" + visitorDetailsId;
+
     // Upload new files
-    await Promise.all(files.map(async (file) => {
-      const filtered = origFiles.filter(f => f.Name === file.name);
-      if (filtered.length === 0) {
-        if (file.size <= 10485760) {
-          // Small upload
-          await sp.web.getFolderByServerRelativeUrl(folderPath).files.add(file.name, file, true);
-        } else {
-          // Large upload
-          await sp.web.getFolderByServerRelativeUrl(folderPath).files.addChunked(file.name, file, data => {
-            console.log({ data });
-          }, true);
+    await Promise.all(
+      files.map(async (file) => {
+        const filtered = origFiles.filter((f) => f.Name === file.name);
+        if (filtered.length === 0) {
+          if (file.size <= 10485760) {
+            // Small upload
+            await sp.web
+              .getFolderByServerRelativeUrl(folderPath)
+              .files.add(file.name, file, true);
+          } else {
+            // Large upload
+            await sp.web
+              .getFolderByServerRelativeUrl(folderPath)
+              .files.addChunked(
+                file.name,
+                file,
+                (data) => {
+                  console.log({ data });
+                },
+                true
+              );
+          }
         }
-      }
-    }));
+      })
+    );
   }
 
   /**
    * Deletes visitor details files
    * @param deleteFiles Files to delete
    */
-  public async deleteVisitorDetailsFiles(deleteFiles: { Id: number; Filename: string }[]): Promise<void> {
-    await Promise.all(deleteFiles.map(async (file) => {
-      const fullPath = this.siteRelativeUrl + "/VisitorDetailsLib/" + file.Id + '/' + file.Filename;
-      await sp.web.getFolderByServerRelativeUrl(fullPath).delete();
-    }));
+  public async deleteVisitorDetailsFiles(
+    deleteFiles: { Id: number; Filename: string }[]
+  ): Promise<void> {
+    await Promise.all(
+      deleteFiles.map(async (file) => {
+        const fullPath =
+          this.siteRelativeUrl +
+          "/VisitorDetailsLib/" +
+          file.Id +
+          "/" +
+          file.Filename;
+        await sp.web.getFolderByServerRelativeUrl(fullPath).delete();
+      })
+    );
   }
 
   /**

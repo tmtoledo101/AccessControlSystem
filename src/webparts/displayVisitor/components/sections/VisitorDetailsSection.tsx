@@ -117,6 +117,15 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
   } = props;
   
   const classes = useStyles();
+
+  // Debug: verify role flags reaching this component
+  console.log("VisitorDetailsSection roles:", {
+    isSSDUser,
+    isApproverUser,
+    isWalkinApproverUser,
+    isEdit,
+    isHidePrint
+  });
   
   /**
    * Checks if a field should be visible based on user role and form state
@@ -129,7 +138,7 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
     const forReceptionistCompletion = isReceptionist && (visitor.StatusId === 4 || visitor.StatusId === 9);
     
     // Check if user is an approver or SSD user (these users should not see add button or edit options)
-    const isViewOnlyUser = isSSDUser || isApproverUser || isWalkinApproverUser;
+    const isViewOnlyUser = !!isSSDUser || !!isApproverUser || !!isWalkinApproverUser;
     
     switch (element) {
       case 'addfabdetail':
@@ -138,8 +147,10 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
       case 'visitordetailsedit':
         return isEdit && visitorDetailsList.length > 0 && (forReceptionist || forEncoder) && !isViewOnlyUser;
       case 'visitordetailsdisp':
-        return (!isEdit && visitorDetailsList.length > 0) || 
-               (isEdit && visitorDetailsList.length > 0 && (!forEncoder && !forReceptionist || isViewOnlyUser));
+        return (
+          (!isEdit && visitorDetailsList.length > 0) ||
+          (isEdit && visitorDetailsList.length > 0 && ((!forEncoder && !forReceptionist) || isViewOnlyUser))
+        );
       default:
         return false;
     }
@@ -177,6 +188,8 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
               isEdit={isEdit}
               isHidePrint={isHidePrint}
               isSSDUser={isSSDUser}
+              isApproverUser={isApproverUser}              // pass approver flag
+              isWalkinApproverUser={isWalkinApproverUser}  // pass walk-in approver flag
               onAction={onVisitorDetailsAction}
             />
           )}

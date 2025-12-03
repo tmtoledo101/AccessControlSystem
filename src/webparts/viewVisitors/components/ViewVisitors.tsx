@@ -67,8 +67,8 @@ const useStyles = makeStyles((theme: Theme) =>
 // Constants
 const Receptionist_Group = "Receptionist";
 const SSD_Group_v2 = "SSD_v2";
-const HOUsers_Group = "HO";
-const SPCUsers_Group = "SPC";
+//const HOUsers_Group = "HO";
+//const SPCUsers_Group = "SPC";
 
 // Global (consider narrowing scope later)
 let usersPerDept: IUserDept[] = [];
@@ -748,13 +748,13 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
             break;
           }
         }
-        for (let i = 0; i < groups.length; i++) {
+/*         for (let i = 0; i < groups.length; i++) {
           if (groups[i].LoginName === HOUsers_Group) {
             isHOUser = true;
           } else if (groups[i].LoginName === SPCUsers_Group) {
             isSPCUser = true;
           }
-        }
+        } */
 
         let temptabs: string[] = [];
         if (isEncoder || isReceptionist || isSSDUser || isApprover || isWalkinApprover) {
