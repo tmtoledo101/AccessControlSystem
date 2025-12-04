@@ -139,10 +139,6 @@ export const EmployeeDetailsDialog: React.FC<IEmployeeDetailsDialogProps> = (pro
   const classes = useStyles();
   const [autocompleteOpen, setAutocompleteOpen] = React.useState(false);
 
-  // The local handleFindUser function is no longer needed as the logic is now passed down from the parent component via onEmployeeInputChange.
-  // const handleFindUser = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   onTextChange(e);
-  // };
 
   return (
     <Dialog

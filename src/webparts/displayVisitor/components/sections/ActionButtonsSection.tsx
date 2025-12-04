@@ -185,15 +185,7 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
       {/* Buttons for Approver Users */}
       {checkVisibility('approverActions') && (
         <ButtonGroup>
-          {/* <Button
-            className={classes.paperbutton}
-            startIcon={<CancelIcon />}
-            variant="contained"
-            color="default"
-            onClick={onCancel}
-          >
-            Close
-          </Button> */}
+
           <Button
             name="deny"
             className={classes.paperbutton}
