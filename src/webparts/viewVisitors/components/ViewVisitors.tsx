@@ -81,6 +81,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
   const inputRef = useRef(null);
 
   // State
+  // IMPORTANT: also add `refFilter: 'ALL' | 'HO' | 'SPC'` to your IViewState interface
   const [state, setState] = useState<IViewState>({
     selectedFromDate: moment(new Date()).subtract(15, 'days'),
     selectedToDate: moment(new Date()).add(1, 'hours'),
@@ -108,8 +109,46 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     viewName: '',
     menuTabs: [],
     tabvalue: 6,
-    reportView: 'Daily' as any
+    reportView: 'Daily' as any,
+
+    // NEW: reference filter (HO / SPC / All)
+    refFilter: 'ALL' as any
   });
+
+  // NEW: filter handler
+  const handleRefFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value as 'ALL' | 'HO' | 'SPC';
+    setState(prev => ({ ...prev, refFilter: value as any }));
+  };
+
+// NEW: filter helper (works for both tables)
+const filterByReference = (
+  rows: any[],
+  filter: 'ALL' | 'HO' | 'SPC'
+) => {
+  if (filter === 'ALL') return rows || [];
+
+  const prefix = (filter + "-").toUpperCase(); // HO- or SPC-
+
+  return (rows || []).filter((r: any) => {
+    // Visitors table uses Title
+    if (typeof r.Title === "string" && r.Title.toUpperCase().startsWith(prefix)) {
+      return true;
+    }
+
+    // VisitorDetails table uses RefNo
+    if (typeof r.RefNo === "string" && r.RefNo.toUpperCase().startsWith(prefix)) {
+      return true;
+    }
+
+    return false;
+  });
+};
+
+  // NEW: derive displayed items once
+  const displayedItems = React.useMemo(() => {
+    return filterByReference(state.dirListItems as any[], state.refFilter as any);
+  }, [state.dirListItems, state.refFilter]);
 
   // Event handlers
   const onClickCancel = (e: React.MouseEvent) => {
@@ -597,7 +636,8 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
   }
 
   const handleDownloadReport = () => {
-    if (state.dirListItems.length === 0) {
+    // Export should match the radio filter, so use displayedItems
+    if (displayedItems.length === 0) {
       alert("No data to download.");
       return;
     }
@@ -610,7 +650,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       reportType = 'Visitor Entry Count Report';
       fileName = `${reportType} - ${state.selectedFromDate.format('YYYY-MM-DD')} to ${state.selectedToDate.format('YYYY-MM-DD')}.xlsx`;
 
-      dataToExport = (state.dirListItems as IVisitorCount[]).map(item => ({
+      dataToExport = (displayedItems as IVisitorCount[]).map(item => ({
         'Visitor Last Name': item.LastName,
         'Visitor First Name': item.FirstName,
         'Visit Count': item.VisitCount
@@ -626,7 +666,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       fileName = `${reportType} - ${state.selectedFromDate.format('YYYY-MM-DD')} to ${state.selectedToDate.format('YYYY-MM-DD')}.xlsx`;
 
       if (state.vwid === 10 || state.vwid === 1 || state.vwid === 2 || state.vwid === 5 || state.vwid === 6 || state.vwid === 7 || state.vwid === 8) {
-        dataToExport = (state.dirListItems as IVisitor[]).map(item => ({
+        dataToExport = (displayedItems as IVisitor[]).map(item => ({
           'Reference Number': item.Title,
           'Company Name': item.CompanyName,
           'Request By': item.Approver ? item.Approver.Title : '',
@@ -644,7 +684,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           'Requires Parking': item.RequireParking ? 'Yes' : 'No',
         }));
       } else if (state.vwid === 9 || state.vwid === 3 || state.vwid === 4) {
-        const list = state.dirListItems as IVisitorDetailExtended[];
+        const list = displayedItems as IVisitorDetailExtended[];
         dataToExport = list.map(item => ({
           'ID': item.ID,
           'Visitor Last Name': item.Title,
@@ -836,6 +876,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           <Grid item xs={12}>
             <HeaderSection title={state.viewName} />
           </Grid>
+
           <Grid item xs={12}>
             <TabsNavigation
               tabs={state.menuTabs}
@@ -869,7 +910,13 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
             <Grid item xs={12}>
               <FormControl component="fieldset" className={classes.formControl}>
                 <FormLabel component="legend">Report View</FormLabel>
-                <RadioGroup row aria-label="report-view" name="report-view" value={state.reportView} onChange={handleReportViewChange}>
+                <RadioGroup
+                  row
+                  aria-label="report-view"
+                  name="report-view"
+                  value={state.reportView}
+                  onChange={handleReportViewChange}
+                >
                   <FormControlLabel value="Daily" control={<Radio />} label="Daily Visitors" />
                   <FormControlLabel value="Monthly" control={<Radio />} label="Monthly Visitors" />
                   <FormControlLabel value="Custom" control={<Radio />} label="Custom Range" />
@@ -892,7 +939,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
                     color="primary"
                     onClick={handleDownloadReport}
                     className={classes.downloadButton}
-                    disabled={state.dirListItems.length === 0}
+                    disabled={displayedItems.length === 0}
                   >
                     Download Report
                   </Button>
@@ -908,30 +955,52 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
                 color="primary"
                 onClick={handleDownloadReport}
                 className={classes.downloadButton}
-                disabled={state.dirListItems.length === 0}
+                disabled={displayedItems.length === 0}
               >
                 Download Visitor Count Report
               </Button>
             </Grid>
           )}
 
+          {/* NEW: HO / SPC / ALL radio filter (hide on vwid 0 and 11 if you want) */}
+          {(state.vwid !== 0 && state.vwid !== 11) && (
+            <Grid item xs={12}>
+              <FormControl component="fieldset" className={classes.formControl}>
+                <FormLabel component="legend">Reference Filter</FormLabel>
+                <RadioGroup
+                  row
+                  aria-label="ref-filter"
+                  name="ref-filter"
+                  value={state.refFilter as any}
+                  onChange={handleRefFilterChange}
+                >
+                  <FormControlLabel value="ALL" control={<Radio />} label="All" />
+                  <FormControlLabel value="HO" control={<Radio />} label="HO" />
+                  <FormControlLabel value="SPC" control={<Radio />} label="SPC" />
+                </RadioGroup>
+              </FormControl>
+            </Grid>
+          )}
+
           <Grid item xs={12}>
             <Paper variant="outlined" className={classes.paper}>
-              {(((state.vwid === 1) || (state.vwid === 2) || (state.vwid === 5) || (state.vwid === 6) || (state.vwid === 7) || (state.vwid === 8) || (state.vwid === 10)) && (state.dirListItems.length > 0)) && (
+              {(((state.vwid === 1) || (state.vwid === 2) || (state.vwid === 5) || (state.vwid === 6) || (state.vwid === 7) || (state.vwid === 8) || (state.vwid === 10)) && (displayedItems.length > 0)) && (
                 <VisitorRequestsTable
-                  data={state.dirListItems as IVisitor[]}
+                  data={displayedItems as IVisitor[]}
                   onViewAction={state.vwid === 10 ? viewAction2 : viewAction}
                 />
               )}
-              {(((state.vwid === 3) || (state.vwid === 4) || (state.vwid === 9)) && (state.dirListItems.length > 0)) && (
+
+              {(((state.vwid === 3) || (state.vwid === 4) || (state.vwid === 9)) && (displayedItems.length > 0)) && (
                 <VisitorDetailsTable
-                  data={state.dirListItems as IVisitorDetailExtended[]}
+                  data={displayedItems as IVisitorDetailExtended[]}
                   onViewAction={viewAction2}
                 />
               )}
-              {((state.vwid === 11) && (state.dirListItems.length > 0)) && (
+
+              {((state.vwid === 11) && (displayedItems.length > 0)) && (
                 <VisitorCountTable
-                  data={state.dirListItems as IVisitorCount[]}
+                  data={displayedItems as IVisitorCount[]}
                   title={`Visitor Entry Count`}
                   fromDate={state.selectedFromDate.toDate()}
                   toDate={state.selectedToDate.toDate()}
@@ -939,6 +1008,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
               )}
             </Paper>
           </Grid>
+
           <Grid item xs={12}>
             <ActionButtons onClose={onClickCancel} />
           </Grid>

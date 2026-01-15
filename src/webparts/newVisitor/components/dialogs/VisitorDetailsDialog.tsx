@@ -13,6 +13,7 @@ import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
 import { DialogProps } from '@material-ui/core/Dialog';
 import Typography from '@material-ui/core/Typography';
+import Box from '@material-ui/core/Box';
 import { IVisitorDetails } from '../../models/IVisitorDetails';
 import { IVisitorDetailsErrors } from '../../models/IFormErrors';
 import { validateVisitorDetailsForm } from '../../validations/formValidation';
@@ -54,7 +55,7 @@ export interface IVisitorDetailsDialogProps {
 const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
   const { open, mode, visitorDetails: initialVisitorDetails, requireParking, onClose } = props;
   const classes = useStyles();
-  
+
   const [fullWidth, setFullWidth] = useState(true);
   const [maxWidth, setMaxWidth] = useState<DialogProps['maxWidth']>('md');
   const [visitorDetails, setVisitorDetails] = useState<IVisitorDetails>(initialVisitorDetails);
@@ -74,10 +75,10 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const updatedDetails = { ...visitorDetails };
-    
+
     if (name === 'Car') {
       updatedDetails[name] = e.target.checked;
-      
+
       if (!e.target.checked) {
         updatedDetails.Color = '';
         updatedDetails.DriverLastName = '';
@@ -88,9 +89,9 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
     } else {
       updatedDetails[name] = value;
     }
-    
+
     setVisitorDetails(updatedDetails);
-    
+
     // Validate field
     if (value === '') {
       setErrors(prev => ({ ...prev, [name]: 'This is a required input field' }));
@@ -106,7 +107,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
   const handleClose = (confirmed: boolean) => {
     if (confirmed) {
       const validation = validateVisitorDetailsForm(visitorDetails);
-      
+
       if (validation.isValid) {
         onClose(true, visitorDetails);
       } else {
@@ -125,9 +126,26 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
       onClose={() => handleClose(false)}
       aria-labelledby="visitor-details-dialog-title"
     >
-      <DialogTitle id="visitor-details-dialog-title">
-        {mode === 'add' ? 'Add Visitor Details' : 'Edit Visitor Details'}
+      <DialogTitle id="visitor-details-dialog-title" disableTypography>
+        <Box style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography variant="h6">
+            {mode === 'add' ? 'Add Visitor Details' : 'Edit Visitor Details'}
+          </Typography>
+
+          <Typography
+            variant="body2"
+            style={{
+              color: '#d32f2f', // Material UI error red
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              marginLeft: 16
+            }}
+          >
+            Note: Visitor must be of legal age.
+          </Typography>
+        </Box>
       </DialogTitle>
+
       <DialogContent>
         <form noValidate autoComplete="off">
           <Grid container spacing={1}>
@@ -148,7 +166,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
               </Paper>
             </Grid>
 
-              <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6}>
               <Paper variant="outlined" className={classes.paper}>
                 <TextField
                   inputProps={{ maxLength: 255 }}
@@ -285,6 +303,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
           </Grid>
         </form>
       </DialogContent>
+
       <DialogActions>
         <Button onClick={() => handleClose(false)} color="default">
           Cancel

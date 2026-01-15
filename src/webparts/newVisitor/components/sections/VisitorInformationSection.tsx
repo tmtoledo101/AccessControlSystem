@@ -12,6 +12,7 @@ import MenuItem from '@material-ui/core/MenuItem';
 import FormHelperText from '@material-ui/core/FormHelperText';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
+import Chip from '@material-ui/core/Chip';
 import Autocomplete from '@material-ui/lab/Autocomplete';
 import { DateTimePicker, MuiPickersUtilsProvider } from '@material-ui/pickers';
 import DateFnsUtils from '@date-io/date-fns';
@@ -19,7 +20,7 @@ import { DropzoneArea } from 'material-ui-dropzone';
 import Typography from '@material-ui/core/Typography';
 
 import HeaderSection from './HeaderSection';
-import { IVisitor } from '../../models/IVisitor'; // This line is crucial for importing the IVisitor interface
+import { IVisitor } from '../../models/IVisitor';
 import { IFormErrors } from '../../models/IFormErrors';
 
 const useStyles = makeStyles((theme: Theme) =>
@@ -61,37 +62,30 @@ const useStyles = makeStyles((theme: Theme) =>
       textAlign: 'center',
       marginTop: theme.spacing(1),
     },
-    // Styles to adjust DropzoneArea vertical alignment
     dropzoneRoot: {
-      minHeight: 120, // Give it a fixed height to control space
-      display: 'flex', // Enable flexbox on the root
-      flexDirection: 'column', // Stack children vertically
-      justifyContent: 'flex-start', // Align content to the top
-      alignItems: 'center', // Center items horizontally
-      paddingTop: theme.spacing(2), // Add padding from the top
-      paddingBottom: theme.spacing(2), // Add padding from the bottom if needed
+      minHeight: 120,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'flex-start',
+      alignItems: 'center',
+      paddingTop: theme.spacing(2),
+      paddingBottom: theme.spacing(2),
     },
     dropzoneText: {
-      // Styles for the "Add an attachment" text specifically
-      marginBottom: theme.spacing(1), // Add some space between text and icon
+      marginBottom: theme.spacing(1),
     },
     dropzoneIcon: {
-      // Styles for the icon specifically
-      marginTop: 0, // Remove default top margin if any
-      marginBottom: theme.spacing(1), // Add space below the icon
+      marginTop: 0,
+      marginBottom: theme.spacing(1),
     },
-    // Style for the red "Subject for Approval" text
     subjectForApprovalRed: {
-        color: theme.palette.error.main, // Correctly using theme within makeStyles
+      color: theme.palette.error.main,
     },
   }),
 );
 
-/**
- * Visitor information section props
- */
 export interface IVisitorInformationSectionProps {
-  visitor: IVisitor; // This IVisitor comes from the import
+  visitor: IVisitor;
   errors: IFormErrors;
   externalType: string;
   purposeList: any[];
@@ -105,11 +99,6 @@ export interface IVisitorInformationSectionProps {
   onFilesChange: (files: File[]) => void;
 }
 
-/**
- * Visitor information section component
- * @param props Component props
- * @returns Visitor information section component
- */
 const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (props) => {
   const {
     visitor,
@@ -130,9 +119,38 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
   const [isAC1Open, setAC1Open] = useState(false);
 
   /**
-   * Handles text field change
-   * @param e Event
+   * OPTION 1:
+   * - SharePoint column Bldg is Single line of text.
+   * - UI is multi-select, but we store it as a single string joined by "; ".
+   *
+   * Internally in this component:
+   * - Read: split visitor.Bldg string to array for the multi-select value
+   * - Write: join array back to string and call onChange('Bldg', joinedString)
    */
+  const getBldgArrayFromVisitor = (): string[] => {
+    const raw = (visitor as any).Bldg;
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw; // just in case some other code already sends array
+    if (typeof raw === 'string') {
+      return raw.split(';').map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+  };
+
+  const handleBldgMultiChange = (e: React.ChangeEvent<{ name?: string; value: any }>) => {
+    // MUI multiple Select returns string[] (or sometimes string if autofill)
+    const value = e.target.value;
+    const arr: string[] = Array.isArray(value)
+      ? value
+      : typeof value === 'string'
+        ? value.split(',').map(s => s.trim()).filter(Boolean)
+        : [];
+
+    // Save back into the visitor model as a single string for SharePoint text column
+    const joined = arr.join('; ');
+    onChange('Bldg', joined);
+  };
+
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
@@ -143,19 +161,11 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
     }
   };
 
-  /**
-   * Handles select change
-   * @param e Event
-   */
   const handleSelectChange = (e: React.ChangeEvent<{ name?: string; value: any }>) => {
     const { name, value } = e.target;
-    onChange(name, value);
+    onChange(name as string, value);
   };
 
-  /**
-   * Handles contact search
-   * @param e Event
-   */
   const handleContactSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.value.length > 2) {
       onContactSearch(e.target.value);
@@ -163,6 +173,8 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
       onContactSearch('');
     }
   };
+
+  const bldgSelectedArray = getBldgArrayFromVisitor();
 
   return (
     <>
@@ -238,6 +250,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
         </Paper>
       </Grid>
 
+      {/* OPTION 1 BUILDING MULTI-SELECT (STORES AS TEXT "A; B; C") */}
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <FormControl className={classes.textField} error={Boolean(errors.Bldg)}>
@@ -245,9 +258,17 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
             <Select
               labelId="bldgLabel"
               id="Bldg"
-              value={visitor.Bldg || ''}
-              onChange={handleSelectChange}
               name="Bldg"
+              multiple
+              value={bldgSelectedArray}
+              onChange={handleBldgMultiChange}
+              renderValue={(selected) => (
+                <div>
+                  {(selected as string[]).map((b) => (
+                    <Chip key={b} label={b} style={{ marginRight: 6, marginTop: 6 }} />
+                  ))}
+                </div>
+              )}
             >
               {bldgList.map((item) => (
                 <MenuItem key={item.Title} value={item.Title}>
@@ -403,7 +424,6 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
         </Paper>
       </Grid>
 
-      {/* This Grid item represents the "Visitor Details" heading */}
       <Grid item xs={12}>
         <Paper variant="outlined" className={classes.paper}>
           <Box style={{ fontSize: "1rem" }}>
@@ -412,7 +432,6 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
         </Paper>
       </Grid>
 
-      {/* NEW: Visitor Type Dropdown (now near "Visitor Details") */}
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <FormControl className={classes.textField}>
@@ -420,19 +439,17 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
             <Select
               labelId="visitor-type-label"
               id="VisitorType"
-              value={visitor.VisitorType || ''} // Assuming visitor.VisitorType will hold the selected value
-              onChange={handleSelectChange} // You can reuse handleSelectChange or create a specific one
+              value={(visitor as any).VisitorType || ''}
+              onChange={handleSelectChange}
               name="VisitorType"
             >
               <MenuItem value="Visitor">Visitor</MenuItem>
               <MenuItem value="Service Provider">Service Provider</MenuItem>
               <MenuItem value="Project Contractor">Project Contractor</MenuItem>
             </Select>
-            {/* Add FormHelperText if you need validation for this field */}
           </FormControl>
         </Paper>
       </Grid>
-      {/* END NEW: Visitor Type Dropdown */}
 
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
@@ -514,7 +531,6 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
               }
               label="Request for Parking"
             />
-            {/* Using the new class for red color */}
             <Typography variant="caption" className={classes.subjectForApprovalRed} style={{ display: 'block', marginLeft: 35 }}>
               (Subject for Approval)
             </Typography>

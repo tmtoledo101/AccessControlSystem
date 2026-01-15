@@ -115,4 +115,5 @@ export interface IViewState {
   menuTabs: string[];
   tabvalue: number;
   reportView: 'Daily' | 'Monthly' | 'Custom';
+  refFilter: 'ALL' | 'HO' | 'SPC';
 }
