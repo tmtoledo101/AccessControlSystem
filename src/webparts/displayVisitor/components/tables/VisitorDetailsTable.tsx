@@ -113,7 +113,8 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
   // Add SSD Approve column if user is an SSD user
   if (isSSDUser) {
     columns.push({
-      title: 'SSD Approve?',
+      //title: 'SSD Approve?',
+      title: 'Entry Request?',
       field: 'SSDApprove',
       render: (rowData: IVisitorDetails) => (
         <input 

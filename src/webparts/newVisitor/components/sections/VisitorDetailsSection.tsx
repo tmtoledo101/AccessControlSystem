@@ -174,9 +174,11 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
                   { title: 'First Name', field: 'FirstName' },
                   { title: 'Visitor Type', field: 'VisitorType' },
                   {
-                    title: 'Car', 
+                    //title: 'Car',
+                    title: 'With Car?', 
                     field: "Car",
-                    render: rowData => <span>{rowData.Car ? 'With' : 'Without'}</span>
+                    //render: rowData => <span>{rowData.Car ? 'With' : 'Without'}</span>
+                    render: rowData => <span>{rowData.Car ? 'Yes' : 'No'}</span>
                   },
                   { title: 'Plate No.', field: 'PlateNo' },
                   { title: 'Type of Vehicle', field: "TypeofVehicle" },

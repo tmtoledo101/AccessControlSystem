@@ -106,6 +106,7 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = ({ data, onView
               ? accessCardLookup[rowData.AccessCardId].title
               : ''
         },
+        //{ title: 'Parking Status', field: "ParkingRequest", editable: 'never' },
         { title: 'Status', field: "Status.Title", editable: 'never' },
       ]}
       data={data}
