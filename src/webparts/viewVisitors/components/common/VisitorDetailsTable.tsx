@@ -11,21 +11,37 @@ interface IVisitorDetailsTableProps {
   title?: string;
 }
 
+const RECEPTIONIST_V2_GROUP = "Receptionist_V2";
+
 const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = ({ data, onViewAction, title = "Visitors" }) => {
   const [accessCardLookup, setAccessCardLookup] = React.useState<{
     [key: number]: { title: string; buildings: string[] };
   }>({});
 
+  const [canEditAccessCard, setCanEditAccessCard] = React.useState<boolean>(false);
+
   React.useEffect(() => {
-    const loadAccessPassOptions = async () => {
+    const init = async () => {
       try {
+        // Load access card options
         const lookup = await SharePointService.getAccessCardOptions();
         setAccessCardLookup(lookup);
+
+        // Check group membership
+        const groups = await SharePointService.getCurrentUserGroups();
+        const isReceptionistV2 = (groups || []).some((g: any) => {
+          const name = (g && (g.LoginName || g.Title || g.Name)) ? String(g.LoginName || g.Title || g.Name) : "";
+          return name === RECEPTIONIST_V2_GROUP;
+        });
+
+        setCanEditAccessCard(isReceptionistV2);
       } catch (error) {
-        console.error("Failed to load access card options:", error);
+        console.error("Init failed:", error);
+        setCanEditAccessCard(false);
       }
     };
-    loadAccessPassOptions();
+
+    init();
   }, []);
 
   return (
@@ -72,41 +88,41 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = ({ data, onView
         {
           title: "Access Card",
           field: "AccessCardId",
+          editable: canEditAccessCard ? 'always' : 'never',
           editComponent: props => {
-          // Normalize and split the buildings string
-          const bldgRaw = props.rowData.Bldg || "";
-          const selectedBuildings = bldgRaw
-            .split(/[,;/]+/)
-            .map(b => b.trim().toLowerCase())
-            .filter(Boolean); // avoid empty strings
+            // Normalize and split the buildings string
+            const bldgRaw = props.rowData.Bldg || "";
+            const selectedBuildings = bldgRaw
+              .split(/[,;/]+/)
+              .map(b => b.trim().toLowerCase())
+              .filter(Boolean);
 
-          // Filter AccessCards that match at least one building
-          const filteredOptions = Object.entries(accessCardLookup)
-            .filter(([_, val]) =>
-              val.buildings.some(
-                accessCardBldg => selectedBuildings.includes(accessCardBldg.toLowerCase())
+            // Filter AccessCards that match at least one building
+            const filteredOptions = Object.entries(accessCardLookup)
+              .filter(([_, val]) =>
+                val.buildings.some(
+                  accessCardBldg => selectedBuildings.includes(String(accessCardBldg).toLowerCase())
+                )
               )
-            )
-            .map(([id, val]) => (
-              <option key={id} value={id}>{val.title}</option>
-            ));
+              .map(([id, val]) => (
+                <option key={id} value={id}>{val.title}</option>
+              ));
 
-          return (
-            <select
-              value={props.value !== undefined && props.value !== null ? props.value : ''}
-              onChange={e => props.onChange(Number(e.target.value))}
-            >
-              <option value="">-- Select Access Card --</option>
-              {filteredOptions}
-            </select>
-          );
-        },
-          render: rowData =>
+            return (
+              <select
+                value={props.value !== undefined && props.value !== null ? props.value : ''}
+                onChange={e => props.onChange(Number(e.target.value))}
+              >
+                <option value="">-- Select Access Card --</option>
+                {filteredOptions}
+              </select>
+            );
+          },
+          render: (rowData: any) =>
             accessCardLookup[rowData.AccessCardId]
               ? accessCardLookup[rowData.AccessCardId].title
               : ''
         },
-        //{ title: 'Parking Status', field: "ParkingRequest", editable: 'never' },
         { title: 'Status', field: "Status.Title", editable: 'never' },
       ]}
       data={data}
@@ -118,15 +134,20 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = ({ data, onView
         grouping: true,
         selection: false
       }}
-      editable={{
-        onRowUpdate: async (newData, oldData) => {
-          try {
-            await SharePointService.updateAccessCard(oldData.ID, newData.AccessCardId);
-          } catch (e) {
-            console.error("Access Card update failed:", e);
-          }
-        }
-      }}
+      editable={
+        canEditAccessCard
+          ? {
+              onRowUpdate: async (newData: any, oldData: any) => {
+                try {
+                  if (!oldData) return;
+                  await SharePointService.updateAccessCard(oldData.ID, newData.AccessCardId);
+                } catch (e) {
+                  console.error("Access Card update failed:", e);
+                }
+              }
+            }
+          : undefined
+      }
       actions={[
         {
           icon: () => <VisibilityIcon />,

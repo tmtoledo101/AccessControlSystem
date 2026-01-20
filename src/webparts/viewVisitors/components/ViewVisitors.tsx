@@ -690,11 +690,11 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
               defaultPrevented: false,
               eventPhase: 2,
               isTrusted: false,
-              preventDefault: function () { },
-              isDefaultPrevented: function () { return false; },
-              stopPropagation: function () { },
-              isPropagationStopped: function () { return false; },
-              persist: function () { },
+              preventDefault: () => { },
+              isDefaultPrevented: () => false,
+              stopPropagation: () => { },
+              isPropagationStopped: () => false,
+              persist: () => { },
               timeStamp: Date.now(),
               type: 'change'
             };
@@ -706,22 +706,22 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           const defaultIndex = 0;
 
           const syntheticEvent2: any = {
-            target: { textContent: defaultTabContent },
-            currentTarget: { textContent: defaultTabContent },
-            nativeEvent: new Event('change'),
-            bubbles: false,
-            cancelable: false,
-            defaultPrevented: false,
-            eventPhase: 2,
-            isTrusted: false,
-            preventDefault: function () { },
-            isDefaultPrevented: function () { return false; },
-            stopPropagation: function () { },
-            isPropagationStopped: function () { return false; },
-            persist: function () { },
-            timeStamp: Date.now(),
-            type: 'change'
-          };
+          target: { textContent: defaultTabContent },
+          currentTarget: { textContent: defaultTabContent },
+          nativeEvent: new Event('change'),
+          bubbles: false,
+          cancelable: false,
+          defaultPrevented: false,
+          eventPhase: 2,
+          isTrusted: false,
+          preventDefault: () => { },
+          isDefaultPrevented: () => false,
+          stopPropagation: () => { },
+          isPropagationStopped: () => false,
+          persist: () => { },
+          timeStamp: Date.now(),
+          type: 'change'
+        };
 
           handleTabChange(syntheticEvent2, defaultIndex);
         }
