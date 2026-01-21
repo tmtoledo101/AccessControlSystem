@@ -52,8 +52,13 @@ const splitBldgText = (bldgText: string): string[] => {
 
 const validateBldgNotMixed = (bldgText: string): string => {
   const selected = splitBldgText(bldgText);
-  const hasHO = selected.some(s => s.startsWith('(HO)'));
-  const hasSPC = selected.some(s => s.startsWith('(SPC)'));
+
+  const hasHO = selected.some(s => s.toUpperCase().startsWith('(HO)'));
+  const hasSPC = selected.some(s => {
+    const u = s.toUpperCase();
+    return u === 'SPC' || u.startsWith('(SPC)');
+  });
+
   if (hasHO && hasSPC) {
     return 'Please select buildings from only one site (HO or SPC).';
   }
@@ -69,9 +74,13 @@ const getLocationCodeFromBldgText = (bldgText: string, bldgList: any[]): string 
     if (match && match.LocationCode) return match.LocationCode;
   }
 
-  // Fallback: infer by prefix
-  const hasHO = selected.some(s => s.startsWith('(HO)'));
-  const hasSPC = selected.some(s => s.startsWith('(SPC)'));
+  // Fallback: infer by prefix / value
+  const hasHO = selected.some(s => s.toUpperCase().startsWith('(HO)'));
+  const hasSPC = selected.some(s => {
+    const u = s.toUpperCase();
+    return u === 'SPC' || u.startsWith('(SPC)');
+  });
+
   if (hasHO && !hasSPC) return 'HO';
   if (hasSPC && !hasHO) return 'SPC';
 
@@ -160,7 +169,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
       return;
     }
 
-    // NEW: prevent selecting both HO and SPC buildings
+    // prevent selecting both HO and SPC buildings
     const bldgMixError = validateBldgNotMixed(visitor.Bldg);
     if (bldgMixError) {
       setErrors(prev => ({ ...prev, Bldg: bldgMixError }));
@@ -170,7 +179,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     setProgress(true);
 
     try {
-      // NEW: locationCode works even if visitor.Bldg is "A; B; C"
+      // locationCode works even if visitor.Bldg is "A; B; C"
       const locationCode = getLocationCodeFromBldgText(visitor.Bldg, bldgList);
 
       // If submitting and we still can't infer the code, stop with a friendly error
@@ -213,7 +222,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   };
 
   const handleDeptChange = async (deptId: number) => {
-    const dept = deptList.find(d => d.Id === deptId);
+    const dept = deptList.find((d: any) => d.Id === deptId);
     if (dept) setDeptName(dept.Title);
 
     if (visitor.ExternalType === 'Walk-in') {
@@ -254,14 +263,14 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   };
 
   const handleDateChange = (date: Date, name: string) => {
-    const updatedVisitor = { ...visitor, [name]: date };
+    const updatedVisitor: any = { ...visitor, [name]: date };
     setVisitor(updatedVisitor);
     if (name === 'DateTimeVisit' && date > visitor.DateTimeArrival) {
       setErrors(prev => ({ ...prev, DateTimeVisit: 'From Date should be earlier than To Date' }));
     } else if (name === 'DateTimeArrival' && visitor.DateTimeVisit > date) {
       setErrors(prev => ({ ...prev, DateTimeArrival: 'From Date should be earlier than To Date' }));
     } else {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+      setErrors(prev => ({ ...prev, [name]: '' } as any));
     }
   };
 
@@ -276,12 +285,12 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   };
 
   const handleFieldChange = (name: string, value: any) => {
-    // NEW: If Bldg changes, run the HO/SPC mixing validation immediately
+    // If Bldg changes, run the HO/SPC mixing validation immediately
     if (name === 'Bldg') {
       const bldgMixError = validateBldgNotMixed(value as string);
       setErrors(prev => ({ ...prev, Bldg: bldgMixError }));
       if (bldgMixError) {
-        // Still update the value (so user sees selection), but it won't submit until fixed
+        // still update so user sees selection, but they cannot submit until fixed
         setVisitor(prev => ({ ...prev, [name]: value }));
         return;
       }
@@ -289,7 +298,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
 
     setVisitor(prev => ({ ...prev, [name]: value }));
     const errorMessage = validateField(name, value, { ...visitor, [name]: value });
-    setErrors(prev => ({ ...prev, [name]: errorMessage }));
+    setErrors(prev => ({ ...prev, [name]: errorMessage } as any));
 
     if (name === 'DeptId') handleDeptChange(value);
     if (name === 'Purpose' && value !== 'Others') setVisitor(prev => ({ ...prev, PurposeOthers: '' }));
@@ -333,7 +342,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
           setVisitor(prev => ({ ...prev, ExternalType: "Walk-in" }));
         }
 
-        if (usersPerDept.length > 0 || isReceptionist) {
+        if (usersPerDept.length > 0 || isReceptionistResult) {
           setPurposeList(await spSvc.getPurposeList());
           setBldgList(await spSvc.getBuildingList());
           setDeptList(await spSvc.getDepartmentList(usersPerDept.length > 0, usersPerDept));
@@ -396,8 +405,8 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
             <VisitorDetailsSection
               visitorDetailsList={visitorDetailsList}
               requireParking={visitor.RequireParking}
-              detailsError={errors.Details}
-              visitorType={visitor.VisitorType || 'Visitor'}
+              detailsError={(errors as any).Details}
+              visitorType={(visitor as any).VisitorType || 'Visitor'}
               onAddVisitor={handleAddVisitor}
               onEditVisitor={handleEditVisitor}
               onDeleteVisitor={handleDeleteVisitor}
@@ -409,8 +418,8 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
                 isReceptionist={isReceptionist}
                 approverList={approverList}
                 walkinApproverList={walkinApproverList}
-                approverId={visitor.ApproverId}
-                error={errors.ApproverId}
+                approverId={(visitor as any).ApproverId}
+                error={(errors as any).ApproverId}
                 onChange={handleFieldChange}
               />
             </Grid>

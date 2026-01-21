@@ -78,9 +78,11 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
     { title: 'First Name', field: 'FirstName' },
     { title: 'Access Card', field: 'AccessCard' },
     {
-      title: 'Car',
+      //title: 'Car',
+      title: 'With Car?',
       field: 'Car',
-      render: (rowData: IVisitorDetails) => <span>{rowData.Car ? 'With' : 'Without'}</span>
+      //render: (rowData: IVisitorDetails) => <span>{rowData.Car ? 'With' : 'Without'}</span>
+      render: rowData => <span>{rowData.Car ? 'Yes' : 'No'}</span>
     },
     { title: 'Plate No.', field: 'PlateNo' },
     { title: 'Type of Vehicle', field: 'TypeofVehicle' },
@@ -95,42 +97,55 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
     columns.push({
       title: 'Parking Request?',
       field: 'ParkingRequest',
-      render: (rowData: IVisitorDetails) => (
-        <input 
-          type="checkbox" 
-          checked={rowData.ParkingRequest === 'Yes'} 
-          disabled={!isEdit}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-            const newValue: 'Yes' | 'No' = e.target.checked ? 'Yes' : 'No';
-            const updatedRowData: IVisitorDetails = { ...rowData, ParkingRequest: newValue };
-            onAction('updateParkingRequest', updatedRowData);
-          }}
-        />
-      )
+      render: (rowData: IVisitorDetails) => {
+        const value = rowData.ParkingRequest === 'Yes' ? 'Yes' : 'No';
+
+        return (
+          <select
+            value={value}
+            disabled={!isEdit}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+              const newValue: 'Yes' | 'No' = (e.target.value === 'Yes') ? 'Yes' : 'No';
+              const updatedRowData: IVisitorDetails = { ...rowData, ParkingRequest: newValue };
+              onAction('updateParkingRequest', updatedRowData);
+            }}
+            style={{ minWidth: 130 }}
+          >
+            <option value="Yes">Approved</option>
+            <option value="No">Disapproved</option>
+          </select>
+        );
+      }
     });
   }
-    
+
   // Add SSD Approve column if user is an SSD user
   if (isSSDUser) {
     columns.push({
-      //title: 'SSD Approve?',
       title: 'Entry Request?',
       field: 'SSDApprove',
-      render: (rowData: IVisitorDetails) => (
-        <input 
-          type="checkbox" 
-          checked={rowData.SSDApprove === 'Yes'} 
-          disabled={!isEdit}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-            const newValue: 'Yes' | 'No' = e.target.checked ? 'Yes' : 'No';
-            const updatedRowData: IVisitorDetails = { ...rowData, SSDApprove: newValue };
-            onAction('updateSSDApprove', updatedRowData);
-          }}
-        />
-      )
+      render: (rowData: IVisitorDetails) => {
+        const value = rowData.SSDApprove === 'Yes' ? 'Yes' : 'No';
+
+        return (
+          <select
+            value={value}
+            disabled={!isEdit}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+              const newValue: 'Yes' | 'No' = (e.target.value === 'Yes') ? 'Yes' : 'No';
+              const updatedRowData: IVisitorDetails = { ...rowData, SSDApprove: newValue };
+              onAction('updateSSDApprove', updatedRowData);
+            }}
+            style={{ minWidth: 130 }}
+          >
+            <option value="Yes">Approved</option>
+            <option value="No">Disapproved</option>
+          </select>
+        );
+      }
     });
   }
-  
+
   return (
     <MaterialTable
       title="Visitors"

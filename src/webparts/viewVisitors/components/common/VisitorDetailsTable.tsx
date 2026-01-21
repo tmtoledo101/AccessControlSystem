@@ -123,6 +123,26 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = ({ data, onView
               ? accessCardLookup[rowData.AccessCardId].title
               : ''
         },
+        {
+          title: 'Parking Status',
+          field: 'ParkingRequest',
+          editable: 'never',
+
+          // Optional: makes the column filter show nice labels too
+          lookup: {
+            true: 'Parking Approved',
+            false: 'Parking Disapproved'
+          } as any,
+
+          render: (rowData: any) => {
+            const v = (rowData as any).ParkingRequest;
+
+            // handle boolean true/false OR "Yes"/"No" OR null
+            if (v === true || v === 'Yes') return 'Parking Approved';
+            if (v === false || v === 'No') return 'Parking Disapproved';
+            return '';
+          }
+        },
         { title: 'Status', field: "Status.Title", editable: 'never' },
       ]}
       data={data}

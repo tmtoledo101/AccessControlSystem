@@ -472,7 +472,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       try {
         setProgress(true);
         _sourceURL = document.referrer;
-        _itemId = parseInt(getUrlParameter("pid"));
+        //_itemId = parseInt(getUrlParameter("pid"));
+        _itemId = 116;
         const user = await sharePointService.getCurrentUser();
         setCurrentUser(user);
 
