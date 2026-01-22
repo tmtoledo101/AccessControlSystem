@@ -93,7 +93,8 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
   ];
 
   // Add Parking Request column if user is an Approver
-  if (isApproverUser) {
+  //if (isApproverUser) {
+  if (isSSDUser) {
     columns.push({
       title: 'Parking Request?',
       field: 'ParkingRequest',

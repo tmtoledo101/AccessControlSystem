@@ -32,7 +32,6 @@ import { Chip, LinearProgress, Typography } from "@material-ui/core";
 import { sp } from "@pnp/sp";
 
 // Reuse ViewVisitor’s VisitorCountTable + service + types
-// Adjust these paths if your folder names differ.
 import VisitorCountTable from "../../viewVisitors/components/common/VisitorCountTable";
 import ViewVisitorSharePointService from "../../viewVisitors/components/services/SharePointService";
 import { IVisitorCount } from "../../viewVisitors/components/interfaces/IViewVisitors";
@@ -182,35 +181,6 @@ const initialVisitorDetailError: IVisitorDetailsError = {
   Files: "",
 };
 
-// Inclusive days between 2 dates (clipped if needed)
-function inclusiveDaysInRange(
-  dateFrom?: string | Date | null,
-  dateTo?: string | Date | null,
-  clipFrom?: Date,
-  clipTo?: Date
-): number {
-  if (!dateFrom || !dateTo) return 0;
-
-  const start = new Date(dateFrom);
-  const end = new Date(dateTo);
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
-
-  const s = new Date(
-    Math.max(start.getTime(), clipFrom ? clipFrom.getTime() : start.getTime())
-  );
-  const e = new Date(
-    Math.min(end.getTime(), clipTo ? clipTo.getTime() : end.getTime())
-  );
-
-  s.setHours(0, 0, 0, 0);
-  e.setHours(0, 0, 0, 0);
-
-  if (e < s) return 0;
-
-  const MS_PER_DAY = 24 * 60 * 60 * 1000;
-  return Math.floor((e.getTime() - s.getTime()) / MS_PER_DAY) + 1;
-}
-
 function computeRequestWindow(v: IVisitor) {
   const rawFrom = v.DateTimeArrival ? new Date(v.DateTimeArrival as any) : new Date();
   const rawTo = v.DateTimeVisit ? new Date(v.DateTimeVisit as any) : new Date();
@@ -230,10 +200,6 @@ function computeRequestWindow(v: IVisitor) {
   return { from, to };
 }
 
-/*
-  NEW: Unique-day counting across multiple requests
-  This prevents double counting if a visitor has overlapping date ranges.
-*/
 function toYmd(d: Date) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -293,10 +259,8 @@ function countUniqueVisitDays(records: any[], clipFrom?: Date, clipTo?: Date) {
     const a = r.DateTimeArrival || null;
     const v = r.DateTimeVisit || null;
 
-    // Prefer Arrival/Visit (parent) because it matches your expected counting
     addDaysToSet(days, a, v, clipFrom, clipTo);
 
-    // Fallback if needed
     if (!a || !v) {
       addDaysToSet(days, r.DateFrom || null, r.DateTo || null, clipFrom, clipTo);
     }
@@ -309,7 +273,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const classes = useStyles();
   const printRef = useRef<HTMLDivElement>(null);
 
-  const Receptionist_Group = "Receptionist";
+  const Receptionist_Group = "Receptionist_V2";
   const SSD_Group = "SSD_v2";
 
   const sharePointService = new SharePointService(props.siteUrl, props.siteRelativeUrl);
@@ -382,10 +346,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const [countToDate, setCountToDate] = useState<Date>(new Date());
   const [countRows, setCountRows] = useState<IVisitorCount[]>([]);
 
-  const loadAllVisitorCountsForAllRequests = async (
-    list: IVisitorDetails[],
-    req: IVisitor
-  ) => {
+  const loadAllVisitorCountsForAllRequests = async (list: IVisitorDetails[], req: IVisitor) => {
     if (!list || list.length === 0) {
       setCountRows([]);
       return;
@@ -394,10 +355,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     const ctx = (props as any).context;
     if (ctx) sp.setup({ spfxContext: ctx });
 
-    // Keep request window available if you need it later
     computeRequestWindow(req);
 
-    // WIDE RANGE so we collect previous + future requests too
     const rangeFrom = new Date(2000, 0, 1);
     const rangeTo = new Date(2100, 11, 31);
 
@@ -409,7 +368,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     setCountRows([]);
 
     try {
-      // unique by First|Last (case-insensitive)
       const uniq: { [k: string]: { first: string; last: string; anyId: number } } = {};
       for (const d of list) {
         const first = (d.FirstName || "").trim();
@@ -422,11 +380,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       const keys = Object.keys(uniq);
       const rowsOut: IVisitorCount[] = [];
 
-      // sequential to avoid throttling
       for (const k of keys) {
         const { first, last, anyId } = uniq[k];
 
-        // IMPORTANT: use wide range to include previous + future requests
         const details = await ViewVisitorSharePointService.getVisitorDetailedInfo(
           first,
           last,
@@ -436,7 +392,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           "exact"
         );
 
-        // Total unique days across ALL requests
         const totalUniqueDays = countUniqueVisitDays(details);
 
         rowsOut.push({
@@ -451,7 +406,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         });
       }
 
-      // sort descending by count
       rowsOut.sort(
         (a, b) =>
           (b.VisitCount || 0) - (a.VisitCount || 0) ||
@@ -460,7 +414,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
       setCountRows(rowsOut);
 
-      // scroll into view once loaded
       setTimeout(() => {
         if (countPanelRef.current) {
           countPanelRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -486,9 +439,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       tempErrors[name] = "This is a required input field";
     } else if (name === "DateTimeVisit" || name === "DateTimeArrival") {
       const visitDate = inputFields.DateTimeVisit ? new Date(inputFields.DateTimeVisit) : null;
-      const arrivalDate = inputFields.DateTimeArrival
-        ? new Date(inputFields.DateTimeArrival)
-        : null;
+      const arrivalDate = inputFields.DateTimeArrival ? new Date(inputFields.DateTimeArrival) : null;
       if (visitDate && arrivalDate && visitDate > arrivalDate) {
         tempErrors.DateTimeVisit = "From Date should be earlier than To Date";
         tempErrors.DateTimeArrival = "To Date should be later than From Date";
@@ -542,24 +493,24 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
     for (const field of requiredFields) {
       if (field === "EmpNo" && inputFields.Purpose === "For receiving") {
-        tempErrors[field] = "";
+        (tempErrors as any)[field] = "";
       } else if (field === "DateTimeVisit" || field === "DateTimeArrival") {
         const v = inputFields.DateTimeVisit ? new Date(inputFields.DateTimeVisit) : null;
         const a = inputFields.DateTimeArrival ? new Date(inputFields.DateTimeArrival) : null;
         if (!v || !a) {
-          tempErrors[field] = "This is a required input field";
+          (tempErrors as any)[field] = "This is a required input field";
           validationErrorsFound.push(field);
         } else if (v > a) {
           tempErrors.DateTimeVisit = "From Date should be earlier than To Date";
           tempErrors.DateTimeArrival = "To Date should be later than From Date";
           validationErrorsFound.push(field);
-        } else tempErrors[field] = "";
+        } else (tempErrors as any)[field] = "";
       } else if (field === "ApproverId" && t === "savedraft") {
-        tempErrors[field] = "";
+        (tempErrors as any)[field] = "";
       } else if (isEmptyString((inputFields as any)[field])) {
-        tempErrors[field] = "This is a required input field";
+        (tempErrors as any)[field] = "This is a required input field";
         validationErrorsFound.push(field);
-      } else tempErrors[field] = "";
+      } else (tempErrors as any)[field] = "";
     }
 
     if (visitorDetailsList.length === 0) {
@@ -622,11 +573,11 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           field === "Color" ||
           field === "DriverLastName")
       ) {
-        tempErrors[field] = "";
+        (tempErrors as any)[field] = "";
       } else if (isEmptyString((visitorDetails as any)[field])) {
-        tempErrors[field] = "This is a required input field";
+        (tempErrors as any)[field] = "This is a required input field";
         detailValidationErrorsFound.push(field);
-      } else tempErrors[field] = "";
+      } else (tempErrors as any)[field] = "";
     }
 
     if (detailValidationErrorsFound.length > 0) isValid = false;
@@ -634,23 +585,42 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     return isValid;
   };
 
-  const sendEmail = async () => {
+  // FIX 2: Lazy-load SSD users only when we actually need to notify SSD
+  const sendEmail = async (visitorForEmail: IVisitor) => {
     const emailService = new EmailService(props.siteUrl, currentUser.Email);
+
+    let ssdUsersToUse = SSDUsers;
+
+    // Typically SSD needs to be notified once Dept Approver approves (Status becomes 3)
+    const needsSSDRecipients = visitorForEmail.StatusId === 3;
+
+    if (needsSSDRecipients && (!ssdUsersToUse || ssdUsersToUse.length === 0)) {
+      try {
+        ssdUsersToUse = await sharePointService.getSSDUsers();
+        setSSD(ssdUsersToUse);
+      } catch (e) {
+        // Do not block saving or page usage for approvers who cannot read SSD group members
+        console.warn("Cannot read SSD group members. Skipping SSD recipients.", e);
+        ssdUsersToUse = [];
+      }
+    }
+
     await emailService.sendNotification(
       sAction,
-      inputFields,
+      visitorForEmail,
       approverDetails,
       isEncoder,
       isReceptionist,
       isApproverUser,
       isWalkinApproverUser,
       isSSDUser,
-      SSDUsers,
+      ssdUsersToUse,
       visitorDetailsList
     );
+
     const message = emailService.getSuccessMessage(
       sAction,
-      inputFields,
+      visitorForEmail,
       approverDetails,
       isEncoder,
       isReceptionist,
@@ -683,7 +653,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         deleteFiles
       );
 
-      await sendEmail();
+      await sendEmail(updatedVisitor);
 
       for (const visitorDetail of visitorDetailsList) {
         const detailToSave = { ...visitorDetail, ParentId: _itemId };
@@ -787,7 +757,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       try {
         setProgress(true);
 
-        // ensure PnP is set up for ViewVisitorSharePointService
         const ctx = (props as any).context;
         if (ctx) sp.setup({ spfxContext: ctx });
 
@@ -892,8 +861,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           const optionContacts = await sharePointService.getEmployeeByEmpNo(visitor.EmpNo);
           setContacts(optionContacts);
 
-          const ssdUsers = await sharePointService.getSSDUsers();
-          setSSD(ssdUsers);
+          // FIX 2: Do NOT call getSSDUsers() here (prevents 403 for approvers on page load)
+          setSSD([]);
 
           const visitordetails = await sharePointService.getVisitorDetailsByParentId(_itemId);
           _origVisitorDetailsList = visitordetails;
@@ -919,9 +888,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // AUTO-LOAD counts once we have both:
-  // - visitorDetailsList
-  // - inputFields dates
   useEffect(() => {
     const hasList = visitorDetailsList && visitorDetailsList.length > 0;
     const hasDates = !!inputFields.DateTimeArrival && !!inputFields.DateTimeVisit;
@@ -1247,7 +1213,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
               onVisitorDetailsAction={handleVisitorDetailsAction}
             />
 
-            {/* AUTO-SHOW Visitor Entry Count (includes previous + future requests) */}
+            {/* AUTO-SHOW Visitor Entry Count */}
             <Grid item xs={12}>
               <div ref={countPanelRef} style={{ marginTop: 8 }}>
                 <div
@@ -1258,15 +1224,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
                     marginBottom: 8,
                   }}
                 >
-                  {/* <Typography variant="subtitle1">
-                    Visitor Total Days (All Requests):{" "}
-                    {countFromDate ? countFromDate.toLocaleDateString() : ""} to{" "}
-                    {countToDate ? countToDate.toLocaleDateString() : ""}
-                  </Typography> */}
-
-                  {anyReached14 && (
-                    <Chip size="small" color="secondary" label="Reached 14 days" />
-                  )}
+                  {anyReached14 && <Chip size="small" color="secondary" label="Reached 14 days" />}
                 </div>
 
                 {countLoading && <LinearProgress />}
@@ -1319,11 +1277,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             />
           </Grid>
 
-          <ConfirmationDialog
-            open={openDialog}
-            message={dialogMessage}
-            onClose={handleCloseDialog}
-          />
+          <ConfirmationDialog open={openDialog} message={dialogMessage} onClose={handleCloseDialog} />
 
           {openDialogFab && (
             <VisitorDetailsDialog
@@ -1361,14 +1315,29 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             <CircularProgress color="inherit" />
           </Backdrop>
 
-          <Snackbar
-            open={isSavingDone}
-            autoHideDuration={2000}
-            onClose={() => setSavingDone(false)}
-          >
+          <Snackbar open={isSavingDone} autoHideDuration={2000} onClose={() => setSavingDone(false)}>
             <Alert severity="success" onClose={() => setSavingDone(false)}>
               Data has been saved successfully.
-              {successMessage && <div>{successMessage}</div>}
+              {((isEncoder || isReceptionist) && (sAction === 'submit')) && <div>
+                An email notification has been sent to approver {approverDetails.name}.
+              </div>
+              }
+              {((isApproverUser) && (inputFields.StatusId === 2) && (sAction === 'approve')) && <div>
+                An email notification has been sent to the SSD group .
+              </div>
+              }
+              {((isWalkinApproverUser) && (inputFields.StatusId === 2) && (sAction === 'approve')) && <div>
+                An email notification has been sent to requestor {inputFields.Author.Title}.
+              </div>
+              }
+              {((isSSDUser) && (inputFields.StatusId === 3) && (sAction === 'approve')) && <div>
+                An email notification has been sent to requestor {inputFields.Author.Title}.
+              </div>
+              }
+              {(sAction === 'deny') && <div>
+                An email notification has been sent to requestor {inputFields.Author.Title}.
+              </div>
+              }
             </Alert>
           </Snackbar>
         </div>

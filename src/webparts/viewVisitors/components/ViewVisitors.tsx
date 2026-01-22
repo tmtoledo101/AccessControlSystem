@@ -58,7 +58,7 @@ const useStyles = makeStyles((theme: Theme) =>
 );
 
 // Constants
-const Receptionist_Group = "Receptionist";
+const Receptionist_Group = "Receptionist_v2";
 const SSD_Group_v2 = "SSD_v2";
 
 // Global
