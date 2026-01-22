@@ -25,6 +25,18 @@ import CircularProgress from "@material-ui/core/CircularProgress";
 import Snackbar from "@material-ui/core/Snackbar";
 import MuiAlert, { AlertProps } from "@material-ui/lab/Alert";
 
+// UI for count panel
+import { Chip, LinearProgress, Typography } from "@material-ui/core";
+
+// PnP setup for ViewVisitor SharePointService
+import { sp } from "@pnp/sp";
+
+// Reuse ViewVisitor’s VisitorCountTable + service + types
+// Adjust these paths if your folder names differ.
+import VisitorCountTable from "../../viewVisitors/components/common/VisitorCountTable";
+import ViewVisitorSharePointService from "../../viewVisitors/components/services/SharePointService";
+import { IVisitorCount } from "../../viewVisitors/components/interfaces/IViewVisitors";
+
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     root: {
@@ -56,7 +68,8 @@ const checkVisibility = (
   isSSDUser: boolean
 ): boolean => {
   const forSSD =
-    isSSDUser && (visitor.StatusId === 3 || visitor.StatusId === 4 || visitor.StatusId === 7);
+    isSSDUser &&
+    (visitor.StatusId === 3 || visitor.StatusId === 4 || visitor.StatusId === 7);
   const forEncoder = isEncoder && (visitor.StatusId === 1 || visitor.StatusId === 2);
   switch (element) {
     case "editicon":
@@ -67,43 +80,230 @@ const checkVisibility = (
 };
 
 const initialVisitor: IVisitor = {
-  ID: null,Title: "",ExternalType: "", Purpose: "", DeptId: null, Dept: { Title: "" }, Bldg: "",RoomNo: "",
-  EmpNo: "",ContactName: "",Position: "",DirectNo: "",LocalNo: "",
-  DateTimeVisit: nowDate(),DateTimeArrival: nowDate(),CompanyName: "",Address: "",
-  VisContactNo: "",VisLocalNo: "",
-  RequireParking: false,Remarks1: "",Remarks2: "",
-  StatusId: 0,Status: { Title: "" },
-  ApproverId: null,Approver: { Title: "", EMail: "", ID: null },
-  Files: [],initFiles: [],origFiles: [],
-  SSDApproverId: null,SSDApprover: { Title: "" },RequestDate: nowDate(),
-  Author: { Title: "", EMail: "" },AuthorId: null,colorAccess: "General",SSDDate: null,DeptApproverDate: null,
-  MarkCompleteDate: null,Receptionist: { Title: "" },ReceptionistId: null,PurposeOthers: "",
+  ID: null,
+  Title: "",
+  ExternalType: "",
+  Purpose: "",
+  DeptId: null,
+  Dept: { Title: "" },
+  Bldg: "",
+  RoomNo: "",
+  EmpNo: "",
+  ContactName: "",
+  Position: "",
+  DirectNo: "",
+  LocalNo: "",
+  DateTimeVisit: nowDate(),
+  DateTimeArrival: nowDate(),
+  CompanyName: "",
+  Address: "",
+  VisContactNo: "",
+  VisLocalNo: "",
+  RequireParking: false,
+  Remarks1: "",
+  Remarks2: "",
+  StatusId: 0,
+  Status: { Title: "" },
+  ApproverId: null,
+  Approver: { Title: "", EMail: "", ID: null },
+  Files: [],
+  initFiles: [],
+  origFiles: [],
+  SSDApproverId: null,
+  SSDApprover: { Title: "" },
+  RequestDate: nowDate(),
+  Author: { Title: "", EMail: "" },
+  AuthorId: null,
+  colorAccess: "General",
+  SSDDate: null,
+  DeptApproverDate: null,
+  MarkCompleteDate: null,
+  Receptionist: { Title: "" },
+  ReceptionistId: null,
+  PurposeOthers: "",
 };
 
 const initialFormError: IFormError = {
-  ExternalType: "",Purpose: "",DeptId: "",Bldg: "",RoomNo: "",EmpNo: "",
-  Title: "",Position: "",DirectNo: "",LocalNo: "",
-  DateTimeVisit: "",DateTimeArrival: "",
-  CompanyName: "",Address: "",
-  VisContactNo: "",VisLocalNo: "",
-  RequireParking: "",ApproverId: "",
-  Details: "",Remarks1: "",Remarks2: "",PurposeOthers: "",
+  ExternalType: "",
+  Purpose: "",
+  DeptId: "",
+  Bldg: "",
+  RoomNo: "",
+  EmpNo: "",
+  Title: "",
+  Position: "",
+  DirectNo: "",
+  LocalNo: "",
+  DateTimeVisit: "",
+  DateTimeArrival: "",
+  CompanyName: "",
+  Address: "",
+  VisContactNo: "",
+  VisLocalNo: "",
+  RequireParking: "",
+  ApproverId: "",
+  Details: "",
+  Remarks1: "",
+  Remarks2: "",
+  PurposeOthers: "",
 };
 
 const initialVisitorDetail: IVisitorDetails = {
-  ID: null,Title: "",FirstName: "",
-  Car: false,AccessCard: "",
-  PlateNo: "",TypeofVehicle: "",Color: "",DriverLastName: "",DriverFirstName: "",IDPresented: "",
-  GateNo: "",ParentId: null,
-  Files: [],initFiles: [],origFiles: [],
+  ID: null,
+  Title: "",
+  FirstName: "",
+  Car: false,
+  AccessCard: "",
+  PlateNo: "",
+  TypeofVehicle: "",
+  Color: "",
+  DriverLastName: "",
+  DriverFirstName: "",
+  IDPresented: "",
+  GateNo: "",
+  ParentId: null,
+  Files: [],
+  initFiles: [],
+  origFiles: [],
 };
 
 const initialVisitorDetailError: IVisitorDetailsError = {
-  Title: "",FirstName: "",Car: "",
-  AccessCard: "",PlateNo: "",TypeofVehicle: "",Color: "",
-  DriverLastName: "",DriverFirstName: "",
-  IDPresented: "",GateNo: "",Files: "",
+  Title: "",
+  FirstName: "",
+  Car: "",
+  AccessCard: "",
+  PlateNo: "",
+  TypeofVehicle: "",
+  Color: "",
+  DriverLastName: "",
+  DriverFirstName: "",
+  IDPresented: "",
+  GateNo: "",
+  Files: "",
 };
+
+// Inclusive days between 2 dates (clipped if needed)
+function inclusiveDaysInRange(
+  dateFrom?: string | Date | null,
+  dateTo?: string | Date | null,
+  clipFrom?: Date,
+  clipTo?: Date
+): number {
+  if (!dateFrom || !dateTo) return 0;
+
+  const start = new Date(dateFrom);
+  const end = new Date(dateTo);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
+
+  const s = new Date(
+    Math.max(start.getTime(), clipFrom ? clipFrom.getTime() : start.getTime())
+  );
+  const e = new Date(
+    Math.min(end.getTime(), clipTo ? clipTo.getTime() : end.getTime())
+  );
+
+  s.setHours(0, 0, 0, 0);
+  e.setHours(0, 0, 0, 0);
+
+  if (e < s) return 0;
+
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  return Math.floor((e.getTime() - s.getTime()) / MS_PER_DAY) + 1;
+}
+
+function computeRequestWindow(v: IVisitor) {
+  const rawFrom = v.DateTimeArrival ? new Date(v.DateTimeArrival as any) : new Date();
+  const rawTo = v.DateTimeVisit ? new Date(v.DateTimeVisit as any) : new Date();
+
+  const from = new Date(rawFrom);
+  const to = new Date(rawTo);
+
+  if (from.getTime() > to.getTime()) {
+    const tmp = new Date(from);
+    from.setTime(to.getTime());
+    to.setTime(tmp.getTime());
+  }
+
+  from.setHours(0, 0, 0, 0);
+  to.setHours(23, 59, 59, 999);
+
+  return { from, to };
+}
+
+/*
+  NEW: Unique-day counting across multiple requests
+  This prevents double counting if a visitor has overlapping date ranges.
+*/
+function toYmd(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function addDaysToSet(
+  set: Set<string>,
+  dateFrom?: string | Date | null,
+  dateTo?: string | Date | null,
+  clipFrom?: Date,
+  clipTo?: Date
+) {
+  if (!dateFrom || !dateTo) return;
+
+  const startRaw = new Date(dateFrom);
+  const endRaw = new Date(dateTo);
+  if (isNaN(startRaw.getTime()) || isNaN(endRaw.getTime())) return;
+
+  let start = new Date(startRaw);
+  let end = new Date(endRaw);
+
+  if (start.getTime() > end.getTime()) {
+    const tmp = start;
+    start = end;
+    end = tmp;
+  }
+
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+
+  if (clipFrom) {
+    const cf = new Date(clipFrom);
+    cf.setHours(0, 0, 0, 0);
+    if (start < cf) start = cf;
+  }
+  if (clipTo) {
+    const ct = new Date(clipTo);
+    ct.setHours(0, 0, 0, 0);
+    if (end > ct) end = ct;
+  }
+
+  if (end < start) return;
+
+  const d = new Date(start);
+  while (d <= end) {
+    set.add(toYmd(d));
+    d.setDate(d.getDate() + 1);
+  }
+}
+
+function countUniqueVisitDays(records: any[], clipFrom?: Date, clipTo?: Date) {
+  const days = new Set<string>();
+
+  (records || []).forEach((r) => {
+    const a = r.DateTimeArrival || null;
+    const v = r.DateTimeVisit || null;
+
+    // Prefer Arrival/Visit (parent) because it matches your expected counting
+    addDaysToSet(days, a, v, clipFrom, clipTo);
+
+    // Fallback if needed
+    if (!a || !v) {
+      addDaysToSet(days, r.DateFrom || null, r.DateTo || null, clipFrom, clipTo);
+    }
+  });
+
+  return days.size;
+}
 
 const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const classes = useStyles();
@@ -144,7 +344,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
   const [inputFields, setInputs] = useState<IVisitor>({ ...initialVisitor }),
     [errorFields, setError] = useState<IFormError>({ ...initialFormError }),
-    [visitorDetails, setVisitorDetails] = useState<IVisitorDetails>({ ...initialVisitorDetail }),
+    [visitorDetails, setVisitorDetails] = useState<IVisitorDetails>({
+      ...initialVisitorDetail,
+    }),
     [visitorDetailsList, setVisitorDetailsList] = useState<IVisitorDetails[]>([]),
     [errorDetails, setErrorDetails] = useState<IVisitorDetailsError>({
       ...initialVisitorDetailError,
@@ -172,6 +374,107 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   let deleteFilesDetails: any[] = [];
   let _origVisitorDetailsList: IVisitorDetails[] = [];
 
+  // Visitor count panel
+  const countPanelRef = useRef<HTMLDivElement>(null);
+  const [countLoading, setCountLoading] = useState(false);
+  const [countError, setCountError] = useState("");
+  const [countFromDate, setCountFromDate] = useState<Date>(new Date());
+  const [countToDate, setCountToDate] = useState<Date>(new Date());
+  const [countRows, setCountRows] = useState<IVisitorCount[]>([]);
+
+  const loadAllVisitorCountsForAllRequests = async (
+    list: IVisitorDetails[],
+    req: IVisitor
+  ) => {
+    if (!list || list.length === 0) {
+      setCountRows([]);
+      return;
+    }
+
+    const ctx = (props as any).context;
+    if (ctx) sp.setup({ spfxContext: ctx });
+
+    // Keep request window available if you need it later
+    computeRequestWindow(req);
+
+    // WIDE RANGE so we collect previous + future requests too
+    const rangeFrom = new Date(2000, 0, 1);
+    const rangeTo = new Date(2100, 11, 31);
+
+    setCountFromDate(rangeFrom);
+    setCountToDate(rangeTo);
+
+    setCountLoading(true);
+    setCountError("");
+    setCountRows([]);
+
+    try {
+      // unique by First|Last (case-insensitive)
+      const uniq: { [k: string]: { first: string; last: string; anyId: number } } = {};
+      for (const d of list) {
+        const first = (d.FirstName || "").trim();
+        const last = (d.Title || "").trim();
+        if (!first || !last) continue;
+        const key = (first + "|" + last).toLowerCase();
+        if (!uniq[key]) uniq[key] = { first, last, anyId: d.ID || 0 };
+      }
+
+      const keys = Object.keys(uniq);
+      const rowsOut: IVisitorCount[] = [];
+
+      // sequential to avoid throttling
+      for (const k of keys) {
+        const { first, last, anyId } = uniq[k];
+
+        // IMPORTANT: use wide range to include previous + future requests
+        const details = await ViewVisitorSharePointService.getVisitorDetailedInfo(
+          first,
+          last,
+          rangeFrom,
+          rangeTo,
+          true,
+          "exact"
+        );
+
+        // Total unique days across ALL requests
+        const totalUniqueDays = countUniqueVisitDays(details);
+
+        rowsOut.push({
+          ID: anyId,
+          FirstName: first,
+          LastName: last,
+          CompanyName:
+            (details && details[0] && details[0].CompanyName) || req.CompanyName || "",
+          VisitCount: totalUniqueDays,
+          isExpanded: false,
+          detailsData: [],
+        });
+      }
+
+      // sort descending by count
+      rowsOut.sort(
+        (a, b) =>
+          (b.VisitCount || 0) - (a.VisitCount || 0) ||
+          (a.LastName || "").localeCompare(b.LastName || "")
+      );
+
+      setCountRows(rowsOut);
+
+      // scroll into view once loaded
+      setTimeout(() => {
+        if (countPanelRef.current) {
+          countPanelRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 0);
+    } catch (e) {
+      console.error(e);
+      setCountError("Failed to load visitor entry counts.");
+      setCountRows([]);
+    } finally {
+      setCountLoading(false);
+    }
+  };
+
   const validateInputs = (name: string, value: any) => {
     const tempErrors = { ...errorFields };
     if (name === "EmpNo") {
@@ -182,9 +485,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     if (isEmptyString(value)) {
       tempErrors[name] = "This is a required input field";
     } else if (name === "DateTimeVisit" || name === "DateTimeArrival") {
-      const visitDate = inputFields.DateTimeVisit
-        ? new Date(inputFields.DateTimeVisit)
-        : null;
+      const visitDate = inputFields.DateTimeVisit ? new Date(inputFields.DateTimeVisit) : null;
       const arrivalDate = inputFields.DateTimeArrival
         ? new Date(inputFields.DateTimeArrival)
         : null;
@@ -210,14 +511,28 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     const tempErrors = { ...errorFields };
     const requiredFields: string[] = [];
 
-    if ((isEncoder || isReceptionist) && (inputFields.StatusId === 1 || inputFields.StatusId === 2)) {
+    if (
+      (isEncoder || isReceptionist) &&
+      (inputFields.StatusId === 1 || inputFields.StatusId === 2)
+    ) {
       requiredFields.push(
-        "Purpose","DeptId","Bldg","RoomNo",
-        "DateTimeVisit","DateTimeArrival",
-        "CompanyName","Address","VisContactNo","ApproverId"
+        "Purpose",
+        "DeptId",
+        "Bldg",
+        "RoomNo",
+        "DateTimeVisit",
+        "DateTimeArrival",
+        "CompanyName",
+        "Address",
+        "VisContactNo",
+        "ApproverId"
       );
       if (inputFields.Purpose === "Others") requiredFields.push("PurposeOthers");
-    } else if ((isApproverUser || isWalkinApproverUser) && inputFields.StatusId === 2 && t === "deny") {
+    } else if (
+      (isApproverUser || isWalkinApproverUser) &&
+      inputFields.StatusId === 2 &&
+      t === "deny"
+    ) {
       requiredFields.push("Remarks1");
     } else if (isSSDUser && inputFields.StatusId === 3 && t === "deny") {
       requiredFields.push("Remarks2");
@@ -257,8 +572,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       for (let i = 0; i < visitorDetailsList.length; i++) {
         const row = visitorDetailsList[i];
         const hasFiles =
-          (row.Files && row.Files.length > 0) ||
-          (row.initFiles && row.initFiles.length > 0);
+          (row.Files && row.Files.length > 0) || (row.initFiles && row.initFiles.length > 0);
         if (!hasFiles || !row.AccessCard || !row.GateNo || !row.IDPresented) {
           tempErrors.Details = `Please complete Visitor Details of ${
             row.Title || `Visitor ${i + 1}`
@@ -282,7 +596,10 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     const tempErrors = { ...errorDetails };
     const requiredDetailFields: string[] = [];
 
-    if ((isEncoder || isReceptionist) && (inputFields.StatusId === 1 || inputFields.StatusId === 2)) {
+    if (
+      (isEncoder || isReceptionist) &&
+      (inputFields.StatusId === 1 || inputFields.StatusId === 2)
+    ) {
       requiredDetailFields.push("Title");
       if (visitorDetails.Car)
         requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverLastName");
@@ -356,11 +673,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         return;
       }
 
-      const updatedVisitor = await sharePointService.saveVisitor(
-        inputFields,
-        sAction,
-        currentUser
-      );
+      const updatedVisitor = await sharePointService.saveVisitor(inputFields, sAction, currentUser);
       _refno = updatedVisitor.Title;
 
       await fileService.uploadVisitorFiles(
@@ -393,7 +706,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           detailStatusId,
           updatedVisitor.RequestDate
         );
+
         if (!visitorDetail.ID && savedDetail.ID) visitorDetail.ID = savedDetail.ID;
+
         if (visitorDetail.ID) {
           await fileService.uploadVisitorDetailsFiles(
             visitorDetail.ID,
@@ -471,9 +786,17 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     (async () => {
       try {
         setProgress(true);
+
+        // ensure PnP is set up for ViewVisitorSharePointService
+        const ctx = (props as any).context;
+        if (ctx) sp.setup({ spfxContext: ctx });
+
         _sourceURL = document.referrer;
-        //_itemId = parseInt(getUrlParameter("pid"));
-        _itemId = 116;
+
+        // use URL pid in real
+        // _itemId = parseInt(getUrlParameter("pid"));
+        _itemId = 120;
+
         const user = await sharePointService.getCurrentUser();
         setCurrentUser(user);
 
@@ -483,7 +806,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         let isreceptionist = false;
 
         const isApproverFromList = await sharePointService.isCurrentUserApprover();
-        console.log("isApproverFromList (Approvers list):", isApproverFromList);
         if (isApproverFromList) {
           setApproverUser(true);
           isUser = true;
@@ -505,6 +827,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         }
 
         setModifiedDate(visitor.Modified);
+
         const users_per_dept = await sharePointService.getDepartments(user.Id);
         if (users_per_dept.length > 0) {
           isUser = true;
@@ -549,6 +872,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
         if (isUser) {
           _deptName = visitor.Dept.Title;
+
           const purpose = await sharePointService.getPurposes();
           setPurpose(purpose);
 
@@ -594,6 +918,19 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       }
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // AUTO-LOAD counts once we have both:
+  // - visitorDetailsList
+  // - inputFields dates
+  useEffect(() => {
+    const hasList = visitorDetailsList && visitorDetailsList.length > 0;
+    const hasDates = !!inputFields.DateTimeArrival && !!inputFields.DateTimeVisit;
+
+    if (!hasList || !hasDates) return;
+
+    loadAllVisitorCountsForAllRequests(visitorDetailsList, inputFields);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visitorDetailsList, inputFields.DateTimeArrival, inputFields.DateTimeVisit]);
 
   const handleChangeCbo = async (event: any) => {
     const { name, value } = event.target;
@@ -847,6 +1184,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     setEditMode(true);
   };
 
+  const anyReached14 = countRows.some((r) => (r.VisitCount || 0) >= 14);
+
   return (
     <form noValidate autoComplete="off">
       {inputFields.ID && (
@@ -907,6 +1246,49 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
               onAddClick={handleAddVisitorDetails}
               onVisitorDetailsAction={handleVisitorDetailsAction}
             />
+
+            {/* AUTO-SHOW Visitor Entry Count (includes previous + future requests) */}
+            <Grid item xs={12}>
+              <div ref={countPanelRef} style={{ marginTop: 8 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 8,
+                  }}
+                >
+                  {/* <Typography variant="subtitle1">
+                    Visitor Total Days (All Requests):{" "}
+                    {countFromDate ? countFromDate.toLocaleDateString() : ""} to{" "}
+                    {countToDate ? countToDate.toLocaleDateString() : ""}
+                  </Typography> */}
+
+                  {anyReached14 && (
+                    <Chip size="small" color="secondary" label="Reached 14 days" />
+                  )}
+                </div>
+
+                {countLoading && <LinearProgress />}
+
+                {!countLoading && !!countError && (
+                  <Typography color="error">{countError}</Typography>
+                )}
+
+                {!countLoading && !countError && countRows.length > 0 && (
+                  <VisitorCountTable
+                    data={countRows}
+                    title="Visitor Total Days"
+                    fromDate={countFromDate}
+                    toDate={countToDate}
+                  />
+                )}
+
+                {!countLoading && !countError && countRows.length === 0 && (
+                  <Typography color="textSecondary">No visitor count data.</Typography>
+                )}
+              </div>
+            </Grid>
 
             <ApprovalSection
               visitor={inputFields}
