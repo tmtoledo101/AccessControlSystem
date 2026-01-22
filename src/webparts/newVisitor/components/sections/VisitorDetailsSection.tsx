@@ -71,8 +71,8 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
     Color: '',
     PlateNo: '',
     TypeofVehicle: '',
-    DriverLastName: '',
-    DriverFirstName: '',
+    DriverName: '',
+    //DriverFirstName: '',
     IDPresented: '',
     GateNo: '',
     ParentId: null,
@@ -94,8 +94,8 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
       Color: '',
       PlateNo: '',
       TypeofVehicle: '',
-      DriverLastName: '',
-      DriverFirstName: '',
+      DriverName: '',
+      //DriverFirstName: '',
       IDPresented: '',
       GateNo: '',
       ParentId: null,
@@ -182,8 +182,8 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
                   },
                   { title: 'Plate No.', field: 'PlateNo' },
                   { title: 'Type of Vehicle', field: "TypeofVehicle" },
-                  { title: "Driver's Last Name", field: "DriverLastName" },
-                  { title: "Driver's First Name", field: "DriverFirstName" },
+                  { title: "Driver's Name", field: "DriverName" },
+                  //{ title: "Driver's First Name", field: "DriverFirstName" },
                 ]}
                 data={visitorDetailsList}
                 options={{

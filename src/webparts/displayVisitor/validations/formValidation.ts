@@ -235,9 +235,9 @@ export function validateVisitorDetails(
   
   // Determine required fields based on user role and status
   if ((isEncoder) && ((statusId === 1) || (statusId === 2))) {
-    required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverLastName');
+    required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverName');
   } else if ((isReceptionist) && ((statusId === 4) || (statusId === 9))) {
-    required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverLastName', 'AccessCard', 'IDPresented', 'GateNo');
+    required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverName', 'AccessCard', 'IDPresented', 'GateNo');
     
     // Check for files
     if (visitorDetails.Files.length === 0 && visitorDetails.initFiles.length === 0) {
@@ -246,7 +246,7 @@ export function validateVisitorDetails(
       tempProps.Files = "";
     }
   } else if ((isReceptionist) && ((statusId === 1) || (statusId === 2))) {
-    required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverLastName');
+    required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverName');
   }
   
   const validbit = [];
@@ -259,7 +259,7 @@ export function validateVisitorDetails(
       tempProps[required[i]] = "";
     } else if ((required[i] === "Color") && (visitorDetails.Car === false)) {
       tempProps[required[i]] = "";
-    } else if ((required[i] === "DriverLastName") && (visitorDetails.Car === false)) {
+    } else if ((required[i] === "DriverName") && (visitorDetails.Car === false)) {
       tempProps[required[i]] = "";
     } else {
       if (!visitorDetails[required[i]]) {

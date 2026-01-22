@@ -81,8 +81,8 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
 
       if (!e.target.checked) {
         updatedDetails.Color = '';
-        updatedDetails.DriverLastName = '';
-        updatedDetails.DriverFirstName = '';
+        updatedDetails.DriverName = '';
+        //updatedDetails.DriverFirstName = '';
         updatedDetails.PlateNo = '';
         updatedDetails.TypeofVehicle = '';
       }
@@ -252,20 +252,20 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                   <Paper variant="outlined" className={classes.paper}>
                     <TextField
                       inputProps={{ maxLength: 255 }}
-                      error={Boolean(errors.DriverLastName)}
+                      error={Boolean(errors.DriverName)}
                       required
-                      label="Driver's Last Name"
-                      name="DriverLastName"
+                      label="Driver's Name"
+                      name="DriverName"
                       onChange={handleTextChange}
-                      value={visitorDetails.DriverLastName || ''}
+                      value={visitorDetails.DriverName || ''}
                       variant="standard"
                       className={classes.textField}
-                      helperText={errors.DriverLastName}
+                      helperText={errors.DriverName}
                     />
                   </Paper>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
+                {/* <Grid item xs={12} sm={6}>
                   <Paper variant="outlined" className={classes.paper}>
                     <TextField
                       inputProps={{ maxLength: 255 }}
@@ -280,7 +280,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       helperText={errors.DriverFirstName}
                     />
                   </Paper>
-                </Grid>
+                </Grid> */}
 
                 <Grid item xs={12} sm={6}>
                   <Paper variant="outlined" className={classes.paper}>

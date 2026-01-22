@@ -353,19 +353,19 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       {checkVisibility('cedit') && (
                         <TextField
                           inputProps={{ maxLength: 255 }}
-                          error={!!errorDetails.DriverLastName}
+                          error={!!errorDetails.DriverName}
                           required
-                          label="Driver's Last Name"
-                          name="DriverLastName"
+                          label="Driver's Name"
+                          name="DriverName"
                           onChange={onChangeTxt}
-                          value={visitorDetails.DriverLastName}
+                          value={visitorDetails.DriverName}
                           variant="standard"
                           className={classes.textField}
-                          helperText={errorDetails.DriverLastName}
+                          helperText={errorDetails.DriverName}
                         />
                       )}
 
-                      {checkVisibility('cedit') && (
+                      {/* {checkVisibility('cedit') && (
                         <TextField
                           inputProps={{ maxLength: 255 }}
                           error={!!errorDetails.DriverFirstName}
@@ -378,7 +378,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                           className={classes.textField}
                           helperText={errorDetails.DriverFirstName}
                         />
-                      )}
+                      )} */}
                       
                       {checkVisibility('cdisp') && (
                         <>
@@ -386,7 +386,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                             Driver's Name
                           </Box>
                           <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
-                            {visitorDetails.DriverLastName}
+                            {visitorDetails.DriverName}
                           </Box>
                         </>
                       )}

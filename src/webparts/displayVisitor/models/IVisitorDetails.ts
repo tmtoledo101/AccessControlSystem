@@ -10,8 +10,8 @@ export interface IVisitorDetails {
   PlateNo: string;
   TypeofVehicle: string;
   Color: string;
-  DriverLastName: string;
-  DriverFirstName: string;
+  DriverName: string;
+  //DriverFirstName: string;
   IDPresented: string;
   GateNo: string;
   ParentId: number;
@@ -33,8 +33,8 @@ export interface IVisitorDetailsError {
   PlateNo: string;
   TypeofVehicle: string;
   Color: string;
-  DriverLastName: string;
-  DriverFirstName: string;
+  DriverName: string;
+  //DriverFirstName: string;
   IDPresented: string;
   GateNo: string;
   Files: string;

@@ -86,7 +86,7 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
     },
     { title: 'Plate No.', field: 'PlateNo' },
     { title: 'Type of Vehicle', field: 'TypeofVehicle' },
-    { title: "Driver's Last Name", field: 'DriverLastName' },
+    { title: "Driver's Last Name", field: 'DriverName' },
     { title: "Driver's First Name", field: 'DriverFirstName' },
     { title: 'Gate', field: 'GateNo' },
     { title: 'ID Presented', field: 'IDPresented' },

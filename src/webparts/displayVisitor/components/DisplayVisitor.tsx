@@ -156,8 +156,8 @@ const initialVisitorDetail: IVisitorDetails = {
   PlateNo: "",
   TypeofVehicle: "",
   Color: "",
-  DriverLastName: "",
-  DriverFirstName: "",
+  DriverName: "",
+  //DriverFirstName: "",
   IDPresented: "",
   GateNo: "",
   ParentId: null,
@@ -174,8 +174,8 @@ const initialVisitorDetailError: IVisitorDetailsError = {
   PlateNo: "",
   TypeofVehicle: "",
   Color: "",
-  DriverLastName: "",
-  DriverFirstName: "",
+  DriverName: "",
+  //DriverFirstName: "",
   IDPresented: "",
   GateNo: "",
   Files: "",
@@ -553,11 +553,11 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     ) {
       requiredDetailFields.push("Title");
       if (visitorDetails.Car)
-        requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverLastName");
+        requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverName");
     } else if (isReceptionist && (inputFields.StatusId === 4 || inputFields.StatusId === 9)) {
       requiredDetailFields.push("Title", "AccessCard", "IDPresented", "GateNo");
       if (visitorDetails.Car)
-        requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverLastName");
+        requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverName");
       if (!visitorDetails.Files || visitorDetails.Files.length === 0) {
         tempErrors.Files = "Please upload a file.";
         isValid = false;
@@ -571,7 +571,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         (field === "PlateNo" ||
           field === "TypeofVehicle" ||
           field === "Color" ||
-          field === "DriverLastName")
+          field === "DriverName")
       ) {
         (tempErrors as any)[field] = "";
       } else if (isEmptyString((visitorDetails as any)[field])) {
@@ -939,7 +939,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       const newDetails = { ...prev, [name]: newValue } as IVisitorDetails;
       if (name === "Car" && newValue === false) {
         newDetails.Color = "";
-        newDetails.DriverLastName = "";
+        newDetails.DriverName = "";
         newDetails.PlateNo = "";
         newDetails.TypeofVehicle = "";
         setErrorDetails((prevErr) => ({
@@ -947,7 +947,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           PlateNo: "",
           TypeofVehicle: "",
           Color: "",
-          DriverLastName: "",
+          DriverName: "",
         }));
       }
       return newDetails;
