@@ -196,10 +196,11 @@ export class SharePointService {
     refNo: string,
     actualDeptName: string,
   ): Promise<number> {
-    const rawVisitorType = ((visitor as any).VisitorType || "").toString();
-    const otherVisitorType = ((visitor as any).OtherVisitorType || "").toString().trim();
-    const finalVisitorType = rawVisitorType === "Others" ? otherVisitorType : rawVisitorType;
+    // Request-level values
+    const requestVisitorType = ((visitor as any).VisitorType || "").toString().trim();
+    const requestOtherVisitorType = ((visitor as any).OtherVisitorType || "").toString().trim();
 
+    // Contact name lookup
     let contactName = "";
     if (visitor.EmpNo) {
       const contacts = await this.findUsersByName(visitor.EmpNo, actualDeptName);
@@ -208,7 +209,7 @@ export class SharePointService {
 
     const requestDate = submitType === 2 ? moment().toISOString() : null;
 
-    // Do NOT write VisitorType to Visitors list (your error proves it doesn't exist there)
+    // Do NOT write VisitorType to Visitors list (your list doesn't have that column)
     const visitorsPayload: any = {
       Title: refNo,
       ContactName: contactName,
@@ -237,6 +238,7 @@ export class SharePointService {
     const iar: IItemAddResult = await sp.web.lists.getByTitle("Visitors").items.add(visitorsPayload);
     const itemId = iar.data.ID;
 
+    // Create folder + upload request attachments
     const folderPath = this.siteRelativeUrl + "/VisitorsLib/" + itemId;
     await sp.web.lists.getByTitle("VisitorsLib").rootFolder.folders.add(itemId.toString());
 
@@ -255,12 +257,31 @@ export class SharePointService {
       }),
     );
 
+    // Pre-fetch the lookup id for "Others" once (must exist in VisitorType list)
+    const othersVisitorTypeId = await this.getVisitorTypeIdByTitle("Others");
+
     await Promise.all(
       (visitorDetailsList || []).map(async (visitorDetail) => {
-        const detailTypeRaw = ((visitorDetail as any).VisitorType || finalVisitorType || "").toString().trim();
-        const visitorTypeId = await this.getOrCreateVisitorTypeIdByTitle(detailTypeRaw);
+        // Detail-level type, but we intentionally do NOT use the typed free text as a lookup title
+        const detailVisitorType = ((visitorDetail as any).VisitorType || requestVisitorType || "").toString().trim();
 
-        const iar2: IItemAddResult = await sp.web.lists.getByTitle("VisitorDetails").items.add({
+        let visitorTypeLookupTitle = detailVisitorType;
+        let otherVisitorTypeToSave = "";
+
+        if (detailVisitorType === "Others") {
+          visitorTypeLookupTitle = "Others";
+          otherVisitorTypeToSave = requestOtherVisitorType; // comes from request textbox
+        }
+
+        // IMPORTANT: do not create new VisitorType list items
+        let visitorTypeId: number | null = null;
+        if (visitorTypeLookupTitle === "Others") {
+          visitorTypeId = othersVisitorTypeId;
+        } else {
+          visitorTypeId = await this.getVisitorTypeIdByTitle(visitorTypeLookupTitle);
+        }
+
+        const payload: any = {
           ParentId: itemId,
           Title: visitorDetail.Title,
           FirstName: visitorDetail.FirstName,
@@ -283,9 +304,14 @@ export class SharePointService {
           CompanyName: visitor.CompanyName,
           StatusId: submitType,
 
-          // Lookup internal name looks like "VisitorType", SharePoint expects "VisitorTypeId"
+          // Lookup: internal field name "VisitorType" => use "VisitorTypeId"
           VisitorTypeId: visitorTypeId,
-        });
+
+          // NEW text column (Option 1)
+          OtherVisitorType: otherVisitorTypeToSave,
+        };
+
+        const iar2: IItemAddResult = await sp.web.lists.getByTitle("VisitorDetails").items.add(payload);
 
         await sp.web.lists.getByTitle("VisitorDetailsLib").rootFolder.folders.add(iar2.data.ID.toString());
       }),
@@ -316,9 +342,10 @@ export class SharePointService {
   }
 
   private async getVisitorTypeIdByTitle(title: string): Promise<number | null> {
-    if (!title) return null;
+    const clean = (title || "").toString().trim();
+    if (!clean) return null;
 
-    const safeTitle = title.replace(/'/g, "''");
+    const safeTitle = clean.replace(/'/g, "''");
 
     const items = await sp.web.lists
       .getByTitle("VisitorType")
@@ -328,24 +355,5 @@ export class SharePointService {
       .get();
 
     return items.length > 0 ? items[0].Id : null;
-  }
-
-  private async getOrCreateVisitorTypeIdByTitle(title: string): Promise<number | null> {
-    const clean = (title || "").toString().trim();
-    if (!clean) return null;
-
-    const existingId = await this.getVisitorTypeIdByTitle(clean);
-    if (existingId) return existingId;
-
-    const created: any = await sp.web.lists.getByTitle("VisitorType").items.add({ Title: clean });
-
-    // No optional chaining, compatible with older TS
-    if (created && created.data) {
-      if (typeof created.data.Id === "number") return created.data.Id;
-      if (typeof created.data.ID === "number") return created.data.ID;
-    }
-
-    // If creation returned unexpected shape, try to re-query by title
-    return await this.getVisitorTypeIdByTitle(clean);
   }
 }

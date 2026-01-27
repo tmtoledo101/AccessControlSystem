@@ -125,9 +125,19 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
     if (!raw) return [];
     if (Array.isArray(raw)) return raw;
     if (typeof raw === 'string') {
-      return raw.split(';').map((s) => s.trim()).filter(Boolean);
+      return raw
+        .split(';')
+        .map((s) => s.trim())
+        .filter(Boolean);
     }
     return [];
+  };
+
+  const setBldgArrayToVisitor = (arr: string[]) => {
+    const cleaned = (arr || [])
+      .map((s) => (s || '').trim())
+      .filter(Boolean);
+    onChange('Bldg', cleaned.join('; '));
   };
 
   const handleBldgMultiChange = (e: React.ChangeEvent<{ name?: string; value: any }>) => {
@@ -136,10 +146,19 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
     const arr: string[] = Array.isArray(value)
       ? value
       : typeof value === 'string'
-        ? value.split(',').map((s) => s.trim()).filter(Boolean)
+        ? value
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
         : [];
 
-    onChange('Bldg', arr.join('; '));
+    setBldgArrayToVisitor(arr);
+  };
+
+  const handleRemoveBldgChip = (chipValue: string) => {
+    const current = getBldgArrayFromVisitor();
+    const next = current.filter((x) => x !== chipValue);
+    setBldgArrayToVisitor(next);
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,7 +178,6 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
 
     onChange(name, value);
 
-    // If user changes VisitorType away from Others, clear textbox value
     if (name === 'VisitorType' && value !== 'Others') {
       onChange('OtherVisitorType', '');
     }
@@ -175,7 +193,6 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
 
   const bldgSelectedArray = getBldgArrayFromVisitor();
 
-  // Keep order by VisID if present
   const getVisitorTypeSortNumber = (item: any): number => {
     const raw =
       item && (item.VisID || item.visID || item.VisId || item.visId || item.SortOrder || item.Order);
@@ -199,6 +216,16 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
 
   const selectedVisitorType = (visitor as any).VisitorType || '';
   const otherVisitorTypeValue = (visitor as any).OtherVisitorType || '';
+
+  const dedupedVisitorTypeList = (sortedVisitorTypeList || [])
+    .filter((item: any) => {
+      const title = getVisitorTypeTitle(item).trim();
+      return !!title;
+    })
+    .filter((item: any, idx: number, arr: any[]) => {
+      const t = getVisitorTypeTitle(item).trim().toLowerCase();
+      return idx === arr.findIndex((x: any) => getVisitorTypeTitle(x).trim().toLowerCase() === t);
+    });
 
   return (
     <>
@@ -288,7 +315,12 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
               renderValue={(selected) => (
                 <div>
                   {(selected as string[]).map((b) => (
-                    <Chip key={b} label={b} style={{ marginRight: 6, marginTop: 6 }} />
+                    <Chip
+                      key={b}
+                      label={b}
+                      onDelete={() => handleRemoveBldgChip(b)}
+                      style={{ marginRight: 6, marginTop: 6 }}
+                    />
                   ))}
                 </div>
               )}
@@ -453,7 +485,6 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
         </Paper>
       </Grid>
 
-      {/* Visitor Type dropdown + Others textbox */}
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <FormControl className={classes.textField}>
@@ -465,7 +496,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
               onChange={handleSelectChange}
               name="VisitorType"
             >
-              {sortedVisitorTypeList.map((item: any, idx: number) => {
+              {dedupedVisitorTypeList.map((item: any, idx: number) => {
                 const title = getVisitorTypeTitle(item);
                 return (
                   <MenuItem key={getVisitorTypeKey(item, idx)} value={title}>
@@ -473,8 +504,6 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
                   </MenuItem>
                 );
               })}
-
-              <MenuItem value="Others">Others</MenuItem>
             </Select>
           </FormControl>
 

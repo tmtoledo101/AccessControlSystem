@@ -6,7 +6,7 @@ import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
 import Button from '@material-ui/core/Button';
 import moment from 'moment';
-import { sp } from "@pnp/sp";
+import { sp } from '@pnp/sp';
 
 // Common components
 import HeaderSection from './common/HeaderSection';
@@ -37,11 +37,10 @@ import { setCookie, getCookie } from './utils/helper';
 // Types
 import {
   IVisitor,
-  IVisitorDetail,
   IUserDept,
   IViewState,
   IVisitorCount,
-  IVisitorDetailExtended
+  IVisitorDetailExtended,
 } from './interfaces/IViewVisitors';
 
 // Excel export
@@ -51,15 +50,15 @@ import { saveAs } from 'file-saver';
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     root: { flexGrow: 1 },
-    paper: { padding: theme.spacing(1), borderColor: "transparent" },
+    paper: { padding: theme.spacing(1), borderColor: 'transparent' },
     formControl: { margin: theme.spacing(1) },
     downloadButton: { marginTop: theme.spacing(2), marginBottom: theme.spacing(2) },
   }),
 );
 
 // Constants
-const Receptionist_Group = "Receptionist_v2";
-const SSD_Group_v2 = "SSD_v2";
+const Receptionist_Group = 'Receptionist_v2';
+const SSD_Group_v2 = 'SSD_v2';
 
 // Global
 let usersPerDept: IUserDept[] = [];
@@ -73,15 +72,13 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
   const classes = useStyles();
   const inputRef = useRef(null);
 
-  // NOTE: ensure your IViewState includes:
-  // refFilter: 'ALL' | 'HO' | 'SPC';
   const [state, setState] = useState<IViewState>({
     selectedFromDate: moment(new Date()).subtract(15, 'days'),
     selectedToDate: moment(new Date()).add(1, 'hours'),
     selectedAgendaDate: new Date(),
-    inputSubject: "",
-    dialogMessage: "",
-    txtSearch: "",
+    inputSubject: '',
+    dialogMessage: '',
+    txtSearch: '',
     isEncoder: false,
     isApprover: false,
     isWalkinApprover: false,
@@ -102,17 +99,17 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     reportView: 'Daily' as any,
 
     // Reference filter applies to ALL tabs (except vwid 0 and 11)
-    refFilter: 'ALL' as any
+    refFilter: 'ALL' as any,
   });
 
   const onClickCancel = (e: React.MouseEvent) => {
-    window.open(props.siteUrl, "_self");
+    window.open(props.siteUrl, '_self');
   };
 
   // Reference filter handler
   const handleRefFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value as any; // 'ALL' | 'HO' | 'SPC'
-    setState(prev => ({ ...prev, refFilter: value }));
+    setState((prev) => ({ ...prev, refFilter: value }));
   };
 
   /**
@@ -125,21 +122,16 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     if (!rows || rows.length === 0) return [];
     if (filter === 'ALL') return rows;
 
-    const prefix = (filter + "-").toUpperCase();
+    const prefix = (filter + '-').toUpperCase();
 
     return rows.filter((r: any) => {
-      let ref = "";
+      let ref = '';
 
-      // details row ref
-      if (r && typeof r.RefNo === "string" && r.RefNo) {
+      if (r && typeof r.RefNo === 'string' && r.RefNo) {
         ref = r.RefNo;
-      }
-      // some custom field name fallback
-      else if (r && typeof r.ReferenceNo === "string" && r.ReferenceNo) {
+      } else if (r && typeof r.ReferenceNo === 'string' && r.ReferenceNo) {
         ref = r.ReferenceNo;
-      }
-      // requests/reports ref in Title ONLY if it looks like HO-/SPC-
-      else if (r && typeof r.Title === "string" && r.Title && /^(HO|SPC)-/i.test(r.Title)) {
+      } else if (r && typeof r.Title === 'string' && r.Title && /^(HO|SPC)-/i.test(r.Title)) {
         ref = r.Title;
       }
 
@@ -155,16 +147,16 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
   }, [state.dirListItems, state.refFilter, state.vwid]);
 
   const viewAction = (event: React.MouseEvent, rowData: IVisitor) => {
-    window.open(props.siteUrl + "/SitePages/DisplayVisitorappge.aspx?pid=" + rowData["ID"], "_blank");
+    window.open(props.siteUrl + '/SitePages/DisplayVisitorappge.aspx?pid=' + rowData['ID'], '_blank');
   };
 
   const viewAction2 = (event: React.MouseEvent, rowData: any) => {
     if (rowData && rowData.ParentId) {
-      window.open(props.siteUrl + "/SitePages/DisplayVisitorappge.aspx?pid=" + rowData.ParentId, "_blank");
+      window.open(props.siteUrl + '/SitePages/DisplayVisitorappge.aspx?pid=' + rowData.ParentId, '_blank');
       return;
     }
     if (rowData && rowData.ID) {
-      window.open(props.siteUrl + "/SitePages/DisplayVisitorappge.aspx?pid=" + rowData.ID, "_blank");
+      window.open(props.siteUrl + '/SitePages/DisplayVisitorappge.aspx?pid=' + rowData.ID, '_blank');
       return;
     }
   };
@@ -176,12 +168,12 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
     setCookie('ViewVisitorTab', tabContent as string, 1800);
 
-    setState(prevState => {
+    setState((prevState) => {
       const newState: any = {
         ...prevState,
         selectedFromDate: from,
         selectedToDate: to,
-        tabvalue: newValue
+        tabvalue: newValue,
       };
 
       if (tabContent === 'By Visitor Details') {
@@ -192,8 +184,13 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       }
 
       if (tabContent === 'Search by Visitor Name') {
-        if (prevState.isEncoder || prevState.isApprover || prevState.isWalkinApprover ||
-          prevState.isReceptionist || prevState.isSSDUser) {
+        if (
+          prevState.isEncoder ||
+          prevState.isApprover ||
+          prevState.isWalkinApprover ||
+          prevState.isReceptionist ||
+          prevState.isSSDUser
+        ) {
           newState.dirListItems = [];
           newState.vwid = 9;
         }
@@ -217,7 +214,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       return newState;
     });
 
-    setState(prev => ({ ...prev, dirListItems: [] }));
+    setState((prev) => ({ ...prev, dirListItems: [] }));
 
     setTimeout(() => {
       const currentStateForMapUser: any = { ...state, tabvalue: newValue };
@@ -240,13 +237,20 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         } else if (currentStateForMapUser.isWalkinApprover) {
           mapUser(from.toDate(), to.toDate(), 7);
         }
-      } else if ((tabContent === 'SSD') && (currentStateForMapUser.isSSDUser)) {
+      } else if (tabContent === 'SSD' && currentStateForMapUser.isSSDUser) {
         mapUser(from.toDate(), to.toDate(), 6);
       } else if (tabContent === 'Limit Entry' && currentStateForMapUser.isSSDUser) {
         mapUser(from.toDate(), to.toDate(), 11);
       } else if (tabContent === 'Reports') {
-        if (currentStateForMapUser.isEncoder || currentStateForMapUser.isApprover || currentStateForMapUser.isWalkinApprover ||
-          currentStateForMapUser.isReceptionist || currentStateForMapUser.isSSDUser || isHOUser || isSPCUser) {
+        if (
+          currentStateForMapUser.isEncoder ||
+          currentStateForMapUser.isApprover ||
+          currentStateForMapUser.isWalkinApprover ||
+          currentStateForMapUser.isReceptionist ||
+          currentStateForMapUser.isSSDUser ||
+          isHOUser ||
+          isSPCUser
+        ) {
           mapUser(from.toDate(), to.toDate(), 10, (currentStateForMapUser.reportView as any) || 'Daily');
         }
       }
@@ -261,12 +265,12 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     if ((state.reportView as any) === 'Monthly') {
       const newFromDate = momentDate.startOf('month');
       const newToDate = momentDate.endOf('month');
-      setState(prevState => ({ ...prevState, selectedFromDate: newFromDate, selectedToDate: newToDate }));
+      setState((prevState) => ({ ...prevState, selectedFromDate: newFromDate, selectedToDate: newToDate }));
       setTimeout(() => mapUser(newFromDate.toDate(), newToDate.toDate(), 10, 'Monthly'), 0);
     } else if ((state.reportView as any) === 'Daily') {
       const newFromDate = momentDate.startOf('day');
       const newToDate = momentDate.endOf('day');
-      setState(prevState => ({ ...prevState, selectedFromDate: newFromDate, selectedToDate: newToDate }));
+      setState((prevState) => ({ ...prevState, selectedFromDate: newFromDate, selectedToDate: newToDate }));
       setTimeout(() => mapUser(newFromDate.toDate(), newToDate.toDate(), 10, 'Daily'), 0);
     }
   };
@@ -275,10 +279,10 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     if (!date) return;
     const newFromDate = moment(date).startOf('day');
 
-    setState(prevState => {
+    setState((prevState) => {
       const newState: any = { ...prevState, selectedFromDate: newFromDate };
       setTimeout(() => {
-        mapUser(newFromDate.toDate(), prevState.selectedToDate.toDate(), prevState.vwid, (prevState.reportView as any));
+        mapUser(newFromDate.toDate(), prevState.selectedToDate.toDate(), prevState.vwid, prevState.reportView as any);
       }, 0);
       return newState;
     });
@@ -288,10 +292,10 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     if (!date) return;
     const newToDate = moment(date).endOf('day');
 
-    setState(prevState => {
+    setState((prevState) => {
       const newState: any = { ...prevState, selectedToDate: newToDate };
       setTimeout(() => {
-        mapUser(prevState.selectedFromDate.toDate(), newToDate.toDate(), prevState.vwid, (prevState.reportView as any));
+        mapUser(prevState.selectedFromDate.toDate(), newToDate.toDate(), prevState.vwid, prevState.reportView as any);
       }, 0);
       return newState;
     });
@@ -311,11 +315,11 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       newToDate = moment().endOf('month');
     }
 
-    setState(prevState => ({
+    setState((prevState) => ({
       ...prevState,
       reportView: newReportView,
       selectedFromDate: newFromDate,
-      selectedToDate: newToDate
+      selectedToDate: newToDate,
     }));
 
     setTimeout(() => {
@@ -327,7 +331,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     try {
       const searchText = e.target.value;
 
-      setState(prevState => {
+      setState((prevState) => {
         const newState: any = { ...prevState, txtSearch: searchText };
         if (searchText.length < 3) newState.dirListItems = [];
         return newState;
@@ -340,7 +344,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
         const visitorRequests = await SharePointService.loadVisitorRequests(
           state.selectedFromDate.toDate(),
-          state.selectedToDate.toDate()
+          state.selectedToDate.toDate(),
         );
 
         const visitorBldgMap: { [key: number]: string } = {};
@@ -354,8 +358,8 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         if (isHOUser || isSPCUser) {
           filteredDetails = visitorDetails.filter((detail: any) => {
             const parentBldg = visitorBldgMap[detail.ParentId];
-            if (isHOUser) return parentBldg === "(HO) 5-Storey Building";
-            if (isSPCUser) return parentBldg === "SPC";
+            if (isHOUser) return parentBldg === '(HO) 5-Storey Building';
+            if (isSPCUser) return parentBldg === 'SPC';
             return true;
           });
         }
@@ -363,24 +367,25 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         const enrichedDetails: any[] = filteredDetails.map((d: any) => ({
           ...d,
           Bldg: visitorBldgMap[d.ParentId] || '',
-          RefNo: d.RefNo || visitorRefMap[d.ParentId] || ''
+          RefNo: d.RefNo || visitorRefMap[d.ParentId] || '',
         }));
 
         if (currentState.isReceptionist || currentState.isSSDUser) {
-          setState(prevState => ({ ...prevState, dirListItems: enrichedDetails }));
+          setState((prevState) => ({ ...prevState, dirListItems: enrichedDetails }));
         } else if (currentState.isEncoder || currentState.isApprover || currentState.isWalkinApprover) {
           const mappedrows: any[] = [];
           enrichedDetails.forEach((row: any) => {
             let filtered: any[] = [];
-            if (currentState.isEncoder) filtered = usersPerDept.filter(item => item.DeptId === row.DeptId);
-            else if (currentState.isApprover) filtered = approversPerDept.filter(item => item.DeptId === row.DeptId);
-            else if (currentState.isWalkinApprover) filtered = walkinapprovers.filter(item => item.DeptId === row.DeptId);
+            if (currentState.isEncoder) filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
+            else if (currentState.isApprover) filtered = approversPerDept.filter((item) => item.DeptId === row.DeptId);
+            else if (currentState.isWalkinApprover) filtered = walkinapprovers.filter((item) => item.DeptId === row.DeptId);
             if (filtered.length > 0) mappedrows.push(row);
           });
-          setState(prevState => ({ ...prevState, dirListItems: mappedrows }));
+          setState((prevState) => ({ ...prevState, dirListItems: mappedrows }));
         }
       }
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.log(err);
     }
   };
@@ -397,12 +402,12 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         let filtered: any[] = [];
         let includeRow = true;
 
-        if (currentState.isEncoder) filtered = usersPerDept.filter(item => item.DeptId === row.DeptId);
-        else if (currentState.isApprover) filtered = approversPerDept.filter(item => item.DeptId === row.DeptId);
-        else if (currentState.isWalkinApprover) filtered = walkinapprovers.filter(item => item.DeptId === row.DeptId);
+        if (currentState.isEncoder) filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
+        else if (currentState.isApprover) filtered = approversPerDept.filter((item) => item.DeptId === row.DeptId);
+        else if (currentState.isWalkinApprover) filtered = walkinapprovers.filter((item) => item.DeptId === row.DeptId);
 
-        if (isHOUser && row.Bldg !== "(HO) 5-Storey Building") includeRow = false;
-        else if (isSPCUser && row.Bldg !== "SPC") includeRow = false;
+        if (isHOUser && row.Bldg !== '(HO) 5-Storey Building') includeRow = false;
+        else if (isSPCUser && row.Bldg !== 'SPC') includeRow = false;
 
         if (filtered.length > 0 && includeRow) mappedrows.push(row);
       });
@@ -414,8 +419,8 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
       if (isHOUser || isSPCUser) {
         filteredVisitors = visitors.filter((row: any) => {
-          if (isHOUser) return row.Bldg === "(HO) 5-Storey Building";
-          if (isSPCUser) return row.Bldg === "SPC";
+          if (isHOUser) return row.Bldg === '(HO) 5-Storey Building';
+          if (isSPCUser) return row.Bldg === 'SPC';
           return true;
         });
       }
@@ -436,8 +441,8 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       if (isHOUser || isSPCUser) {
         filteredDetails = filteredDetails.filter((detail: any) => {
           const parentBldg = visitorBldgMap[detail.ParentId];
-          if (isHOUser) return parentBldg === "(HO) 5-Storey Building";
-          if (isSPCUser) return parentBldg === "SPC";
+          if (isHOUser) return parentBldg === '(HO) 5-Storey Building';
+          if (isSPCUser) return parentBldg === 'SPC';
           return true;
         });
       }
@@ -445,7 +450,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       const enriched: any[] = filteredDetails.map((d: any) => ({
         ...d,
         Bldg: visitorBldgMap[d.ParentId] || '',
-        RefNo: d.RefNo || visitorRefMap[d.ParentId] || ''
+        RefNo: d.RefNo || visitorRefMap[d.ParentId] || '',
       }));
 
       if (action === 4) {
@@ -454,13 +459,49 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         const mappedrows: any[] = [];
         enriched.forEach((row: any) => {
           let filtered: any[] = [];
-          if (currentState.isEncoder) filtered = usersPerDept.filter(item => item.DeptId === row.DeptId);
-          else if (currentState.isApprover) filtered = approversPerDept.filter(item => item.DeptId === row.DeptId);
-          else if (currentState.isWalkinApprover) filtered = walkinapprovers.filter(item => item.DeptId === row.DeptId);
+          if (currentState.isEncoder) filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
+          else if (currentState.isApprover) filtered = approversPerDept.filter((item) => item.DeptId === row.DeptId);
+          else if (currentState.isWalkinApprover) filtered = walkinapprovers.filter((item) => item.DeptId === row.DeptId);
           if (filtered.length > 0) mappedrows.push(row);
         });
         fetchedData = mappedrows;
       }
+
+      // ✅ FIX: handle Dept. Approver tab actions (5 and 7)
+    } else if (action === 5) {
+      // Dept. Approver (Pre-arranged)
+      const visitors = await SharePointService.loadVisitorRequests(from, to);
+      const mappedrows: any[] = [];
+
+      visitors.forEach((row: any) => {
+        let includeRow = true;
+
+        const filtered = approversPerDept.filter((a) => a.DeptId === row.DeptId);
+
+        if (isHOUser && row.Bldg !== '(HO) 5-Storey Building') includeRow = false;
+        else if (isSPCUser && row.Bldg !== 'SPC') includeRow = false;
+
+        if (filtered.length > 0 && includeRow) mappedrows.push(row);
+      });
+
+      fetchedData = mappedrows;
+    } else if (action === 7) {
+      // Dept. Approver (Walk-in)
+      const visitors = await SharePointService.loadVisitorRequests(from, to);
+      const mappedrows: any[] = [];
+
+      visitors.forEach((row: any) => {
+        let includeRow = true;
+
+        const filtered = walkinapprovers.filter((a) => a.DeptId === row.DeptId);
+
+        if (isHOUser && row.Bldg !== '(HO) 5-Storey Building') includeRow = false;
+        else if (isSPCUser && row.Bldg !== 'SPC') includeRow = false;
+
+        if (filtered.length > 0 && includeRow) mappedrows.push(row);
+      });
+
+      fetchedData = mappedrows;
     } else if (action === 10) {
       // REPORTS: requests + details combined
       let reportRequests: any[] = [];
@@ -470,7 +511,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       } else if (reportView === 'Monthly') {
         reportRequests = await SharePointService.loadVisitorRequests(
           moment(from).startOf('month').toDate(),
-          moment(to).endOf('month').toDate()
+          moment(to).endOf('month').toDate(),
         );
       } else {
         reportRequests = await SharePointService.loadVisitorRequests(from, to);
@@ -479,7 +520,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       let filteredRequests: any[] = reportRequests;
       if (isHOUser || isSPCUser) {
         filteredRequests = reportRequests.filter((row: any) => {
-          return row.Bldg === (isHOUser ? "(HO) 5-Storey Building" : "SPC");
+          return row.Bldg === (isHOUser ? '(HO) 5-Storey Building' : 'SPC');
         });
       }
 
@@ -494,16 +535,16 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       const combinedReports: any[] = filteredRequests.map((req: any) => {
         const list = detailsByParent[req.ID] || [];
 
-        const lastNames = list.map(x => x.Title).filter(Boolean).join(', ');
-        const firstNames = list.map(x => x.FirstName).filter(Boolean).join(', ');
-        const plateNos = list.map(x => x.PlateNo).filter(Boolean).join(', ');
+        const lastNames = list.map((x) => x.Title).filter(Boolean).join(', ');
+        const firstNames = list.map((x) => x.FirstName).filter(Boolean).join(', ');
+        const plateNos = list.map((x) => x.PlateNo).filter(Boolean).join(', ');
 
         return {
           ...req,
           RefNo: req.Title,
           VisitorLastName: lastNames,
           VisitorFirstName: firstNames,
-          VisitorPlateNo: plateNos
+          VisitorPlateNo: plateNos,
         };
       });
 
@@ -512,21 +553,21 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       const visitorCounts = await SharePointService.getVisitorEntryCounts(from, to, 14, 'exact');
       fetchedData = visitorCounts as any[];
     } else {
-      alert("You are not authorized to access this page!");
-      window.open(props.siteUrl, "_self");
+      alert('You are not authorized to access this page!');
+      window.open(props.siteUrl, '_self');
       return;
     }
 
-    setState(prevState => ({
+    setState((prevState) => ({
       ...prevState,
       dirListItems: fetchedData,
-      vwid: action
+      vwid: action,
     }));
   }
 
   const handleDownloadReport = () => {
     if (!displayedItems || displayedItems.length === 0) {
-      alert("No data to download.");
+      alert('No data to download.');
       return;
     }
 
@@ -536,50 +577,64 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
     if (state.vwid === 11) {
       reportType = 'Visitor Entry Count Report';
-      fileName = reportType + ' - ' + state.selectedFromDate.format('YYYY-MM-DD') + ' to ' + state.selectedToDate.format('YYYY-MM-DD') + '.xlsx';
+      fileName =
+        reportType +
+        ' - ' +
+        state.selectedFromDate.format('YYYY-MM-DD') +
+        ' to ' +
+        state.selectedToDate.format('YYYY-MM-DD') +
+        '.xlsx';
 
       dataToExport = (displayedItems as any[]).map((item: any) => ({
         'Visitor Last Name': item.LastName,
         'Visitor First Name': item.FirstName,
-        'Visit Count': item.VisitCount
+        'Visit Count': item.VisitCount,
       }));
     } else if (state.vwid === 10) {
       const isDaily = (state.reportView as any) === 'Daily';
       const isMonthly = (state.reportView as any) === 'Monthly';
 
       reportType = isDaily ? 'Daily Visitors Report' : isMonthly ? 'Monthly Visitors Report' : 'Custom Visitors Report';
-      fileName = reportType + ' - ' + state.selectedFromDate.format('YYYY-MM-DD') + ' to ' + state.selectedToDate.format('YYYY-MM-DD') + '.xlsx';
+      fileName =
+        reportType +
+        ' - ' +
+        state.selectedFromDate.format('YYYY-MM-DD') +
+        ' to ' +
+        state.selectedToDate.format('YYYY-MM-DD') +
+        '.xlsx';
 
       dataToExport = (displayedItems as any[]).map((item: any) => ({
         'Reference Number': item.Title,
         'Company Name': item.CompanyName,
-        'Request By': (item.Author && item.Author.Title) ? item.Author.Title : ((item.Approver && item.Approver.Title) ? item.Approver.Title : ''),
-        'Department': (item.Dept && item.Dept.Title) ? item.Dept.Title : '',
-        'Building': item.Bldg,
-        // Keep as Date objects when possible so Excel can format/filter correctly
+        'Request By':
+          item.Author && item.Author.Title
+            ? item.Author.Title
+            : item.Approver && item.Approver.Title
+              ? item.Approver.Title
+              : '',
+        Department: item.Dept && item.Dept.Title ? item.Dept.Title : '',
+        Building: item.Bldg,
         'Request Date': item.RequestDate ? new Date(item.RequestDate) : '',
         'Date & Time Visit': item.DateTimeVisit ? new Date(item.DateTimeVisit) : '',
         'Date & Time Arrival': item.DateTimeArrival ? new Date(item.DateTimeArrival) : '',
-        'Purpose': item.Purpose,
-        'Status': (item.Status && item.Status.Title) ? item.Status.Title : '',
+        Purpose: item.Purpose,
+        Status: item.Status && item.Status.Title ? item.Status.Title : '',
         'Require Parking': item.RequireParking ? 'Yes' : 'No',
         "Visitor's Last Name": item.VisitorLastName || '',
         "Visitor's First Name": item.VisitorFirstName || '',
-        "Plate No.": item.VisitorPlateNo || '',
-        "Room No.": item.RoomNo || ''
+        'Plate No.': item.VisitorPlateNo || '',
+        'Room No.': item.RoomNo || '',
       }));
     } else {
-      alert("Download is only supported in Reports / Visitor Count for this setup.");
+      alert('Download is only supported in Reports / Visitor Count for this setup.');
       return;
     }
 
     const ws = XLSX.utils.json_to_sheet(dataToExport);
 
-    // Ensure headers in row 1 (xlsx will already do this, but we keep it explicit)
     const headers = Object.keys(dataToExport[0] || {});
-    XLSX.utils.sheet_add_aoa(ws, [headers], { origin: "A1" });
+    XLSX.utils.sheet_add_aoa(ws, [headers], { origin: 'A1' });
 
-    // Column widths (simple autosize)
     (ws as any)['!cols'] = headers.map((h: string) => {
       let max = Math.max(12, (h || '').length + 2);
       dataToExport.forEach((row) => {
@@ -591,23 +646,19 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       return { wch: max };
     });
 
-    // AutoFilter (Excel dropdowns)
     (ws as any)['!autofilter'] = {
-      ref: `A1:${XLSX.utils.encode_col(headers.length - 1)}${dataToExport.length + 1}`
+      ref: `A1:${XLSX.utils.encode_col(headers.length - 1)}${dataToExport.length + 1}`,
     };
 
-    // Freeze top row (header)
-    (ws as any)['!sheetViews'] = [{
-      state: 'frozen',
-      ySplit: 1,
-      topLeftCell: 'A2',
-      activePane: 'bottomLeft'
-    }];
+    (ws as any)['!sheetViews'] = [
+      {
+        state: 'frozen',
+        ySplit: 1,
+        topLeftCell: 'A2',
+        activePane: 'bottomLeft',
+      },
+    ];
 
-    // Apply number format to date/time columns if they are stored as Date objects
-    // Adjust these indexes if you change the order of columns in dataToExport
-    // 0-based indexes:
-    // 5=Request Date, 6=Date & Time Visit, 7=Date & Time Arrival
     const dateColIndexes = [5, 6, 7];
     dateColIndexes.forEach((cIdx) => {
       for (let r = 2; r <= dataToExport.length + 1; r++) {
@@ -646,11 +697,17 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         let isSSDUser = false;
 
         for (let i = 0; i < groups.length; i++) {
-          if (groups[i].LoginName === Receptionist_Group) { isReceptionist = true; break; }
+          if (groups[i].LoginName === Receptionist_Group) {
+            isReceptionist = true;
+            break;
+          }
         }
 
         for (let j = 0; j < groups.length; j++) {
-          if (groups[j].LoginName === SSD_Group_v2) { isSSDUser = true; break; }
+          if (groups[j].LoginName === SSD_Group_v2) {
+            isSSDUser = true;
+            break;
+          }
         }
 
         let temptabs: string[] = [];
@@ -663,23 +720,23 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           temptabs.push('Reports');
         }
 
-        setState(prevState => ({
+        setState((prevState) => ({
           ...prevState,
-          viewName: "Visitor Views",
+          viewName: 'Visitor Views',
           isEncoder: isEncoder,
           isApprover: isApprover,
           isReceptionist: isReceptionist,
           isSSDUser: isSSDUser,
           isWalkinApprover: isWalkinApprover,
           WalkinApprovers: isWalkinApprover ? walkinapprovers : [],
-          menuTabs: temptabs
+          menuTabs: temptabs,
         }));
 
         const cookietab = getCookie('ViewVisitorTab');
         if (cookietab) {
           const index = temptabs.indexOf(cookietab);
           setTimeout(() => {
-            setState(prevState => ({ ...prevState, tabvalue: index }));
+            setState((prevState) => ({ ...prevState, tabvalue: index }));
 
             const syntheticEvent: any = {
               target: { textContent: cookietab },
@@ -690,13 +747,13 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
               defaultPrevented: false,
               eventPhase: 2,
               isTrusted: false,
-              preventDefault: () => { },
+              preventDefault: () => {},
               isDefaultPrevented: () => false,
-              stopPropagation: () => { },
+              stopPropagation: () => {},
               isPropagationStopped: () => false,
-              persist: () => { },
+              persist: () => {},
               timeStamp: Date.now(),
-              type: 'change'
+              type: 'change',
             };
 
             handleTabChange(syntheticEvent, index);
@@ -706,26 +763,27 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           const defaultIndex = 0;
 
           const syntheticEvent2: any = {
-          target: { textContent: defaultTabContent },
-          currentTarget: { textContent: defaultTabContent },
-          nativeEvent: new Event('change'),
-          bubbles: false,
-          cancelable: false,
-          defaultPrevented: false,
-          eventPhase: 2,
-          isTrusted: false,
-          preventDefault: () => { },
-          isDefaultPrevented: () => false,
-          stopPropagation: () => { },
-          isPropagationStopped: () => false,
-          persist: () => { },
-          timeStamp: Date.now(),
-          type: 'change'
-        };
+            target: { textContent: defaultTabContent },
+            currentTarget: { textContent: defaultTabContent },
+            nativeEvent: new Event('change'),
+            bubbles: false,
+            cancelable: false,
+            defaultPrevented: false,
+            eventPhase: 2,
+            isTrusted: false,
+            preventDefault: () => {},
+            isDefaultPrevented: () => false,
+            stopPropagation: () => {},
+            isPropagationStopped: () => false,
+            persist: () => {},
+            timeStamp: Date.now(),
+            type: 'change',
+          };
 
           handleTabChange(syntheticEvent2, defaultIndex);
         }
       } catch (e) {
+        // eslint-disable-next-line no-console
         console.log(e);
       }
     })();
@@ -743,7 +801,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
             <TabsNavigation tabs={state.menuTabs} value={state.tabvalue} onChange={handleTabChange} />
           </Grid>
 
-          {(state.vwid !== 9 && state.vwid !== 0 && state.vwid !== 10) && (
+          {state.vwid !== 9 && state.vwid !== 0 && state.vwid !== 10 && (
             <Grid item xs={12} sm={6}>
               <DateRangeSelector
                 fromDate={state.selectedFromDate.toDate()}
@@ -755,23 +813,17 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
             </Grid>
           )}
 
-          {(state.vwid === 9) && (
+          {state.vwid === 9 && (
             <Grid item xs={12} sm={12}>
               <SearchBox searchText={state.txtSearch} onSearchChange={handleChangeTxt} />
             </Grid>
           )}
 
-          {(state.vwid === 10) && (
+          {state.vwid === 10 && (
             <Grid item xs={12}>
               <FormControl component="fieldset" className={classes.formControl}>
                 <FormLabel component="legend">Report View</FormLabel>
-                <RadioGroup
-                  row
-                  aria-label="report-view"
-                  name="report-view"
-                  value={state.reportView}
-                  onChange={handleReportViewChange}
-                >
+                <RadioGroup row aria-label="report-view" name="report-view" value={state.reportView} onChange={handleReportViewChange}>
                   <FormControlLabel value="Daily" control={<Radio />} label="Daily Visitors" />
                   <FormControlLabel value="Monthly" control={<Radio />} label="Monthly Visitors" />
                   <FormControlLabel value="Custom" control={<Radio />} label="Custom Range" />
@@ -804,7 +856,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
             </Grid>
           )}
 
-          {(state.vwid === 11) && (
+          {state.vwid === 11 && (
             <Grid item xs={12} sm={6} style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button
                 variant="contained"
@@ -818,17 +870,11 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
             </Grid>
           )}
 
-          {(state.vwid !== 0 && state.vwid !== 11) && (
+          {state.vwid !== 0 && state.vwid !== 11 && (
             <Grid item xs={12}>
               <FormControl component="fieldset" className={classes.formControl}>
                 <FormLabel component="legend">Reference Filter</FormLabel>
-                <RadioGroup
-                  row
-                  aria-label="ref-filter"
-                  name="ref-filter"
-                  value={state.refFilter as any}
-                  onChange={handleRefFilterChange}
-                >
+                <RadioGroup row aria-label="ref-filter" name="ref-filter" value={state.refFilter as any} onChange={handleRefFilterChange}>
                   <FormControlLabel value="ALL" control={<Radio />} label="All" />
                   <FormControlLabel value="HO" control={<Radio />} label="HO" />
                   <FormControlLabel value="SPC" control={<Radio />} label="SPC" />
@@ -839,29 +885,18 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
           <Grid item xs={12}>
             <Paper variant="outlined" className={classes.paper}>
-              {(state.vwid === 10 && displayedItems.length > 0) && (
-                <VisitorsTable
-                  data={displayedItems as any[]}
-                  onViewAction={viewAction2}
-                  title="Reports"
-                />
+              {state.vwid === 10 && displayedItems.length > 0 && (
+                <VisitorsTable data={displayedItems as any[]} onViewAction={viewAction2} title="Reports" />
               )}
 
-              {((state.vwid === 1 || state.vwid === 2 || state.vwid === 5 || state.vwid === 6 || state.vwid === 7 || state.vwid === 8) && displayedItems.length > 0) && (
-                <VisitorRequestsTable
-                  data={displayedItems as IVisitor[]}
-                  onViewAction={viewAction}
-                />
+              {(state.vwid === 1 || state.vwid === 2 || state.vwid === 5 || state.vwid === 6 || state.vwid === 7 || state.vwid === 8) &&
+                displayedItems.length > 0 && <VisitorRequestsTable data={displayedItems as IVisitor[]} onViewAction={viewAction} />}
+
+              {(state.vwid === 3 || state.vwid === 4 || state.vwid === 9) && displayedItems.length > 0 && (
+                <VisitorDetailsTable data={displayedItems as IVisitorDetailExtended[]} onViewAction={viewAction2} />
               )}
 
-              {((state.vwid === 3 || state.vwid === 4 || state.vwid === 9) && displayedItems.length > 0) && (
-                <VisitorDetailsTable
-                  data={displayedItems as IVisitorDetailExtended[]}
-                  onViewAction={viewAction2}
-                />
-              )}
-
-              {(state.vwid === 11 && displayedItems.length > 0) && (
+              {state.vwid === 11 && displayedItems.length > 0 && (
                 <VisitorCountTable
                   data={displayedItems as IVisitorCount[]}
                   title="Visitor Entry Count"

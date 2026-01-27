@@ -36,6 +36,12 @@ function Alert(props: AlertProps) {
   return <MuiAlert elevation={6} variant="filled" {...props} />;
 }
 
+/**
+ * Helpers for Option 1 (Bldg is Single line of text, but UI is multi-select):
+ * - UI saves string as "A; B; C"
+ * - Ref generation must infer LocationCode from the selected building(s)
+ * - Prevent mixing HO and SPC in the same selection
+ */
 const splitBldgText = (bldgText: string): string[] => {
   if (!bldgText) return [];
   return bldgText
@@ -62,11 +68,13 @@ const validateBldgNotMixed = (bldgText: string): string => {
 const getLocationCodeFromBldgText = (bldgText: string, bldgList: any[]): string => {
   const selected = splitBldgText(bldgText);
 
+  // Prefer exact match from the building list (uses your LocationCode field)
   for (const title of selected) {
     const match = (bldgList || []).find((b) => b.Title === title);
     if (match && match.LocationCode) return match.LocationCode;
   }
 
+  // Fallback: infer by prefix / value
   const hasHO = selected.some((s) => s.toUpperCase().startsWith('(HO)'));
   const hasSPC = selected.some((s) => {
     const u = s.toUpperCase();
@@ -93,7 +101,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   const [isSavingDone, setSavingDone] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMessage, setDialogMessage] = useState('');
-  const [submitType, setSubmitType] = useState(1);
+  const [submitType, setSubmitType] = useState(1); // 1 = Save, 2 = Submit
 
   // Privacy Modal State
   const [privacyConsentGiven, setPrivacyConsentGiven] = useState(() => {
@@ -127,7 +135,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     ExternalType: '',
     Purpose: '',
     DeptId: null,
-    Bldg: '',
+    Bldg: '', // Option 1: stays string "A; B; C"
     RoomNo: '',
     EmpNo: '',
     Position: '',
@@ -145,9 +153,8 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     PurposeOthers: '',
     VisitorType: 'Visitor',
 
-    // OPTION A helper field (not a separate SP column)
-    // Used only when VisitorType === 'Others'
-    OtherVisitorType: '' as any,
+    // Option 1: free-text (saved to VisitorDetails.OtherVisitorType, not to VisitorType list)
+    OtherVisitorType: '',
   });
 
   // Form errors
@@ -157,15 +164,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   const [refNo, setRefNo] = useState('');
   const [itemId, setItemId] = useState(0);
 
-  // Option A: compute the "real" visitor type for display and for details section
-  const getFinalVisitorType = (): string => {
-    const vt = (visitor as any).VisitorType || '';
-    if (vt === 'Others') {
-      const other = ((visitor as any).OtherVisitorType || '').toString().trim();
-      return other;
-    }
-    return vt;
-  };
+  // --- Handlers ---
 
   const saveVisitor = async () => {
     const validation = validateVisitorForm(visitor, visitorDetailsList, submitType);
@@ -174,7 +173,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
       return;
     }
 
-    // Option A: if VisitorType is Others, require textbox value (basic check here)
+    // Option 1: require textbox value if VisitorType is Others
     if ((visitor as any).VisitorType === 'Others') {
       const other = ((visitor as any).OtherVisitorType || '').toString().trim();
       if (!other) {
@@ -183,6 +182,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
       }
     }
 
+    // prevent selecting both HO and SPC buildings
     const bldgMixError = validateBldgNotMixed((visitor as any).Bldg);
     if (bldgMixError) {
       setErrors((prev: any) => ({ ...prev, Bldg: bldgMixError }));
@@ -192,8 +192,10 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     setProgress(true);
 
     try {
+      // locationCode works even if visitor.Bldg is "A; B; C"
       const locationCode = getLocationCodeFromBldgText((visitor as any).Bldg, bldgList);
 
+      // If submitting and we still can't infer the code, stop with a friendly error
       if (submitType === 2 && !locationCode) {
         setErrors((prev: any) => ({ ...prev, Bldg: 'Unable to determine site code from selected building(s).' }));
         setProgress(false);
@@ -233,7 +235,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   };
 
   const handleDeptChange = async (deptId: number) => {
-    const dept = deptList.find((d: any) => d.Id === deptId);
+    const dept = (deptList || []).find((d: any) => d.Id === deptId);
     if (dept) setDeptName(dept.Title);
 
     if ((visitor as any).ExternalType === 'Walk-in') {
@@ -254,7 +256,9 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     if (searchText.length > 2) {
       const contacts = await spService.findUsersByName(searchText, deptName);
       setContactList(contacts);
-    } else setContactList([]);
+    } else {
+      setContactList([]);
+    }
   };
 
   const handleContactSelect = (contact: any) => {
@@ -307,16 +311,25 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   };
 
   const handleFieldChange = (name: string, value: any) => {
+    // If Bldg changes, run the HO/SPC mixing validation immediately
     if (name === 'Bldg') {
       const bldgMixError = validateBldgNotMixed(value as string);
       setErrors((prev: any) => ({ ...prev, Bldg: bldgMixError }));
       if (bldgMixError) {
+        // still update so user sees selection, but they cannot submit until fixed
         setVisitor((prev: any) => ({ ...prev, [name]: value }));
         return;
       }
     }
 
-    setVisitor((prev: any) => ({ ...prev, [name]: value }));
+    // If VisitorType changes away from Others, clear textbox
+    if (name === 'VisitorType' && value !== 'Others') {
+      setVisitor((prev: any) => ({ ...prev, VisitorType: value, OtherVisitorType: '' }));
+      setErrors((prev: any) => ({ ...prev, OtherVisitorType: '' }));
+    } else {
+      setVisitor((prev: any) => ({ ...prev, [name]: value }));
+    }
+
     const errorMessage = validateField(name, value, { ...visitor, [name]: value });
     setErrors((prev: any) => ({ ...prev, [name]: errorMessage }));
 
@@ -354,6 +367,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     else window.open(props.siteUrl, '_self');
   };
 
+  // Privacy Modal Handlers
   const handlePrivacyAccept = () => {
     setPrivacyConsentGiven(true);
     setShowPrivacyModal(false);
@@ -364,6 +378,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     window.open(props.siteUrl, '_self');
   };
 
+  // Initialization
   useEffect(() => {
     const init = async () => {
       try {
@@ -417,12 +432,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
 
   if (showPrivacyModal && !privacyConsentGiven) {
     return (
-      <PrivacyModal
-        onAccept={handlePrivacyAccept}
-        onDecline={handlePrivacyDecline}
-        context={props.context}
-        refNo={refNo}
-      />
+      <PrivacyModal onAccept={handlePrivacyAccept} onDecline={handlePrivacyDecline} context={props.context} refNo={refNo} />
     );
   }
 
@@ -453,7 +463,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
               visitorDetailsList={visitorDetailsList}
               requireParking={(visitor as any).RequireParking}
               detailsError={(errors as any).Details}
-              visitorType={getFinalVisitorType() || 'Visitor'}  // OPTION A: pass final type
+              visitorType={(visitor as any).VisitorType || 'Visitor'}
               onAddVisitor={handleAddVisitor}
               onEditVisitor={handleEditVisitor}
               onDeleteVisitor={handleDeleteVisitor}
@@ -492,9 +502,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
               </div>
             )}
             {(isEncoder || isReceptionist) && submitType === 2 && (
-              <div style={{ marginTop: '5px' }}>
-                An email notification has been sent to {approverDetails.name}.
-              </div>
+              <div style={{ marginTop: '5px' }}>An email notification has been sent to {approverDetails.name}.</div>
             )}
           </Alert>
         </Snackbar>
