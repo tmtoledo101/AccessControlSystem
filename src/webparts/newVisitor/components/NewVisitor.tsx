@@ -23,7 +23,7 @@ import VisitorDetailsSection from './sections/VisitorDetailsSection';
 import VisitorInformationSection from './sections/VisitorInformationSection';
 
 // Constants
-const RECEPTIONIST_GROUP = "Receptionist";
+const RECEPTIONIST_GROUP = 'Receptionist';
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -36,25 +36,19 @@ function Alert(props: AlertProps) {
   return <MuiAlert elevation={6} variant="filled" {...props} />;
 }
 
-/**
- * Helpers for Option 1 (Bldg is Single line of text, but UI is multi-select):
- * - UI saves string as "A; B; C"
- * - Ref generation must infer LocationCode from the selected building(s)
- * - Prevent mixing HO and SPC in the same selection
- */
 const splitBldgText = (bldgText: string): string[] => {
   if (!bldgText) return [];
   return bldgText
     .split(';')
-    .map(s => s.trim())
+    .map((s) => s.trim())
     .filter(Boolean);
 };
 
 const validateBldgNotMixed = (bldgText: string): string => {
   const selected = splitBldgText(bldgText);
 
-  const hasHO = selected.some(s => s.toUpperCase().startsWith('(HO)'));
-  const hasSPC = selected.some(s => {
+  const hasHO = selected.some((s) => s.toUpperCase().startsWith('(HO)'));
+  const hasSPC = selected.some((s) => {
     const u = s.toUpperCase();
     return u === 'SPC' || u.startsWith('(SPC)');
   });
@@ -68,15 +62,13 @@ const validateBldgNotMixed = (bldgText: string): string => {
 const getLocationCodeFromBldgText = (bldgText: string, bldgList: any[]): string => {
   const selected = splitBldgText(bldgText);
 
-  // Prefer exact match from the building list (uses your LocationCode field)
   for (const title of selected) {
-    const match = (bldgList || []).find(b => b.Title === title);
+    const match = (bldgList || []).find((b) => b.Title === title);
     if (match && match.LocationCode) return match.LocationCode;
   }
 
-  // Fallback: infer by prefix / value
-  const hasHO = selected.some(s => s.toUpperCase().startsWith('(HO)'));
-  const hasSPC = selected.some(s => {
+  const hasHO = selected.some((s) => s.toUpperCase().startsWith('(HO)'));
+  const hasSPC = selected.some((s) => {
     const u = s.toUpperCase();
     return u === 'SPC' || u.startsWith('(SPC)');
   });
@@ -100,8 +92,8 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   const [isProgress, setProgress] = useState(false);
   const [isSavingDone, setSavingDone] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogMessage, setDialogMessage] = useState("");
-  const [submitType, setSubmitType] = useState(1); // 1 = Save, 2 = Submit
+  const [dialogMessage, setDialogMessage] = useState('');
+  const [submitType, setSubmitType] = useState(1);
 
   // Privacy Modal State
   const [privacyConsentGiven, setPrivacyConsentGiven] = useState(() => {
@@ -121,20 +113,21 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   const [isReceptionist, setReceptionist] = useState(false);
 
   // Lists
-  const [purposeList, setPurposeList] = useState([]);
-  const [deptList, setDeptList] = useState([]);
-  const [bldgList, setBldgList] = useState([]);
-  const [approverList, setApproverList] = useState([]);
-  const [walkinApproverList, setWalkinApproverList] = useState([]);
-  const [contactList, setContactList] = useState([]);
+  const [purposeList, setPurposeList] = useState<any[]>([]);
+  const [deptList, setDeptList] = useState<any[]>([]);
+  const [bldgList, setBldgList] = useState<any[]>([]);
+  const [approverList, setApproverList] = useState<any[]>([]);
+  const [walkinApproverList, setWalkinApproverList] = useState<any[]>([]);
+  const [contactList, setContactList] = useState<any[]>([]);
   const [visitorDetailsList, setVisitorDetailsList] = useState<IVisitorDetails[]>([]);
+  const [visitorTypeList, setVisitorTypeList] = useState<any[]>([]);
 
   // Form data
   const [visitor, setVisitor] = useState<IVisitor>({
     ExternalType: '',
     Purpose: '',
     DeptId: null,
-    Bldg: '', // stays string for Option 1
+    Bldg: '',
     RoomNo: '',
     EmpNo: '',
     Position: '',
@@ -150,17 +143,29 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     ApproverId: null,
     Files: [],
     PurposeOthers: '',
-    VisitorType: 'Visitor'
+    VisitorType: 'Visitor',
+
+    // OPTION A helper field (not a separate SP column)
+    // Used only when VisitorType === 'Others'
+    OtherVisitorType: '' as any,
   });
 
   // Form errors
   const [errors, setErrors] = useState<IFormErrors>({});
   const [approverDetails, setApproverDetails] = useState({ email: '', name: '' });
-  const [deptName, setDeptName] = useState("");
-  const [refNo, setRefNo] = useState("");
+  const [deptName, setDeptName] = useState('');
+  const [refNo, setRefNo] = useState('');
   const [itemId, setItemId] = useState(0);
 
-  // --- Handlers ---
+  // Option A: compute the "real" visitor type for display and for details section
+  const getFinalVisitorType = (): string => {
+    const vt = (visitor as any).VisitorType || '';
+    if (vt === 'Others') {
+      const other = ((visitor as any).OtherVisitorType || '').toString().trim();
+      return other;
+    }
+    return vt;
+  };
 
   const saveVisitor = async () => {
     const validation = validateVisitorForm(visitor, visitorDetailsList, submitType);
@@ -169,22 +174,28 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
       return;
     }
 
-    // prevent selecting both HO and SPC buildings
-    const bldgMixError = validateBldgNotMixed(visitor.Bldg);
+    // Option A: if VisitorType is Others, require textbox value (basic check here)
+    if ((visitor as any).VisitorType === 'Others') {
+      const other = ((visitor as any).OtherVisitorType || '').toString().trim();
+      if (!other) {
+        setErrors((prev: any) => ({ ...prev, OtherVisitorType: 'Please specify visitor type.' }));
+        return;
+      }
+    }
+
+    const bldgMixError = validateBldgNotMixed((visitor as any).Bldg);
     if (bldgMixError) {
-      setErrors(prev => ({ ...prev, Bldg: bldgMixError }));
+      setErrors((prev: any) => ({ ...prev, Bldg: bldgMixError }));
       return;
     }
 
     setProgress(true);
 
     try {
-      // locationCode works even if visitor.Bldg is "A; B; C"
-      const locationCode = getLocationCodeFromBldgText(visitor.Bldg, bldgList);
+      const locationCode = getLocationCodeFromBldgText((visitor as any).Bldg, bldgList);
 
-      // If submitting and we still can't infer the code, stop with a friendly error
       if (submitType === 2 && !locationCode) {
-        setErrors(prev => ({ ...prev, Bldg: 'Unable to determine site code from selected building(s).' }));
+        setErrors((prev: any) => ({ ...prev, Bldg: 'Unable to determine site code from selected building(s).' }));
         setProgress(false);
         return;
       }
@@ -201,11 +212,11 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
       if (submitType === 2) {
         await emailService.sendApprovalEmail(
           generatedRefNo,
-          visitor.Purpose,
+          (visitor as any).Purpose,
           savedItemId,
           approverDetails.email,
           approverDetails.name,
-          isEncoder
+          isEncoder,
         );
 
         const currentUserEmail = props.context.pageContext.user.email;
@@ -214,9 +225,9 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
       }
 
       setSavingDone(true);
-      setTimeout(() => window.open(props.siteUrl, "_self"), 1000);
+      setTimeout(() => window.open(props.siteUrl, '_self'), 1000);
     } catch (error) {
-      console.error("Error saving visitor:", error);
+      console.error('Error saving visitor:', error);
       setProgress(false);
     }
   };
@@ -225,7 +236,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     const dept = deptList.find((d: any) => d.Id === deptId);
     if (dept) setDeptName(dept.Title);
 
-    if (visitor.ExternalType === 'Walk-in') {
+    if ((visitor as any).ExternalType === 'Walk-in') {
       const walkinApprovers = await spService.getWalkinApproverList(deptId);
       setWalkinApproverList(walkinApprovers);
     } else {
@@ -248,16 +259,16 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
 
   const handleContactSelect = (contact: any) => {
     if (contact) {
-      setVisitor(prev => ({
+      setVisitor((prev: any) => ({
         ...prev,
         EmpNo: contact.EmpNo,
         DirectNo: contact.DirectNo,
         LocalNo: contact.LocalNo,
-        Position: contact.Position
+        Position: contact.Position,
       }));
-      setErrors(prev => ({ ...prev, EmpNo: '' }));
+      setErrors((prev: any) => ({ ...prev, EmpNo: '' }));
     } else {
-      setVisitor(prev => ({ ...prev, EmpNo: '', DirectNo: '', LocalNo: '', Position: '' }));
+      setVisitor((prev: any) => ({ ...prev, EmpNo: '', DirectNo: '', LocalNo: '', Position: '' }));
       setContactList([]);
     }
   };
@@ -265,62 +276,94 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   const handleDateChange = (date: Date, name: string) => {
     const updatedVisitor: any = { ...visitor, [name]: date };
     setVisitor(updatedVisitor);
-    if (name === 'DateTimeVisit' && date > visitor.DateTimeArrival) {
-      setErrors(prev => ({ ...prev, DateTimeVisit: 'From Date should be earlier than To Date' }));
-    } else if (name === 'DateTimeArrival' && visitor.DateTimeVisit > date) {
-      setErrors(prev => ({ ...prev, DateTimeArrival: 'From Date should be earlier than To Date' }));
+
+    if (name === 'DateTimeVisit' && date > (visitor as any).DateTimeArrival) {
+      setErrors((prev: any) => ({ ...prev, DateTimeVisit: 'From Date should be earlier than To Date' }));
+    } else if (name === 'DateTimeArrival' && (visitor as any).DateTimeVisit > date) {
+      setErrors((prev: any) => ({ ...prev, DateTimeArrival: 'From Date should be earlier than To Date' }));
     } else {
-      setErrors(prev => ({ ...prev, [name]: '' } as any));
+      setErrors((prev: any) => ({ ...prev, [name]: '' }));
     }
   };
 
-  const handleFilesChange = (files: File[]) => setVisitor(prev => ({ ...prev, Files: files }));
-  const handleAddVisitor = (v: IVisitorDetails) => { setVisitorDetailsList([...visitorDetailsList, v]); setErrors(prev => ({ ...prev, Details: '' })); };
-  const handleEditVisitor = (v: IVisitorDetails, i: number) => { const l = [...visitorDetailsList]; l[i] = v; setVisitorDetailsList(l); };
+  const handleFilesChange = (files: File[]) => setVisitor((prev: any) => ({ ...prev, Files: files }));
+
+  const handleAddVisitor = (v: IVisitorDetails) => {
+    setVisitorDetailsList([...visitorDetailsList, v]);
+    setErrors((prev: any) => ({ ...prev, Details: '' }));
+  };
+
+  const handleEditVisitor = (v: IVisitorDetails, i: number) => {
+    const l = [...visitorDetailsList];
+    l[i] = v;
+    setVisitorDetailsList(l);
+  };
+
   const handleDeleteVisitor = (i: number) => {
     const l = [...visitorDetailsList];
     l.splice(i, 1);
     setVisitorDetailsList(l);
-    if (l.length === 0) setErrors(prev => ({ ...prev, Details: 'Visitor Details are required.' }));
+    if (l.length === 0) setErrors((prev: any) => ({ ...prev, Details: 'Visitor Details are required.' }));
   };
 
   const handleFieldChange = (name: string, value: any) => {
-    // If Bldg changes, run the HO/SPC mixing validation immediately
     if (name === 'Bldg') {
       const bldgMixError = validateBldgNotMixed(value as string);
-      setErrors(prev => ({ ...prev, Bldg: bldgMixError }));
+      setErrors((prev: any) => ({ ...prev, Bldg: bldgMixError }));
       if (bldgMixError) {
-        // still update so user sees selection, but they cannot submit until fixed
-        setVisitor(prev => ({ ...prev, [name]: value }));
+        setVisitor((prev: any) => ({ ...prev, [name]: value }));
         return;
       }
     }
 
-    setVisitor(prev => ({ ...prev, [name]: value }));
+    setVisitor((prev: any) => ({ ...prev, [name]: value }));
     const errorMessage = validateField(name, value, { ...visitor, [name]: value });
-    setErrors(prev => ({ ...prev, [name]: errorMessage } as any));
+    setErrors((prev: any) => ({ ...prev, [name]: errorMessage }));
 
     if (name === 'DeptId') handleDeptChange(value);
-    if (name === 'Purpose' && value !== 'Others') setVisitor(prev => ({ ...prev, PurposeOthers: '' }));
+    if (name === 'Purpose' && value !== 'Others') setVisitor((prev: any) => ({ ...prev, PurposeOthers: '' }));
     if (name === 'ApproverId') handleApproverChange(value);
+
+    // Clear OtherVisitorType error as user types
+    if (name === 'OtherVisitorType') {
+      setErrors((prev: any) => ({ ...prev, OtherVisitorType: '' }));
+    }
   };
 
-  const handleSave = () => { setSubmitType(1); setDialogMessage("Do you want to save and exit?"); setDialogOpen(true); };
-  const handleSubmit = () => { setSubmitType(2); setDialogMessage("Do you want to submit this form?"); setDialogOpen(true); };
-  const handleCancel = () => { setDialogMessage("Do you want to discard changes and exit?"); setDialogOpen(true); };
+  const handleSave = () => {
+    setSubmitType(1);
+    setDialogMessage('Do you want to save and exit?');
+    setDialogOpen(true);
+  };
+
+  const handleSubmit = () => {
+    setSubmitType(2);
+    setDialogMessage('Do you want to submit this form?');
+    setDialogOpen(true);
+  };
+
+  const handleCancel = () => {
+    setDialogMessage('Do you want to discard changes and exit?');
+    setDialogOpen(true);
+  };
 
   const handleDialogClose = (confirmed: boolean) => {
     setDialogOpen(false);
     if (!confirmed) return;
-    if (dialogMessage.includes("save") || dialogMessage.includes("submit")) saveVisitor();
-    else window.open(props.siteUrl, "_self");
+    if (dialogMessage.includes('save') || dialogMessage.includes('submit')) saveVisitor();
+    else window.open(props.siteUrl, '_self');
   };
 
-  // Privacy Modal Handlers
-  const handlePrivacyAccept = () => { setPrivacyConsentGiven(true); setShowPrivacyModal(false); };
-  const handlePrivacyDecline = () => { alert("You must accept the privacy policy to use this application."); window.open(props.siteUrl, "_self"); };
+  const handlePrivacyAccept = () => {
+    setPrivacyConsentGiven(true);
+    setShowPrivacyModal(false);
+  };
 
-  // Initialization
+  const handlePrivacyDecline = () => {
+    alert('You must accept the privacy policy to use this application.');
+    window.open(props.siteUrl, '_self');
+  };
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -333,28 +376,31 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
         const usersPerDept = await spSvc.getUsersPerDept();
         if (usersPerDept.length > 0) {
           setEncoder(true);
-          setVisitor(prev => ({ ...prev, ExternalType: "Pre-arranged" }));
+          setVisitor((prev: any) => ({ ...prev, ExternalType: 'Pre-arranged' }));
         }
 
         const isReceptionistResult = await spSvc.isUserInGroup(RECEPTIONIST_GROUP);
         if (isReceptionistResult) {
           setReceptionist(true);
-          setVisitor(prev => ({ ...prev, ExternalType: "Walk-in" }));
+          setVisitor((prev: any) => ({ ...prev, ExternalType: 'Walk-in' }));
         }
 
         if (usersPerDept.length > 0 || isReceptionistResult) {
           setPurposeList(await spSvc.getPurposeList());
           setBldgList(await spSvc.getBuildingList());
           setDeptList(await spSvc.getDepartmentList(usersPerDept.length > 0, usersPerDept));
+
+          const vt = await spSvc.getVisitorTypeList();
+          setVisitorTypeList(vt || []);
         } else {
-          alert("You are not authorized to access this page!");
-          window.open(props.siteUrl, "_self");
+          alert('You are not authorized to access this page!');
+          window.open(props.siteUrl, '_self');
           return;
         }
 
         setIsLoading(false);
       } catch (error) {
-        console.error("Init error:", error);
+        console.error('Init error:', error);
         setIsLoading(false);
       }
     };
@@ -390,11 +436,12 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
             <VisitorInformationSection
               visitor={visitor}
               errors={errors}
-              externalType={visitor.ExternalType}
+              externalType={(visitor as any).ExternalType}
               purposeList={purposeList}
               deptList={deptList}
               bldgList={bldgList}
               contactList={contactList}
+              visitorTypeList={visitorTypeList}
               onChange={handleFieldChange}
               onContactSearch={handleContactSearch}
               onContactSelect={handleContactSelect}
@@ -404,9 +451,9 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
 
             <VisitorDetailsSection
               visitorDetailsList={visitorDetailsList}
-              requireParking={visitor.RequireParking}
+              requireParking={(visitor as any).RequireParking}
               detailsError={(errors as any).Details}
-              visitorType={(visitor as any).VisitorType || 'Visitor'}
+              visitorType={getFinalVisitorType() || 'Visitor'}  // OPTION A: pass final type
               onAddVisitor={handleAddVisitor}
               onEditVisitor={handleEditVisitor}
               onDeleteVisitor={handleDeleteVisitor}
@@ -430,12 +477,7 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
           </Grid>
         </Container>
 
-        <ConfirmationDialog
-          open={dialogOpen}
-          title="Confirmation"
-          message={dialogMessage}
-          onClose={handleDialogClose}
-        />
+        <ConfirmationDialog open={dialogOpen} title="Confirmation" message={dialogMessage} onClose={handleDialogClose} />
 
         <Backdrop className={classes.backdrop} open={isProgress}>
           <CircularProgress color="inherit" />

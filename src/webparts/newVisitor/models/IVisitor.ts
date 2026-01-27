@@ -28,4 +28,5 @@ export interface IVisitor {
   // Added VisitorType property
   VisitorType?: string;
   VisitorTypeId?: number; 
+  OtherVisitorType?: string;
 }

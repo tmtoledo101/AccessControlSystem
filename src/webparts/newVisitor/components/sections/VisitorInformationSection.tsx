@@ -27,7 +27,7 @@ const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     paper: {
       padding: theme.spacing(1),
-      borderColor: "transparent",
+      borderColor: 'transparent',
     },
     textField: {
       marginLeft: theme.spacing(1),
@@ -54,7 +54,7 @@ const useStyles = makeStyles((theme: Theme) =>
     },
     previewChip: {
       minWidth: 160,
-      maxWidth: 210
+      maxWidth: 210,
     },
     attachmentNote: {
       color: theme.palette.error.main,
@@ -92,6 +92,7 @@ export interface IVisitorInformationSectionProps {
   deptList: any[];
   bldgList: any[];
   contactList: any[];
+  visitorTypeList: any[]; // from SP list "VisitorType"
   onChange: (name: string, value: any) => void;
   onContactSearch: (searchText: string) => void;
   onContactSelect: (contact: any) => void;
@@ -108,51 +109,42 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
     deptList,
     bldgList,
     contactList,
+    visitorTypeList,
     onChange,
     onContactSearch,
     onContactSelect,
     onDateChange,
-    onFilesChange
+    onFilesChange,
   } = props;
-  const classes = useStyles();
 
+  const classes = useStyles();
   const [isAC1Open, setAC1Open] = useState(false);
 
-  /**
-   * OPTION 1:
-   * - SharePoint column Bldg is Single line of text.
-   * - UI is multi-select, but we store it as a single string joined by "; ".
-   *
-   * Internally in this component:
-   * - Read: split visitor.Bldg string to array for the multi-select value
-   * - Write: join array back to string and call onChange('Bldg', joinedString)
-   */
   const getBldgArrayFromVisitor = (): string[] => {
     const raw = (visitor as any).Bldg;
     if (!raw) return [];
-    if (Array.isArray(raw)) return raw; // just in case some other code already sends array
+    if (Array.isArray(raw)) return raw;
     if (typeof raw === 'string') {
-      return raw.split(';').map(s => s.trim()).filter(Boolean);
+      return raw.split(';').map((s) => s.trim()).filter(Boolean);
     }
     return [];
   };
 
   const handleBldgMultiChange = (e: React.ChangeEvent<{ name?: string; value: any }>) => {
-    // MUI multiple Select returns string[] (or sometimes string if autofill)
     const value = e.target.value;
+
     const arr: string[] = Array.isArray(value)
       ? value
       : typeof value === 'string'
-        ? value.split(',').map(s => s.trim()).filter(Boolean)
+        ? value.split(',').map((s) => s.trim()).filter(Boolean)
         : [];
 
-    // Save back into the visitor model as a single string for SharePoint text column
-    const joined = arr.join('; ');
-    onChange('Bldg', joined);
+    onChange('Bldg', arr.join('; '));
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const name = e.target.name;
+    const value = e.target.value;
 
     if (name === 'RequireParking') {
       onChange(name, e.target.checked);
@@ -162,8 +154,15 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
   };
 
   const handleSelectChange = (e: React.ChangeEvent<{ name?: string; value: any }>) => {
-    const { name, value } = e.target;
-    onChange(name as string, value);
+    const name = e.target.name as string;
+    const value = e.target.value;
+
+    onChange(name, value);
+
+    // If user changes VisitorType away from Others, clear textbox value
+    if (name === 'VisitorType' && value !== 'Others') {
+      onChange('OtherVisitorType', '');
+    }
   };
 
   const handleContactSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -175,6 +174,31 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
   };
 
   const bldgSelectedArray = getBldgArrayFromVisitor();
+
+  // Keep order by VisID if present
+  const getVisitorTypeSortNumber = (item: any): number => {
+    const raw =
+      item && (item.VisID || item.visID || item.VisId || item.visId || item.SortOrder || item.Order);
+    const n = Number(raw);
+    return isNaN(n) ? 0 : n;
+  };
+
+  const sortedVisitorTypeList = (visitorTypeList || []).slice().sort((a: any, b: any) => {
+    return getVisitorTypeSortNumber(a) - getVisitorTypeSortNumber(b);
+  });
+
+  const getVisitorTypeKey = (item: any, index: number): string | number => {
+    if (!item) return index;
+    return item.Id || item.ID || item.VisID || item.Title || index;
+  };
+
+  const getVisitorTypeTitle = (item: any): string => {
+    if (!item) return '';
+    return item.Title ? String(item.Title) : '';
+  };
+
+  const selectedVisitorType = (visitor as any).VisitorType || '';
+  const otherVisitorTypeValue = (visitor as any).OtherVisitorType || '';
 
   return (
     <>
@@ -193,36 +217,36 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
 
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
-          <FormControl className={classes.textField} error={Boolean(errors.Purpose)}>
+          <FormControl className={classes.textField} error={Boolean((errors as any).Purpose)}>
             <InputLabel id="purposeLabel">Purpose *</InputLabel>
             <Select
               labelId="purposeLabel"
               id="Purpose"
-              value={visitor.Purpose || ''}
+              value={(visitor as any).Purpose || ''}
               onChange={handleSelectChange}
               name="Purpose"
             >
-              {purposeList.map((item) => (
+              {(purposeList || []).map((item: any) => (
                 <MenuItem key={item.Title} value={item.Title}>
                   {item.Title}
                 </MenuItem>
               ))}
             </Select>
-            <FormHelperText>{errors.Purpose}</FormHelperText>
+            <FormHelperText>{(errors as any).Purpose}</FormHelperText>
           </FormControl>
 
-          {visitor.Purpose === 'Others' && (
+          {(visitor as any).Purpose === 'Others' && (
             <TextField
               inputProps={{ maxLength: 255 }}
-              error={Boolean(errors.PurposeOthers)}
+              error={Boolean((errors as any).PurposeOthers)}
               required
               label="Others"
               name="PurposeOthers"
               onChange={handleTextChange}
-              value={visitor.PurposeOthers || ''}
+              value={(visitor as any).PurposeOthers || ''}
               variant="standard"
               className={classes.textField}
-              helperText={errors.PurposeOthers}
+              helperText={(errors as any).PurposeOthers}
             />
           )}
         </Paper>
@@ -230,30 +254,29 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
 
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
-          <FormControl className={classes.textField} error={Boolean(errors.DeptId)}>
+          <FormControl className={classes.textField} error={Boolean((errors as any).DeptId)}>
             <InputLabel id="deptLabel">Department to Visit *</InputLabel>
             <Select
               labelId="deptLabel"
               id="DeptId"
-              value={visitor.DeptId || ''}
+              value={(visitor as any).DeptId || ''}
               onChange={handleSelectChange}
               name="DeptId"
             >
-              {deptList.map((item) => (
+              {(deptList || []).map((item: any) => (
                 <MenuItem key={item.Id} value={item.Id}>
                   {item.Title}
                 </MenuItem>
               ))}
             </Select>
-            <FormHelperText>{errors.DeptId}</FormHelperText>
+            <FormHelperText>{(errors as any).DeptId}</FormHelperText>
           </FormControl>
         </Paper>
       </Grid>
 
-      {/* OPTION 1 BUILDING MULTI-SELECT (STORES AS TEXT "A; B; C") */}
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
-          <FormControl className={classes.textField} error={Boolean(errors.Bldg)}>
+          <FormControl className={classes.textField} error={Boolean((errors as any).Bldg)}>
             <InputLabel id="bldgLabel">Building *</InputLabel>
             <Select
               labelId="bldgLabel"
@@ -270,13 +293,13 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
                 </div>
               )}
             >
-              {bldgList.map((item) => (
+              {(bldgList || []).map((item: any) => (
                 <MenuItem key={item.Title} value={item.Title}>
                   {item.Title}
                 </MenuItem>
               ))}
             </Select>
-            <FormHelperText>{errors.Bldg}</FormHelperText>
+            <FormHelperText>{(errors as any).Bldg}</FormHelperText>
           </FormControl>
         </Paper>
       </Grid>
@@ -285,22 +308,22 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
         <Paper variant="outlined" className={classes.paper}>
           <TextField
             inputProps={{ maxLength: 255 }}
-            error={Boolean(errors.RoomNo)}
+            error={Boolean((errors as any).RoomNo)}
             required
             label="Room No."
             name="RoomNo"
             onChange={handleTextChange}
-            value={visitor.RoomNo || ''}
+            value={(visitor as any).RoomNo || ''}
             variant="standard"
             className={classes.textField}
-            helperText={errors.RoomNo}
+            helperText={(errors as any).RoomNo}
           />
         </Paper>
       </Grid>
 
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
-          <FormControl className={classes.textField} error={Boolean(errors.EmpNo)}>
+          <FormControl className={classes.textField} error={Boolean((errors as any).EmpNo)}>
             <Autocomplete
               freeSolo={true}
               id="Contact"
@@ -310,16 +333,16 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
               onOpen={() => setAC1Open(true)}
               onClose={() => setAC1Open(false)}
               getOptionSelected={(option, value) => option.EmpNo === value.EmpNo}
-              getOptionLabel={(option) => option.Name || ''}
-              options={contactList}
+              getOptionLabel={(option) => (option && option.Name ? option.Name : '')}
+              options={contactList || []}
               renderInput={(params) => (
                 <TextField
                   {...params}
                   onChange={handleContactSearch}
                   label="Contact Person"
                   variant="standard"
-                  error={Boolean(errors.EmpNo)}
-                  helperText={errors.EmpNo}
+                  error={Boolean((errors as any).EmpNo)}
+                  helperText={(errors as any).EmpNo}
                 />
               )}
             />
@@ -333,7 +356,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
             Position
           </Box>
           <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
-            {visitor.Position}
+            {(visitor as any).Position}
           </Box>
         </Paper>
       </Grid>
@@ -344,7 +367,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
             Direct No.
           </Box>
           <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
-            {visitor.DirectNo}
+            {(visitor as any).DirectNo}
           </Box>
         </Paper>
       </Grid>
@@ -355,45 +378,45 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
             Local No.
           </Box>
           <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
-            {visitor.LocalNo}
+            {(visitor as any).LocalNo}
           </Box>
         </Paper>
       </Grid>
 
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
-          <FormControl className={classes.textField} error={Boolean(errors.DateTimeVisit)}>
+          <FormControl className={classes.textField} error={Boolean((errors as any).DateTimeVisit)}>
             <MuiPickersUtilsProvider utils={DateFnsUtils}>
               <DateTimePicker
-                error={Boolean(errors.DateTimeVisit)}
+                error={Boolean((errors as any).DateTimeVisit)}
                 disablePast
                 format="MM/dd/yyyy HH:mm"
                 label="Date and Time of Visit From"
-                value={visitor.DateTimeVisit}
+                value={(visitor as any).DateTimeVisit}
                 onChange={(date) => onDateChange(date as Date, 'DateTimeVisit')}
                 InputProps={{ className: classes.dateField }}
               />
             </MuiPickersUtilsProvider>
-            <FormHelperText>{errors.DateTimeVisit}</FormHelperText>
+            <FormHelperText>{(errors as any).DateTimeVisit}</FormHelperText>
           </FormControl>
         </Paper>
       </Grid>
 
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
-          <FormControl className={classes.textField} error={Boolean(errors.DateTimeArrival)}>
+          <FormControl className={classes.textField} error={Boolean((errors as any).DateTimeArrival)}>
             <MuiPickersUtilsProvider utils={DateFnsUtils}>
               <DateTimePicker
-                error={Boolean(errors.DateTimeArrival)}
+                error={Boolean((errors as any).DateTimeArrival)}
                 disablePast
                 format="MM/dd/yyyy HH:mm"
                 label="Date and Time of Visit To"
-                value={visitor.DateTimeArrival}
+                value={(visitor as any).DateTimeArrival}
                 onChange={(date) => onDateChange(date as Date, 'DateTimeArrival')}
                 InputProps={{ className: classes.dateField }}
               />
             </MuiPickersUtilsProvider>
-            <FormHelperText>{errors.DateTimeArrival}</FormHelperText>
+            <FormHelperText>{(errors as any).DateTimeArrival}</FormHelperText>
           </FormControl>
         </Paper>
       </Grid>
@@ -426,12 +449,11 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
 
       <Grid item xs={12}>
         <Paper variant="outlined" className={classes.paper}>
-          <Box style={{ fontSize: "1rem" }}>
-            Visitor Details
-          </Box>
+          <Box style={{ fontSize: '1rem' }}>Visitor Details</Box>
         </Paper>
       </Grid>
 
+      {/* Visitor Type dropdown + Others textbox */}
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
           <FormControl className={classes.textField}>
@@ -439,15 +461,37 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
             <Select
               labelId="visitor-type-label"
               id="VisitorType"
-              value={(visitor as any).VisitorType || ''}
+              value={selectedVisitorType}
               onChange={handleSelectChange}
               name="VisitorType"
             >
-              <MenuItem value="Visitor">Visitor</MenuItem>
-              <MenuItem value="Service Provider">Service Provider</MenuItem>
-              <MenuItem value="Project Contractor">Project Contractor</MenuItem>
+              {sortedVisitorTypeList.map((item: any, idx: number) => {
+                const title = getVisitorTypeTitle(item);
+                return (
+                  <MenuItem key={getVisitorTypeKey(item, idx)} value={title}>
+                    {title}
+                  </MenuItem>
+                );
+              })}
+
+              <MenuItem value="Others">Others</MenuItem>
             </Select>
           </FormControl>
+
+          {selectedVisitorType === 'Others' && (
+            <TextField
+              inputProps={{ maxLength: 255 }}
+              required
+              label="Specify Visitor Type"
+              name="OtherVisitorType"
+              onChange={handleTextChange}
+              value={otherVisitorTypeValue}
+              variant="standard"
+              className={classes.textField}
+              helperText={(errors as any).OtherVisitorType}
+              error={Boolean((errors as any).OtherVisitorType)}
+            />
+          )}
         </Paper>
       </Grid>
 
@@ -455,15 +499,15 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
         <Paper variant="outlined" className={classes.paper}>
           <TextField
             inputProps={{ maxLength: 255 }}
-            error={Boolean(errors.CompanyName)}
+            error={Boolean((errors as any).CompanyName)}
             required
             label="Company Name"
             name="CompanyName"
             onChange={handleTextChange}
-            value={visitor.CompanyName || ''}
+            value={(visitor as any).CompanyName || ''}
             variant="standard"
             className={classes.textField}
-            helperText={errors.CompanyName}
+            helperText={(errors as any).CompanyName}
           />
         </Paper>
       </Grid>
@@ -472,15 +516,15 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
         <Paper variant="outlined" className={classes.paper}>
           <TextField
             multiline
-            error={Boolean(errors.Address)}
+            error={Boolean((errors as any).Address)}
             required
             label="Address"
             name="Address"
             onChange={handleTextChange}
-            value={visitor.Address || ''}
+            value={(visitor as any).Address || ''}
             variant="standard"
             className={classes.textField}
-            helperText={errors.Address}
+            helperText={(errors as any).Address}
           />
         </Paper>
       </Grid>
@@ -489,15 +533,15 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
         <Paper variant="outlined" className={classes.paper}>
           <TextField
             inputProps={{ maxLength: 255 }}
-            error={Boolean(errors.VisContactNo)}
+            error={Boolean((errors as any).VisContactNo)}
             required
             label="Contact No."
             name="VisContactNo"
             onChange={handleTextChange}
-            value={visitor.VisContactNo || ''}
+            value={(visitor as any).VisContactNo || ''}
             variant="standard"
             className={classes.textField}
-            helperText={errors.VisContactNo}
+            helperText={(errors as any).VisContactNo}
           />
         </Paper>
       </Grid>
@@ -509,10 +553,10 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
             label="Local No."
             name="VisLocalNo"
             onChange={handleTextChange}
-            value={visitor.VisLocalNo || ''}
+            value={(visitor as any).VisLocalNo || ''}
             variant="standard"
             className={classes.textField}
-            helperText={errors.VisLocalNo}
+            helperText={(errors as any).VisLocalNo}
           />
         </Paper>
       </Grid>
@@ -523,7 +567,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
             <FormControlLabel
               control={
                 <Checkbox
-                  checked={visitor.RequireParking}
+                  checked={Boolean((visitor as any).RequireParking)}
                   onChange={handleTextChange}
                   name="RequireParking"
                   color="primary"
@@ -531,7 +575,11 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
               }
               label="Request for Parking"
             />
-            <Typography variant="caption" className={classes.subjectForApprovalRed} style={{ display: 'block', marginLeft: 35 }}>
+            <Typography
+              variant="caption"
+              className={classes.subjectForApprovalRed}
+              style={{ display: 'block', marginLeft: 35 }}
+            >
               (Subject for Approval)
             </Typography>
           </div>

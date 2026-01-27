@@ -761,10 +761,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         if (ctx) sp.setup({ spfxContext: ctx });
 
         _sourceURL = document.referrer;
-
-        // use URL pid in real
-        // _itemId = parseInt(getUrlParameter("pid"));
-        _itemId = 120;
+         _itemId = parseInt(getUrlParameter("pid"));
+        //_itemId = 120;
 
         const user = await sharePointService.getCurrentUser();
         setCurrentUser(user);
