@@ -34,6 +34,14 @@ const useStyles = makeStyles((theme: Theme) =>
       marginRight: theme.spacing(1),
       width: 300,
     },
+
+    // Better for the Building multi-select so chips have more room
+    bldgField: {
+      marginLeft: theme.spacing(1),
+      marginRight: theme.spacing(1),
+      width: 360,
+    },
+
     dateField: {
       width: 300,
     },
@@ -236,7 +244,11 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
             External Type
           </Box>
-          <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
+          <Box
+            component="span"
+            style={{ display: 'block', fontWeight: 500, margin: '4px' }}
+            className={classes.labelbottom}
+          >
             {externalType}
           </Box>
         </Paper>
@@ -301,9 +313,10 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
         </Paper>
       </Grid>
 
+      {/* Building multi-select: only expands (wrap/scroll) when 2+ selected, and X won't open dropdown */}
       <Grid item xs={12} sm={6}>
         <Paper variant="outlined" className={classes.paper}>
-          <FormControl className={classes.textField} error={Boolean((errors as any).Bldg)}>
+          <FormControl className={classes.bldgField} error={Boolean((errors as any).Bldg)}>
             <InputLabel id="bldgLabel">Building *</InputLabel>
             <Select
               labelId="bldgLabel"
@@ -312,18 +325,55 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
               multiple
               value={bldgSelectedArray}
               onChange={handleBldgMultiChange}
-              renderValue={(selected) => (
-                <div>
-                  {(selected as string[]).map((b) => (
-                    <Chip
-                      key={b}
-                      label={b}
-                      onDelete={() => handleRemoveBldgChip(b)}
-                      style={{ marginRight: 6, marginTop: 6 }}
-                    />
-                  ))}
-                </div>
-              )}
+              MenuProps={{
+                PaperProps: { style: { maxHeight: 320 } },
+                getContentAnchorEl: null as any,
+                anchorOrigin: { vertical: 'bottom', horizontal: 'left' } as any,
+                transformOrigin: { vertical: 'top', horizontal: 'left' } as any,
+              }}
+              renderValue={(selected) => {
+                const list = (selected as string[]) || [];
+                const shouldExpand = list.length >= 2;
+
+                return (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      flexWrap: shouldExpand ? 'wrap' : 'nowrap',
+                      gap: 6,
+                      paddingTop: 6,
+                      paddingBottom: 6,
+                      maxHeight: shouldExpand ? 70 : 32,
+                      overflowY: shouldExpand ? 'auto' : 'hidden',
+                      overflowX: shouldExpand ? 'hidden' : 'auto',
+                      whiteSpace: shouldExpand ? 'normal' : 'nowrap',
+                    }}
+                    onMouseDown={(e) => {
+                      // prevent opening dropdown when clicking inside chips container
+                      e.stopPropagation();
+                    }}
+                  >
+                    {list.map((b) => (
+                      <Chip
+                        key={b}
+                        label={b}
+                        clickable={false}
+                        onMouseDown={(e) => {
+                          // prevent Select from toggling open when clicking chip or delete icon
+                          e.stopPropagation();
+                          e.preventDefault();
+                        }}
+                        onDelete={(e) => {
+                          if (e) (e as any).stopPropagation();
+                          handleRemoveBldgChip(b);
+                        }}
+                        style={{ maxWidth: 260 }}
+                      />
+                    ))}
+                  </div>
+                );
+              }}
             >
               {(bldgList || []).map((item: any) => (
                 <MenuItem key={item.Title} value={item.Title}>
@@ -387,7 +437,11 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
             Position
           </Box>
-          <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
+          <Box
+            component="span"
+            style={{ display: 'block', fontWeight: 500, margin: '4px' }}
+            className={classes.labelbottom}
+          >
             {(visitor as any).Position}
           </Box>
         </Paper>
@@ -398,7 +452,11 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
             Direct No.
           </Box>
-          <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
+          <Box
+            component="span"
+            style={{ display: 'block', fontWeight: 500, margin: '4px' }}
+            className={classes.labelbottom}
+          >
             {(visitor as any).DirectNo}
           </Box>
         </Paper>
@@ -409,7 +467,11 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
           <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
             Local No.
           </Box>
-          <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
+          <Box
+            component="span"
+            style={{ display: 'block', fontWeight: 500, margin: '4px' }}
+            className={classes.labelbottom}
+          >
             {(visitor as any).LocalNo}
           </Box>
         </Paper>
@@ -474,7 +536,7 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
             dropzoneText="Add an attachment"
           />
           <Typography variant="caption" className={classes.attachmentNote}>
-            Please do not attach visitor's details here
+            Please do not attach visitor&apos;s details here
           </Typography>
         </Paper>
       </Grid>

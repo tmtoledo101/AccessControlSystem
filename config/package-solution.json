@@ -3,11 +3,11 @@
   "solution": {
     "name": "bacs-client-side-solution_KPMGDEV2025",
     "id": "f9949dcc-aaaf-4975-ba67-52f94d740dcd",
-    "version": "1.0.0.8",
+    "version": "1.0.1.1",
     "includeClientSideAssets": true,
     "isDomainIsolated": false
   },
   "paths": {
-    "zippedPackage": "solution/bacs_KPMGDEV2025.sppkg"
+    "zippedPackage": "solution/bacs_KPMGDEV2026.sppkg"
   }
 }
