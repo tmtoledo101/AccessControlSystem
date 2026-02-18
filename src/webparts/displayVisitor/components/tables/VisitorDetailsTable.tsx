@@ -92,60 +92,82 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
     { title: 'ID Presented', field: 'IDPresented' },
   ];
 
-  // Add Parking Request column if user is an Approver
-  //if (isApproverUser) {
-  if (isSSDUser) {
-    columns.push({
-      title: 'Parking Request?',
-      field: 'ParkingRequest',
-      render: (rowData: IVisitorDetails) => {
-        const value = rowData.ParkingRequest === 'Yes' ? 'Yes' : 'No';
+// Add SSD Approve column if user is an SSD user
+if (isSSDUser) {
+  columns.push({
+    title: 'Entry Request?',
+    field: 'SSDApprove',
+    render: (rowData: IVisitorDetails) => {
+      const value = rowData.SSDApprove === 'Yes' ? 'Yes' : 'No';
 
-        return (
-          <select
-            value={value}
-            disabled={!isEdit}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-              const newValue: 'Yes' | 'No' = (e.target.value === 'Yes') ? 'Yes' : 'No';
-              const updatedRowData: IVisitorDetails = { ...rowData, ParkingRequest: newValue };
+      return (
+        <select
+          value={value}
+          disabled={!isEdit}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+            const newValue: 'Yes' | 'No' = e.target.value === 'Yes' ? 'Yes' : 'No';
+
+            // If Entry is disapproved, force Parking to disapproved as well
+            const updatedRowData: IVisitorDetails = {
+              ...rowData,
+              SSDApprove: newValue,
+              ...(newValue === 'No' ? { ParkingRequest: 'No' as 'Yes' | 'No' } : {})
+            };
+
+            // Update Entry
+            onAction('updateSSDApprove', updatedRowData);
+
+            // Optional: if your parent logic expects a separate action for parking,
+            // also fire the parking update explicitly
+            if (newValue === 'No') {
               onAction('updateParkingRequest', updatedRowData);
-            }}
-            style={{ minWidth: 130 }}
-          >
-            <option value="Yes">Approved</option>
-            <option value="No">Disapproved</option>
-          </select>
-        );
-      }
-    });
-  }
+            }
+          }}
+          style={{ minWidth: 130 }}
+        >
+          <option value="Yes">Approved</option>
+          <option value="No">Disapproved</option>
+        </select>
+      );
+    }
+  });
+}
 
-  // Add SSD Approve column if user is an SSD user
-  if (isSSDUser) {
-    columns.push({
-      title: 'Entry Request?',
-      field: 'SSDApprove',
-      render: (rowData: IVisitorDetails) => {
-        const value = rowData.SSDApprove === 'Yes' ? 'Yes' : 'No';
+// Parking Request column
+if (isSSDUser) {
+  columns.push({
+    title: 'Parking Request?',
+    field: 'ParkingRequest',
+    render: (rowData: IVisitorDetails) => {
+      const value = rowData.ParkingRequest === 'Yes' ? 'Yes' : 'No';
+      const isEntryDisapproved = rowData.SSDApprove === 'No';
 
-        return (
-          <select
-            value={value}
-            disabled={!isEdit}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-              const newValue: 'Yes' | 'No' = (e.target.value === 'Yes') ? 'Yes' : 'No';
-              const updatedRowData: IVisitorDetails = { ...rowData, SSDApprove: newValue };
-              onAction('updateSSDApprove', updatedRowData);
-            }}
-            style={{ minWidth: 130 }}
-          >
-            <option value="Yes">Approved</option>
-            <option value="No">Disapproved</option>
-          </select>
-        );
-      }
-    });
-  }
+      return (
+        <select
+          value={value}
+          disabled={!isEdit || isEntryDisapproved} // disable parking if entry is disapproved
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+            const newValue: 'Yes' | 'No' = e.target.value === 'Yes' ? 'Yes' : 'No';
+
+            // Guard: even if user somehow changes it, keep it No when Entry is No
+            const finalValue: 'Yes' | 'No' = isEntryDisapproved ? 'No' : newValue;
+
+            const updatedRowData: IVisitorDetails = {
+              ...rowData,
+              ParkingRequest: finalValue
+            };
+
+            onAction('updateParkingRequest', updatedRowData);
+          }}
+          style={{ minWidth: 130 }}
+        >
+          <option value="Yes">Approved</option>
+          <option value="No">Disapproved</option>
+        </select>
+      );
+    }
+  });
+}
 
   return (
     <MaterialTable

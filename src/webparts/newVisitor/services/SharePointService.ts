@@ -61,12 +61,29 @@ export class SharePointService {
   }
 
   public async getBuildingList(): Promise<any[]> {
-    return await sp.web.lists
-      .getByTitle("Building")
-      .items.select("*")
-      .top(5000)
-      .orderBy("Title", true)
-      .get();
+  const items = await sp.web.lists
+    .getByTitle("Building")
+    .items.select("*")
+    .top(5000)
+    .get();
+
+  return (items || []).sort((a: any, b: any) => {
+    const at = ((a && a.Title) ? String(a.Title) : "").trim();
+    const bt = ((b && b.Title) ? String(b.Title) : "").trim();
+
+    const aFirstChar = at.charAt(5); // after "(HO) "
+    const bFirstChar = bt.charAt(5);
+
+    const aIsNumber = !isNaN(Number(aFirstChar));
+    const bIsNumber = !isNaN(Number(bFirstChar));
+
+    // Letters first, numbers after
+    if (aIsNumber && !bIsNumber) return 1;
+    if (!aIsNumber && bIsNumber) return -1;
+
+    return at.localeCompare(bt, undefined, { sensitivity: "base" });
+    
+    });
   }
 
   public async getDepartmentList(isEncoder: boolean, usersPerDept: any[]): Promise<any[]> {
