@@ -130,7 +130,8 @@ export class EmailService {
         `BSP Access Control System For Approval Notification.</br></br>` +
         `Ref No.:${refNo}</br>Purpose:${purpose}</br></br>` +
         `You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
-    } else if (isApproverUser && action === "approve" && visitor.StatusId === 2) {
+    //} else if (isApproverUser && action === "approve" && visitor.StatusId === 2) {
+    } else if (isApproverUser && action === "approve" && visitor.StatusId === 3) {  
       // Department approver approving a request
       // Send to SSD users
       toEmails = ssdUsers.map(user => user.Email);
@@ -157,10 +158,26 @@ export class EmailService {
         `BSP Access Control System For Approval Notification.</br></br>` +
         `Ref No.:${refNo}</br>Purpose:${purpose}</br></br>` +
         `You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
-    } else if (isSSDUser && action === "approve" && visitor.StatusId === 3) {
-      // SSD approving a request
-      toEmails.push(visitor.Author.EMail);
-      subject = `BSP ACCESS CONTROL SYSTEM : Approved by SSD - ${refNo}`;
+    // } else if (isSSDUser && action === "approve" && visitor.StatusId === 3) {
+    //   // SSD approving a request
+    //   toEmails.push(visitor.Author.EMail);
+    //   subject = `BSP ACCESS CONTROL SYSTEM : Approved by SSD - ${refNo}`;
+
+      } else if (isSSDUser && action === "approve" && visitor.StatusId === 4) {
+        // SSD approving a request
+        // Notify BOTH: Encoder/Requestor (Author) and Dept Approver (Approver)
+
+        if (visitor.Author && (visitor.Author as any).EMail) {
+          toEmails.push((visitor.Author as any).EMail);
+        }
+
+        if (visitor.Approver && (visitor.Approver as any).EMail) {
+          toEmails.push((visitor.Approver as any).EMail);
+        }
+
+        // remove blanks + duplicates
+        toEmails = Array.from(new Set(toEmails)).filter((x) => !!x);
+        subject = `BSP ACCESS CONTROL SYSTEM : Approved by SSD - ${refNo}`;
 
       // Create visitor details table
       let visitorTable = "";

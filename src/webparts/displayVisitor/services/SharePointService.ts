@@ -246,6 +246,13 @@ export class SharePointService {
     return [];
   }
 
+  public async getGroupUsersByName(groupLoginName: string): Promise<any[]> {
+    const siteGroups = await sp.web.siteGroups();
+    const g = siteGroups.find((x) => x.LoginName === groupLoginName);
+      if (!g) return [];
+        return await sp.web.siteGroups.getById(g.Id).users();
+   }
+
   /**
    * Gets the list of gates
    * @returns Array of gates

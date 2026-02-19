@@ -275,6 +275,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
   const Receptionist_Group = "Receptionist_V2";
   const SSD_Group = "SSD_v2";
+  const SSD_Notify_Group = "SSD_EmailNotif";
 
   const sharePointService = new SharePointService(props.siteUrl, props.siteRelativeUrl);
   const fileService = new FileService(props.siteRelativeUrl);
@@ -596,7 +597,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
     if (needsSSDRecipients && (!ssdUsersToUse || ssdUsersToUse.length === 0)) {
       try {
-        ssdUsersToUse = await sharePointService.getSSDUsers();
+        //ssdUsersToUse = await sharePointService.getSSDUsers();
+        //setSSD(ssdUsersToUse);
+        ssdUsersToUse = await sharePointService.getGroupUsersByName(SSD_Notify_Group);
         setSSD(ssdUsersToUse);
       } catch (e) {
         // Do not block saving or page usage for approvers who cannot read SSD group members
@@ -761,8 +764,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         if (ctx) sp.setup({ spfxContext: ctx });
 
         _sourceURL = document.referrer;
-        _itemId = parseInt(getUrlParameter("pid"));
-        //_itemId = 127;
+        //_itemId = parseInt(getUrlParameter("pid"));
+        _itemId = 128;
 
         const user = await sharePointService.getCurrentUser();
         setCurrentUser(user);
