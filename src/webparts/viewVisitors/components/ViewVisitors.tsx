@@ -35,13 +35,7 @@ import SharePointService from './services/SharePointService';
 import { setCookie, getCookie } from './utils/helper';
 
 // Types
-import {
-  IVisitor,
-  IUserDept,
-  IViewState,
-  IVisitorCount,
-  IVisitorDetailExtended,
-} from './interfaces/IViewVisitors';
+import { IVisitor, IUserDept, IViewState, IVisitorCount, IVisitorDetailExtended } from './interfaces/IViewVisitors';
 
 // Excel export
 import * as XLSX from 'xlsx';
@@ -59,6 +53,10 @@ const useStyles = makeStyles((theme: Theme) =>
 // Constants
 const Receptionist_Group = 'Receptionist_v2';
 const SSD_Group_v2 = 'SSD_v2';
+
+// Status labels
+const STATUS_FOR_APPROVAL = 'For Approval';
+const STATUS_APPROVED_BY_DEPT_HEAD = 'Approved by Dept Head';
 
 // Global
 let usersPerDept: IUserDept[] = [];
@@ -342,10 +340,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
         const visitorDetails = await SharePointService.searchVisitorsByName(searchText);
 
-        const visitorRequests = await SharePointService.loadVisitorRequests(
-          state.selectedFromDate.toDate(),
-          state.selectedToDate.toDate(),
-        );
+        const visitorRequests = await SharePointService.loadVisitorRequests(state.selectedFromDate.toDate(), state.selectedToDate.toDate());
 
         const visitorBldgMap: { [key: number]: string } = {};
         const visitorRefMap: { [key: number]: string } = {};
@@ -466,15 +461,16 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         });
         fetchedData = mappedrows;
       }
-
-      // ✅ FIX: handle Dept. Approver tab actions (5 and 7)
     } else if (action === 5) {
-      // Dept. Approver (Pre-arranged)
+      // Dept. Approver (Pre-arranged) - only For Approval
       const visitors = await SharePointService.loadVisitorRequests(from, to);
       const mappedrows: any[] = [];
 
       visitors.forEach((row: any) => {
         let includeRow = true;
+
+        const isForApproval = row.Status && row.Status.Title === STATUS_FOR_APPROVAL;
+        if (!isForApproval) return;
 
         const filtered = approversPerDept.filter((a) => a.DeptId === row.DeptId);
 
@@ -485,13 +481,32 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       });
 
       fetchedData = mappedrows;
+    } else if (action === 6) {
+      // SSD tab - only Approved by Dept Head
+      const visitors = await SharePointService.loadVisitorRequests(from, to);
+      let filteredVisitors: any[] = visitors;
+
+      if (isHOUser || isSPCUser) {
+        filteredVisitors = filteredVisitors.filter((row: any) => {
+          if (isHOUser) return row.Bldg === '(HO) 5-Storey Building';
+          if (isSPCUser) return row.Bldg === 'SPC';
+          return true;
+        });
+      }
+
+      filteredVisitors = filteredVisitors.filter((row: any) => row.Status && row.Status.Title === STATUS_APPROVED_BY_DEPT_HEAD);
+
+      fetchedData = filteredVisitors;
     } else if (action === 7) {
-      // Dept. Approver (Walk-in)
+      // Dept. Approver (Walk-in) - only For Approval
       const visitors = await SharePointService.loadVisitorRequests(from, to);
       const mappedrows: any[] = [];
 
       visitors.forEach((row: any) => {
         let includeRow = true;
+
+        const isForApproval = row.Status && row.Status.Title === STATUS_FOR_APPROVAL;
+        if (!isForApproval) return;
 
         const filtered = walkinapprovers.filter((a) => a.DeptId === row.DeptId);
 
@@ -509,10 +524,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       if (reportView === 'Daily') {
         reportRequests = await SharePointService.loadVisitorRequests(from, to);
       } else if (reportView === 'Monthly') {
-        reportRequests = await SharePointService.loadVisitorRequests(
-          moment(from).startOf('month').toDate(),
-          moment(to).endOf('month').toDate(),
-        );
+        reportRequests = await SharePointService.loadVisitorRequests(moment(from).startOf('month').toDate(), moment(to).endOf('month').toDate());
       } else {
         reportRequests = await SharePointService.loadVisitorRequests(from, to);
       }
@@ -577,13 +589,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
     if (state.vwid === 11) {
       reportType = 'Visitor Entry Count Report';
-      fileName =
-        reportType +
-        ' - ' +
-        state.selectedFromDate.format('YYYY-MM-DD') +
-        ' to ' +
-        state.selectedToDate.format('YYYY-MM-DD') +
-        '.xlsx';
+      fileName = reportType + ' - ' + state.selectedFromDate.format('YYYY-MM-DD') + ' to ' + state.selectedToDate.format('YYYY-MM-DD') + '.xlsx';
 
       dataToExport = (displayedItems as any[]).map((item: any) => ({
         'Visitor Last Name': item.LastName,
@@ -595,23 +601,13 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       const isMonthly = (state.reportView as any) === 'Monthly';
 
       reportType = isDaily ? 'Daily Visitors Report' : isMonthly ? 'Monthly Visitors Report' : 'Custom Visitors Report';
-      fileName =
-        reportType +
-        ' - ' +
-        state.selectedFromDate.format('YYYY-MM-DD') +
-        ' to ' +
-        state.selectedToDate.format('YYYY-MM-DD') +
-        '.xlsx';
+      fileName = reportType + ' - ' + state.selectedFromDate.format('YYYY-MM-DD') + ' to ' + state.selectedToDate.format('YYYY-MM-DD') + '.xlsx';
 
       dataToExport = (displayedItems as any[]).map((item: any) => ({
         'Reference Number': item.Title,
         'Company Name': item.CompanyName,
         'Request By':
-          item.Author && item.Author.Title
-            ? item.Author.Title
-            : item.Approver && item.Approver.Title
-              ? item.Approver.Title
-              : '',
+          item.Author && item.Author.Title ? item.Author.Title : item.Approver && item.Approver.Title ? item.Approver.Title : '',
         Department: item.Dept && item.Dept.Title ? item.Dept.Title : '',
         Building: item.Bldg,
         'Request Date': item.RequestDate ? new Date(item.RequestDate) : '',
@@ -715,6 +711,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           temptabs = ['By Request', 'By Visitor Details', 'Search by Visitor Name'];
         }
         if (isApprover || isWalkinApprover) temptabs.push('Dept. Approver');
+        if (isSSDUser) temptabs.push('SSD');
         if (isSSDUser) temptabs.push('Limit Entry');
         if (isEncoder || isReceptionist || isSSDUser || isApprover || isWalkinApprover || isHOUser || isSPCUser) {
           temptabs.push('Reports');
@@ -885,9 +882,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
           <Grid item xs={12}>
             <Paper variant="outlined" className={classes.paper}>
-              {state.vwid === 10 && displayedItems.length > 0 && (
-                <VisitorsTable data={displayedItems as any[]} onViewAction={viewAction2} title="Reports" />
-              )}
+              {state.vwid === 10 && displayedItems.length > 0 && <VisitorsTable data={displayedItems as any[]} onViewAction={viewAction2} title="Reports" />}
 
               {(state.vwid === 1 || state.vwid === 2 || state.vwid === 5 || state.vwid === 6 || state.vwid === 7 || state.vwid === 8) &&
                 displayedItems.length > 0 && <VisitorRequestsTable data={displayedItems as IVisitor[]} onViewAction={viewAction} />}
