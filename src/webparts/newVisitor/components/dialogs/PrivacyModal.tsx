@@ -1,213 +1,213 @@
-import * as React from 'react';
-import {
-  Modal,
-  PrimaryButton,
-  DefaultButton,
-  Text,
-  Stack,
-  IStackTokens,
-  IStackStyles,
-  FontWeights
-} from 'office-ui-fabric-react';
-import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
+// import * as React from 'react';
+// import {
+//   Modal,
+//   PrimaryButton,
+//   DefaultButton,
+//   Text,
+//   Stack,
+//   IStackTokens,
+//   IStackStyles,
+//   FontWeights
+// } from 'office-ui-fabric-react';
+// import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 
-// Define a type for the context specific to what you need
-export interface IWebPartContext {
-  pageContext: {
-    user: {
-      email: string;
-    };
-    web: {
-      absoluteUrl: string;
-    };
-  };
-  spHttpClient: SPHttpClient;
-}
+// // Define a type for the context specific to what you need
+// export interface IWebPartContext {
+//   pageContext: {
+//     user: {
+//       email: string;
+//     };
+//     web: {
+//       absoluteUrl: string;
+//     };
+//   };
+//   spHttpClient: SPHttpClient;
+// }
 
-export interface IPrivacyModalProps {
-  onAccept: () => void;
-  onDecline: () => void;
-  context: IWebPartContext;
-  refNo: string;
-}
+// export interface IPrivacyModalProps {
+//   onAccept: () => void;
+//   onDecline: () => void;
+//   context: IWebPartContext;
+//   refNo: string;
+// }
 
-export interface IPrivacyModalState {
-  isOpen: boolean;
-  isSaving: boolean;
-  saveError: string | null;
-}
+// export interface IPrivacyModalState {
+//   isOpen: boolean;
+//   isSaving: boolean;
+//   saveError: string | null;
+// }
 
-export default class PrivacyModal extends React.Component<IPrivacyModalProps, IPrivacyModalState> {
-  constructor(props: IPrivacyModalProps) {
-    super(props);
-    this.state = {
-      isOpen: !this._checkPrivacyAccepted(), // Show modal if not accepted today
-      isSaving: false,
-      saveError: null
-    };
-  }
+// export default class PrivacyModal extends React.Component<IPrivacyModalProps, IPrivacyModalState> {
+//   constructor(props: IPrivacyModalProps) {
+//     super(props);
+//     this.state = {
+//       isOpen: !this._checkPrivacyAccepted(), // Show modal if not accepted today
+//       isSaving: false,
+//       saveError: null
+//     };
+//   }
 
-  // Check if user already accepted today
-  private _checkPrivacyAccepted(): boolean {
-    const currentUserEmail = this.props.context.pageContext.user.email;
-    const data = localStorage.getItem(`privacyAccepted_${currentUserEmail}`);
-    if (!data) return false;
+//   // Check if user already accepted today
+//   private _checkPrivacyAccepted(): boolean {
+//     const currentUserEmail = this.props.context.pageContext.user.email;
+//     const data = localStorage.getItem(`privacyAccepted_${currentUserEmail}`);
+//     if (!data) return false;
 
-    const { date } = JSON.parse(data);
-    const acceptedDate = new Date(date);
-    const today = new Date();
+//     const { date } = JSON.parse(data);
+//     const acceptedDate = new Date(date);
+//     const today = new Date();
 
-    return acceptedDate.toDateString() === today.toDateString();
-  }
+//     return acceptedDate.toDateString() === today.toDateString();
+//   }
 
-  private _saveConsent = async (consentValue: string): Promise<void> => {
-    this.setState({ isSaving: true, saveError: null });
-    const { context } = this.props;
-    const currentUserEmail = context.pageContext.user.email;
-    const webAbsoluteUrl = context.pageContext.web.absoluteUrl;
-    const listName = 'PrivacyConsents';
-    const restApiUrl: string = `${webAbsoluteUrl}/_api/web/lists/getByTitle('${listName}')/items`;
-    const body: string = JSON.stringify({
-      Title: `${currentUserEmail} - ${consentValue} on ${new Date().toLocaleDateString('en-US')}`,
-      ConsentDate: new Date().toISOString(),
-      ConsentValue: consentValue,
-      UserEmail: currentUserEmail,
-      RefNo: this.props.refNo
-    });
+//   private _saveConsent = async (consentValue: string): Promise<void> => {
+//     this.setState({ isSaving: true, saveError: null });
+//     const { context } = this.props;
+//     const currentUserEmail = context.pageContext.user.email;
+//     const webAbsoluteUrl = context.pageContext.web.absoluteUrl;
+//     const listName = 'PrivacyConsents';
+//     const restApiUrl: string = `${webAbsoluteUrl}/_api/web/lists/getByTitle('${listName}')/items`;
+//     const body: string = JSON.stringify({
+//       Title: `${currentUserEmail} - ${consentValue} on ${new Date().toLocaleDateString('en-US')}`,
+//       ConsentDate: new Date().toISOString(),
+//       ConsentValue: consentValue,
+//       UserEmail: currentUserEmail,
+//       RefNo: this.props.refNo
+//     });
 
-    try {
-      const response: SPHttpClientResponse = await context.spHttpClient.post(
-        restApiUrl,
-        SPHttpClient.configurations.v1,
-        {
-          headers: {
-            'Accept': 'application/json;odata=nometadata',
-            'Content-type': 'application/json;odata=nometadata',
-            'odata-version': ''
-          },
-          body: body
-        }
-      );
+//     try {
+//       const response: SPHttpClientResponse = await context.spHttpClient.post(
+//         restApiUrl,
+//         SPHttpClient.configurations.v1,
+//         {
+//           headers: {
+//             'Accept': 'application/json;odata=nometadata',
+//             'Content-type': 'application/json;odata=nometadata',
+//             'odata-version': ''
+//           },
+//           body: body
+//         }
+//       );
 
-      if (response.ok) {
-        const responseJson = await response.json();
-        console.log(`Consent '${consentValue}' saved for ${currentUserEmail}. Item ID: ${responseJson.ID}`);
+//       if (response.ok) {
+//         const responseJson = await response.json();
+//         console.log(`Consent '${consentValue}' saved for ${currentUserEmail}. Item ID: ${responseJson.ID}`);
 
-        if (consentValue === 'Accepted') {
-          // Store acceptance in localStorage per user per day
-          localStorage.setItem(`privacyAccepted_${currentUserEmail}`, JSON.stringify({ date: new Date().toISOString() }));
-        }
+//         if (consentValue === 'Accepted') {
+//           // Store acceptance in localStorage per user per day
+//           localStorage.setItem(`privacyAccepted_${currentUserEmail}`, JSON.stringify({ date: new Date().toISOString() }));
+//         }
 
-        this.setState({ isOpen: false, isSaving: false }, () => {
-          if (consentValue === 'Accepted') {
-            this.props.onAccept();
-          } else {
-            this.props.onDecline();
-          }
-        });
-      } else {
-        const errorText = await response.text();
-        console.error(`Error saving consent. Status: ${response.status}, Error: ${errorText}`);
-        this.setState({ isSaving: false, saveError: `Failed to save your consent. Error: ${response.statusText}` });
-      }
-    } catch (error) {
-      console.error("Error saving consent to SharePoint list:", error);
-      this.setState({
-        isSaving: false,
-        saveError: "An unexpected error occurred while saving your consent. Please try again."
-      });
-    }
-  }
+//         this.setState({ isOpen: false, isSaving: false }, () => {
+//           if (consentValue === 'Accepted') {
+//             this.props.onAccept();
+//           } else {
+//             this.props.onDecline();
+//           }
+//         });
+//       } else {
+//         const errorText = await response.text();
+//         console.error(`Error saving consent. Status: ${response.status}, Error: ${errorText}`);
+//         this.setState({ isSaving: false, saveError: `Failed to save your consent. Error: ${response.statusText}` });
+//       }
+//     } catch (error) {
+//       console.error("Error saving consent to SharePoint list:", error);
+//       this.setState({
+//         isSaving: false,
+//         saveError: "An unexpected error occurred while saving your consent. Please try again."
+//       });
+//     }
+//   }
 
-  private _onAccept = async (): Promise<void> => {
-    await this._saveConsent('Accepted');
-  }
+//   private _onAccept = async (): Promise<void> => {
+//     await this._saveConsent('Accepted');
+//   }
 
-  private _onDecline = async (): Promise<void> => {
-    await this._saveConsent('Declined');
-  }
+//   private _onDecline = async (): Promise<void> => {
+//     await this._saveConsent('Declined');
+//   }
 
-  public render(): React.ReactElement<any> {
-    const { isSaving, saveError, isOpen } = this.state;
-    const stackTokens: IStackTokens = { childrenGap: 20 };
-    const contentStackTokens: IStackTokens = { childrenGap: 16 };
-    const buttonStackTokens: IStackTokens = { childrenGap: 24 };
-    const stackStyles: IStackStyles = {
-      root: {
-        padding: '40px 60px',
-        maxWidth: '600px',
-        margin: '0 auto',
-        textAlign: 'center',
-      }
-    };
-    const buttonStyles = {
-      root: {
-        width: '200px',
-        height: '50px',
-        fontSize: '16px',
-        fontWeight: FontWeights.semibold,
-      },
-      label: {
-        fontWeight: FontWeights.semibold,
-      }
-    };
-    const titleStyles = {
-      root: {
-        fontSize: '36px',
-        fontWeight: FontWeights.bold,
-        marginBottom: '20px',
-        color: '#323130'
-      }
-    };
-    const textStyles = {
-      root: {
-        fontSize: '16px',
-        lineHeight: '24px',
-        color: '#323130',
-        marginBottom: '10px'
-      }
-    };
-    const errorTextStyle = {
-      root: {
-        color: 'red',
-        marginTop: '10px',
-        fontWeight: FontWeights.semibold
-      }
-    };
+//   public render(): React.ReactElement<any> {
+//     const { isSaving, saveError, isOpen } = this.state;
+//     const stackTokens: IStackTokens = { childrenGap: 20 };
+//     const contentStackTokens: IStackTokens = { childrenGap: 16 };
+//     const buttonStackTokens: IStackTokens = { childrenGap: 24 };
+//     const stackStyles: IStackStyles = {
+//       root: {
+//         padding: '40px 60px',
+//         maxWidth: '600px',
+//         margin: '0 auto',
+//         textAlign: 'center',
+//       }
+//     };
+//     const buttonStyles = {
+//       root: {
+//         width: '200px',
+//         height: '50px',
+//         fontSize: '16px',
+//         fontWeight: FontWeights.semibold,
+//       },
+//       label: {
+//         fontWeight: FontWeights.semibold,
+//       }
+//     };
+//     const titleStyles = {
+//       root: {
+//         fontSize: '36px',
+//         fontWeight: FontWeights.bold,
+//         marginBottom: '20px',
+//         color: '#323130'
+//       }
+//     };
+//     const textStyles = {
+//       root: {
+//         fontSize: '16px',
+//         lineHeight: '24px',
+//         color: '#323130',
+//         marginBottom: '10px'
+//       }
+//     };
+//     const errorTextStyle = {
+//       root: {
+//         color: 'red',
+//         marginTop: '10px',
+//         fontWeight: FontWeights.semibold
+//       }
+//     };
 
-    return (
-      <Modal
-        isOpen={isOpen}
-        isBlocking={true} // Always block interaction
-        onDismiss={() => { }} // Disable ESC or overlay click dismiss
-      >
-        <Stack tokens={stackTokens} styles={stackStyles} horizontalAlign="center">
-          <Text styles={titleStyles}>Privacy Notice</Text>
-          <Stack tokens={contentStackTokens}>
-            <Text styles={textStyles}>
-              Our site collects and stores information about you, your preferences and behavior, and your device to analyze website traffic, personalize content and ads, and provide social media features.
-            </Text>
-            <Text styles={textStyles}>
-              Because we care about your privacy, you can decide whether to allow or reject the use of this technology.
-            </Text>
-          </Stack>
-          <Stack horizontal tokens={buttonStackTokens} horizontalAlign="center">
-            <PrimaryButton
-              text={isSaving ? 'SAVING...' : 'ACCEPT ALL'}
-              onClick={this._onAccept}
-              styles={buttonStyles}
-              disabled={isSaving}
-            />
-            <DefaultButton
-              text={isSaving ? 'SAVING...' : 'DECLINE ALL'}
-              onClick={this._onDecline}
-              styles={buttonStyles}
-              disabled={isSaving}
-            />
-          </Stack>
-          {saveError && <Text styles={errorTextStyle}>{saveError}</Text>}
-        </Stack>
-      </Modal>
-    );
-  }
-}
+//     return (
+//       <Modal
+//         isOpen={isOpen}
+//         isBlocking={true} // Always block interaction
+//         onDismiss={() => { }} // Disable ESC or overlay click dismiss
+//       >
+//         <Stack tokens={stackTokens} styles={stackStyles} horizontalAlign="center">
+//           <Text styles={titleStyles}>Privacy Notice</Text>
+//           <Stack tokens={contentStackTokens}>
+//             <Text styles={textStyles}>
+//               Our site collects and stores information about you, your preferences and behavior, and your device to analyze website traffic, personalize content and ads, and provide social media features.
+//             </Text>
+//             <Text styles={textStyles}>
+//               Because we care about your privacy, you can decide whether to allow or reject the use of this technology.
+//             </Text>
+//           </Stack>
+//           <Stack horizontal tokens={buttonStackTokens} horizontalAlign="center">
+//             <PrimaryButton
+//               text={isSaving ? 'SAVING...' : 'ACCEPT ALL'}
+//               onClick={this._onAccept}
+//               styles={buttonStyles}
+//               disabled={isSaving}
+//             />
+//             <DefaultButton
+//               text={isSaving ? 'SAVING...' : 'DECLINE ALL'}
+//               onClick={this._onDecline}
+//               styles={buttonStyles}
+//               disabled={isSaving}
+//             />
+//           </Stack>
+//           {saveError && <Text styles={errorTextStyle}>{saveError}</Text>}
+//         </Stack>
+//       </Modal>
+//     );
+//   }
+// }

@@ -15,7 +15,7 @@ import { FileService } from '../services/FileService';
 import { SharePointService } from '../services/SharePointService';
 import { validateField, validateVisitorForm } from '../validations/formValidation';
 import ConfirmationDialog from './dialogs/ConfirmationDialog';
-import PrivacyModal from './dialogs/PrivacyModal';
+import PrivacyGate from '../../../common/PrivacyGate';
 import { INewVisitorProps } from './INewVisitorProps';
 import ActionButtonsSection from './sections/ActionButtonsSection';
 import ApprovalSection from './sections/ApprovalSection';
@@ -102,19 +102,6 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMessage, setDialogMessage] = useState('');
   const [submitType, setSubmitType] = useState(1); // 1 = Save, 2 = Submit
-
-  // Privacy Modal State
-  const [privacyConsentGiven, setPrivacyConsentGiven] = useState(() => {
-    const currentUserEmail = props.context.pageContext.user.email;
-    const data = localStorage.getItem(`privacyAccepted_${currentUserEmail}`);
-    if (!data) return false;
-
-    const { date } = JSON.parse(data);
-    const acceptedDate = new Date(date);
-    return acceptedDate.toDateString() === new Date().toDateString();
-  });
-
-  const [showPrivacyModal, setShowPrivacyModal] = useState(() => !privacyConsentGiven);
 
   // User roles
   const [isEncoder, setEncoder] = useState(false);
@@ -221,9 +208,10 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
           isEncoder,
         );
 
+        // Keep your existing behavior: update RefNo for consent and set localStorage on submit
         const currentUserEmail = props.context.pageContext.user.email;
         await spService.updatePrivacyConsentRefNo(currentUserEmail, generatedRefNo);
-        localStorage.setItem(`privacyAccepted_${currentUserEmail}`, JSON.stringify({ date: new Date().toISOString() }));
+        //localStorage.setItem(`privacyAccepted_${currentUserEmail}`, JSON.stringify({ date: new Date().toISOString() }));
       }
 
       setSavingDone(true);
@@ -367,17 +355,6 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     else window.open(props.siteUrl, '_self');
   };
 
-  // Privacy Modal Handlers
-  const handlePrivacyAccept = () => {
-    setPrivacyConsentGiven(true);
-    setShowPrivacyModal(false);
-  };
-
-  const handlePrivacyDecline = () => {
-    alert('You must accept the privacy policy to use this application.');
-    window.open(props.siteUrl, '_self');
-  };
-
   // Initialization
   useEffect(() => {
     const init = async () => {
@@ -430,84 +407,78 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     );
   }
 
-  if (showPrivacyModal && !privacyConsentGiven) {
-    return (
-      <PrivacyModal onAccept={handlePrivacyAccept} onDecline={handlePrivacyDecline} context={props.context} refNo={refNo} />
-    );
-  }
-
-  if (!privacyConsentGiven) return null;
-
   return (
-    <form noValidate autoComplete="off">
-      <div className={classes.root} style={{ padding: '12px' }}>
-        <Container>
-          <Grid container spacing={1}>
-            <VisitorInformationSection
-              visitor={visitor}
-              errors={errors}
-              externalType={(visitor as any).ExternalType}
-              purposeList={purposeList}
-              deptList={deptList}
-              bldgList={bldgList}
-              contactList={contactList}
-              visitorTypeList={visitorTypeList}
-              onChange={handleFieldChange}
-              onContactSearch={handleContactSearch}
-              onContactSelect={handleContactSelect}
-              onDateChange={handleDateChange}
-              onFilesChange={handleFilesChange}
-            />
-
-            <VisitorDetailsSection
-              visitorDetailsList={visitorDetailsList}
-              requireParking={(visitor as any).RequireParking}
-              detailsError={(errors as any).Details}
-              visitorType={(visitor as any).VisitorType || 'Visitor'}
-              onAddVisitor={handleAddVisitor}
-              onEditVisitor={handleEditVisitor}
-              onDeleteVisitor={handleDeleteVisitor}
-            />
-
-            <Grid item xs={12} sm={12}>
-              <ApprovalSection
-                isEncoder={isEncoder}
-                isReceptionist={isReceptionist}
-                approverList={approverList}
-                walkinApproverList={walkinApproverList}
-                approverId={(visitor as any).ApproverId}
-                error={(errors as any).ApproverId}
+    <PrivacyGate context={props.context} siteUrl={props.siteUrl} refNo={refNo}>
+      <form noValidate autoComplete="off">
+        <div className={classes.root} style={{ padding: '12px' }}>
+          <Container>
+            <Grid container spacing={1}>
+              <VisitorInformationSection
+                visitor={visitor}
+                errors={errors}
+                externalType={(visitor as any).ExternalType}
+                purposeList={purposeList}
+                deptList={deptList}
+                bldgList={bldgList}
+                contactList={contactList}
+                visitorTypeList={visitorTypeList}
                 onChange={handleFieldChange}
+                onContactSearch={handleContactSearch}
+                onContactSelect={handleContactSelect}
+                onDateChange={handleDateChange}
+                onFilesChange={handleFilesChange}
               />
+
+              <VisitorDetailsSection
+                visitorDetailsList={visitorDetailsList}
+                requireParking={(visitor as any).RequireParking}
+                detailsError={(errors as any).Details}
+                visitorType={(visitor as any).VisitorType || 'Visitor'}
+                onAddVisitor={handleAddVisitor}
+                onEditVisitor={handleEditVisitor}
+                onDeleteVisitor={handleDeleteVisitor}
+              />
+
+              <Grid item xs={12} sm={12}>
+                <ApprovalSection
+                  isEncoder={isEncoder}
+                  isReceptionist={isReceptionist}
+                  approverList={approverList}
+                  walkinApproverList={walkinApproverList}
+                  approverId={(visitor as any).ApproverId}
+                  error={(errors as any).ApproverId}
+                  onChange={handleFieldChange}
+                />
+              </Grid>
+
+              <Grid container justify="flex-end">
+                <ActionButtonsSection onSave={handleSave} onSubmit={handleSubmit} onCancel={handleCancel} />
+              </Grid>
             </Grid>
+          </Container>
 
-            <Grid container justify="flex-end">
-              <ActionButtonsSection onSave={handleSave} onSubmit={handleSubmit} onCancel={handleCancel} />
-            </Grid>
-          </Grid>
-        </Container>
+          <ConfirmationDialog open={dialogOpen} title="Confirmation" message={dialogMessage} onClose={handleDialogClose} />
 
-        <ConfirmationDialog open={dialogOpen} title="Confirmation" message={dialogMessage} onClose={handleDialogClose} />
+          <Backdrop className={classes.backdrop} open={isProgress}>
+            <CircularProgress color="inherit" />
+          </Backdrop>
 
-        <Backdrop className={classes.backdrop} open={isProgress}>
-          <CircularProgress color="inherit" />
-        </Backdrop>
-
-        <Snackbar open={isSavingDone} autoHideDuration={2000}>
-          <Alert severity="success">
-            Data has been saved successfully.
-            {submitType === 2 && refNo && (
-              <div style={{ marginTop: '5px' }}>
-                <strong>Reference Number: {refNo}</strong>
-              </div>
-            )}
-            {(isEncoder || isReceptionist) && submitType === 2 && (
-              <div style={{ marginTop: '5px' }}>An email notification has been sent to {approverDetails.name}.</div>
-            )}
-          </Alert>
-        </Snackbar>
-      </div>
-    </form>
+          <Snackbar open={isSavingDone} autoHideDuration={2000}>
+            <Alert severity="success">
+              Data has been saved successfully.
+              {submitType === 2 && refNo && (
+                <div style={{ marginTop: '5px' }}>
+                  <strong>Reference Number: {refNo}</strong>
+                </div>
+              )}
+              {(isEncoder || isReceptionist) && submitType === 2 && (
+                <div style={{ marginTop: '5px' }}>An email notification has been sent to {approverDetails.name}.</div>
+              )}
+            </Alert>
+          </Snackbar>
+        </div>
+      </form>
+    </PrivacyGate>
   );
 };
 

@@ -41,6 +41,9 @@ import { IVisitor, IUserDept, IViewState, IVisitorCount, IVisitorDetailExtended 
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
+// ✅ ADD THIS
+import PrivacyGate from '../../../common/PrivacyGate';
+
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     root: { flexGrow: 1 },
@@ -524,7 +527,10 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       if (reportView === 'Daily') {
         reportRequests = await SharePointService.loadVisitorRequests(from, to);
       } else if (reportView === 'Monthly') {
-        reportRequests = await SharePointService.loadVisitorRequests(moment(from).startOf('month').toDate(), moment(to).endOf('month').toDate());
+        reportRequests = await SharePointService.loadVisitorRequests(
+          moment(from).startOf('month').toDate(),
+          moment(to).endOf('month').toDate(),
+        );
       } else {
         reportRequests = await SharePointService.loadVisitorRequests(from, to);
       }
@@ -786,127 +792,130 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     })();
   }, []);
 
+  // ✅ WRAP YOUR EXISTING UI WITH PrivacyGate
   return (
-    <form noValidate autoComplete="off">
-      <div className={classes.root} style={{ padding: '12px' }}>
-        <Grid container spacing={1}>
-          <Grid item xs={12}>
-            <HeaderSection title={state.viewName} />
-          </Grid>
-
-          <Grid item xs={12}>
-            <TabsNavigation tabs={state.menuTabs} value={state.tabvalue} onChange={handleTabChange} />
-          </Grid>
-
-          {state.vwid !== 9 && state.vwid !== 0 && state.vwid !== 10 && (
-            <Grid item xs={12} sm={6}>
-              <DateRangeSelector
-                fromDate={state.selectedFromDate.toDate()}
-                toDate={state.selectedToDate.toDate()}
-                onFromDateChange={onFromDateChange}
-                onToDateChange={onToDateChange}
-                pickerType="date"
-              />
-            </Grid>
-          )}
-
-          {state.vwid === 9 && (
-            <Grid item xs={12} sm={12}>
-              <SearchBox searchText={state.txtSearch} onSearchChange={handleChangeTxt} />
-            </Grid>
-          )}
-
-          {state.vwid === 10 && (
+    <PrivacyGate context={props.context} siteUrl={props.siteUrl} refNo={''}>
+      <form noValidate autoComplete="off">
+        <div className={classes.root} style={{ padding: '12px' }}>
+          <Grid container spacing={1}>
             <Grid item xs={12}>
-              <FormControl component="fieldset" className={classes.formControl}>
-                <FormLabel component="legend">Report View</FormLabel>
-                <RadioGroup row aria-label="report-view" name="report-view" value={state.reportView} onChange={handleReportViewChange}>
-                  <FormControlLabel value="Daily" control={<Radio />} label="Daily Visitors" />
-                  <FormControlLabel value="Monthly" control={<Radio />} label="Monthly Visitors" />
-                  <FormControlLabel value="Custom" control={<Radio />} label="Custom Range" />
-                </RadioGroup>
-              </FormControl>
-
-              <Grid container spacing={1}>
-                <Grid item xs={12} sm={6}>
-                  <DateRangeSelector
-                    fromDate={state.selectedFromDate.toDate()}
-                    toDate={state.selectedToDate.toDate()}
-                    onFromDateChange={(state.reportView as any) === 'Custom' ? onFromDateChange : handleDateChangeForReport}
-                    onToDateChange={(state.reportView as any) === 'Custom' ? onToDateChange : handleDateChangeForReport}
-                    pickerType={(state.reportView as any) === 'Monthly' ? 'month' : 'date'}
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6} style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-start' }}>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={handleDownloadReport}
-                    className={classes.downloadButton}
-                    disabled={!displayedItems || displayedItems.length === 0}
-                  >
-                    Download Report
-                  </Button>
-                </Grid>
-              </Grid>
+              <HeaderSection title={state.viewName} />
             </Grid>
-          )}
 
-          {state.vwid === 11 && (
-            <Grid item xs={12} sm={6} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleDownloadReport}
-                className={classes.downloadButton}
-                disabled={!displayedItems || displayedItems.length === 0}
-              >
-                Download Visitor Count Report
-              </Button>
-            </Grid>
-          )}
-
-          {state.vwid !== 0 && state.vwid !== 11 && (
             <Grid item xs={12}>
-              <FormControl component="fieldset" className={classes.formControl}>
-                <FormLabel component="legend">Reference Filter</FormLabel>
-                <RadioGroup row aria-label="ref-filter" name="ref-filter" value={state.refFilter as any} onChange={handleRefFilterChange}>
-                  <FormControlLabel value="ALL" control={<Radio />} label="All" />
-                  <FormControlLabel value="HO" control={<Radio />} label="HO" />
-                  <FormControlLabel value="SPC" control={<Radio />} label="SPC" />
-                </RadioGroup>
-              </FormControl>
+              <TabsNavigation tabs={state.menuTabs} value={state.tabvalue} onChange={handleTabChange} />
             </Grid>
-          )}
 
-          <Grid item xs={12}>
-            <Paper variant="outlined" className={classes.paper}>
-              {state.vwid === 10 && displayedItems.length > 0 && <VisitorsTable data={displayedItems as any[]} onViewAction={viewAction2} title="Reports" />}
-
-              {(state.vwid === 1 || state.vwid === 2 || state.vwid === 5 || state.vwid === 6 || state.vwid === 7 || state.vwid === 8) &&
-                displayedItems.length > 0 && <VisitorRequestsTable data={displayedItems as IVisitor[]} onViewAction={viewAction} />}
-
-              {(state.vwid === 3 || state.vwid === 4 || state.vwid === 9) && displayedItems.length > 0 && (
-                <VisitorDetailsTable data={displayedItems as IVisitorDetailExtended[]} onViewAction={viewAction2} />
-              )}
-
-              {state.vwid === 11 && displayedItems.length > 0 && (
-                <VisitorCountTable
-                  data={displayedItems as IVisitorCount[]}
-                  title="Visitor Entry Count"
+            {state.vwid !== 9 && state.vwid !== 0 && state.vwid !== 10 && (
+              <Grid item xs={12} sm={6}>
+                <DateRangeSelector
                   fromDate={state.selectedFromDate.toDate()}
                   toDate={state.selectedToDate.toDate()}
+                  onFromDateChange={onFromDateChange}
+                  onToDateChange={onToDateChange}
+                  pickerType="date"
                 />
-              )}
-            </Paper>
-          </Grid>
+              </Grid>
+            )}
 
-          <Grid item xs={12}>
-            <ActionButtons onClose={onClickCancel} />
+            {state.vwid === 9 && (
+              <Grid item xs={12} sm={12}>
+                <SearchBox searchText={state.txtSearch} onSearchChange={handleChangeTxt} />
+              </Grid>
+            )}
+
+            {state.vwid === 10 && (
+              <Grid item xs={12}>
+                <FormControl component="fieldset" className={classes.formControl}>
+                  <FormLabel component="legend">Report View</FormLabel>
+                  <RadioGroup row aria-label="report-view" name="report-view" value={state.reportView} onChange={handleReportViewChange}>
+                    <FormControlLabel value="Daily" control={<Radio />} label="Daily Visitors" />
+                    <FormControlLabel value="Monthly" control={<Radio />} label="Monthly Visitors" />
+                    <FormControlLabel value="Custom" control={<Radio />} label="Custom Range" />
+                  </RadioGroup>
+                </FormControl>
+
+                <Grid container spacing={1}>
+                  <Grid item xs={12} sm={6}>
+                    <DateRangeSelector
+                      fromDate={state.selectedFromDate.toDate()}
+                      toDate={state.selectedToDate.toDate()}
+                      onFromDateChange={(state.reportView as any) === 'Custom' ? onFromDateChange : handleDateChangeForReport}
+                      onToDateChange={(state.reportView as any) === 'Custom' ? onToDateChange : handleDateChangeForReport}
+                      pickerType={(state.reportView as any) === 'Monthly' ? 'month' : 'date'}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6} style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-start' }}>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={handleDownloadReport}
+                      className={classes.downloadButton}
+                      disabled={!displayedItems || displayedItems.length === 0}
+                    >
+                      Download Report
+                    </Button>
+                  </Grid>
+                </Grid>
+              </Grid>
+            )}
+
+            {state.vwid === 11 && (
+              <Grid item xs={12} sm={6} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleDownloadReport}
+                  className={classes.downloadButton}
+                  disabled={!displayedItems || displayedItems.length === 0}
+                >
+                  Download Visitor Count Report
+                </Button>
+              </Grid>
+            )}
+
+            {state.vwid !== 0 && state.vwid !== 11 && (
+              <Grid item xs={12}>
+                <FormControl component="fieldset" className={classes.formControl}>
+                  <FormLabel component="legend">Reference Filter</FormLabel>
+                  <RadioGroup row aria-label="ref-filter" name="ref-filter" value={state.refFilter as any} onChange={handleRefFilterChange}>
+                    <FormControlLabel value="ALL" control={<Radio />} label="All" />
+                    <FormControlLabel value="HO" control={<Radio />} label="HO" />
+                    <FormControlLabel value="SPC" control={<Radio />} label="SPC" />
+                  </RadioGroup>
+                </FormControl>
+              </Grid>
+            )}
+
+            <Grid item xs={12}>
+              <Paper variant="outlined" className={classes.paper}>
+                {state.vwid === 10 && displayedItems.length > 0 && <VisitorsTable data={displayedItems as any[]} onViewAction={viewAction2} title="Reports" />}
+
+                {(state.vwid === 1 || state.vwid === 2 || state.vwid === 5 || state.vwid === 6 || state.vwid === 7 || state.vwid === 8) &&
+                  displayedItems.length > 0 && <VisitorRequestsTable data={displayedItems as IVisitor[]} onViewAction={viewAction} />}
+
+                {(state.vwid === 3 || state.vwid === 4 || state.vwid === 9) && displayedItems.length > 0 && (
+                  <VisitorDetailsTable data={displayedItems as IVisitorDetailExtended[]} onViewAction={viewAction2} />
+                )}
+
+                {state.vwid === 11 && displayedItems.length > 0 && (
+                  <VisitorCountTable
+                    data={displayedItems as IVisitorCount[]}
+                    title="Visitor Entry Count"
+                    fromDate={state.selectedFromDate.toDate()}
+                    toDate={state.selectedToDate.toDate()}
+                  />
+                )}
+              </Paper>
+            </Grid>
+
+            <Grid item xs={12}>
+              <ActionButtons onClose={onClickCancel} />
+            </Grid>
           </Grid>
-        </Grid>
-      </div>
-    </form>
+        </div>
+      </form>
+    </PrivacyGate>
   );
 }

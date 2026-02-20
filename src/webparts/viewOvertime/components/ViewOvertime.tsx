@@ -36,6 +36,8 @@ import { IOvertimeRequest, IOvertimeDetail, IUserDept, IViewState } from './inte
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
+// ✅ Privacy Gate (adjust path if needed)
+import PrivacyGate from '../../../common/PrivacyGate';
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -208,7 +210,6 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
     }
   };
 
-
   const onFromDateChange = (date: Date | null) => {
     if (date) {
       const newFromDate = moment(date).startOf('day');
@@ -302,13 +303,13 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
             state.selectedFromDate.toDate(),
             state.selectedToDate.toDate()
           );
-          
+
           // Create mapping from ID to building
           const overtimeBldgMap: { [key: number]: string } = {};
           overtimeRequests.forEach(request => {
             overtimeBldgMap[request.ID] = request.Bldg;
           });
-          
+
           // Filter overtime details based on building
           filteredDetails = overtimeDetails.filter(detail => {
             const parentBldg = overtimeBldgMap[detail.ParentId];
@@ -384,7 +385,6 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
         if (currentState.isEncoder) {
           filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
         } else if (currentState.isApprover) {
-          // Assuming ApproverId in IOvertimeRequest matches NameId in approversPerDept for filtering
           filtered = approversPerDept.filter((item) => item.NameId === row.ApproverId);
         }
 
@@ -396,7 +396,6 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
       fetchedData = mappedrows;
     } else if ((action === 2)) {
       const overtimeRequests = await SharePointService.loadOvertimeRequests(from.toDate(), to.toDate());
-      // Filter by building based on user group
       if (ishouser || isspcuser) {
         const filteredRequests = overtimeRequests.filter(row => {
           if (ishouser) {
@@ -414,18 +413,14 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
       const overtimeDetails = await SharePointService.loadOvertimeDetails(from.toDate(), to.toDate());
       let filteredDetails: IOvertimeDetail[] = overtimeDetails;
 
-      // Filter by building for HOUsers and SPCUsers
       if (ishouser || isspcuser) {
-        // Get overtime requests to map ParentId to building
         const overtimeRequests = await SharePointService.loadOvertimeRequests(from.toDate(), to.toDate());
-        
-        // Create mapping from ID to building
+
         const overtimeBldgMap: { [key: number]: string } = {};
         overtimeRequests.forEach(request => {
           overtimeBldgMap[request.ID] = request.Bldg;
         });
-        
-        // Filter overtime details based on building
+
         filteredDetails = overtimeDetails.filter(detail => {
           const parentBldg = overtimeBldgMap[detail.ParentId];
           if (ishouser) {
@@ -458,18 +453,14 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
       const overtimeDetails = await SharePointService.loadOvertimeDetails(from.toDate(), to.toDate());
       let filteredDetails: IOvertimeDetail[] = overtimeDetails;
 
-      // Filter by building for HOUsers and SPCUsers
       if (ishouser || isspcuser) {
-        // Get overtime requests to map ParentId to building
         const overtimeRequests = await SharePointService.loadOvertimeRequests(from.toDate(), to.toDate());
-        
-        // Create mapping from ID to building
+
         const overtimeBldgMap: { [key: number]: string } = {};
         overtimeRequests.forEach(request => {
           overtimeBldgMap[request.ID] = request.Bldg;
         });
-        
-        // Filter overtime details based on building
+
         filteredDetails = overtimeDetails.filter(detail => {
           const parentBldg = overtimeBldgMap[detail.ParentId];
           if (ishouser) {
@@ -491,7 +482,6 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
         let isvalid = false;
         let includeRow = true;
 
-        // Filter by building based on user group
         if (ishouser && row.Bldg !== "(HO) 5-Storey Building") {
           includeRow = false;
         } else if (isspcuser && row.Bldg !== "SPC") {
@@ -516,7 +506,6 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
         let isvalid = false;
         let includeRow = true;
 
-        // Filter by building based on user group
         if (ishouser && row.Bldg !== "(HO) 5-Storey Building") {
           includeRow = false;
         } else if (isspcuser && row.Bldg !== "SPC") {
@@ -533,7 +522,7 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
       });
 
       fetchedData = mappedrows;
-    } else if ((action === 10)) { // New action for Reports tab
+    } else if ((action === 10)) {
       let reportData: IOvertimeRequest[] = [];
       if (reportView === 'Daily') {
         reportData = await SharePointService.loadOvertimeRequests(from.toDate(), to.toDate());
@@ -543,8 +532,7 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
           moment(to).endOf('month').toDate()
         );
       }
-      
-      // Apply HO/SPC user filtering for reports
+
       if (ishouser || isspcuser) {
         const filteredReports = reportData.filter(row => {
           if (ishouser) {
@@ -571,7 +559,6 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
     }));
   }
 
-  // New function to handle report download
   const handleDownloadReport = () => {
     if (state.dirListItems.length === 0) {
       alert("No data to download.");
@@ -583,40 +570,33 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
 
     let dataToExport: any[] = [];
 
-    // Determine the type of data and map accordingly
     if (state.vwid === 10 || state.vwid === 1 || state.vwid === 2 || state.vwid === 5 || state.vwid === 6) {
-      // These vwid's correspond to IOvertimeRequest data
       dataToExport = (state.dirListItems as IOvertimeRequest[]).map(item => ({
         'ID': item.ID,
-        'Reference Number': item.Title, // Corrected: Using Title for Employee Name
+        'Reference Number': item.Title,
         'Department': item.Dept ? item.Dept.Title : '',
         'Request Date': moment(item.RequestDate).format('YYYY-MM-DD HH:mm'),
-        'Overtime From': moment(item.DateFrom).format('YYYY-MM-DD HH:mm'), // Corrected: Using DateFrom
-        'Overtime To': moment(item.DateTo).format('YYYY-MM-DD HH:mm'),     // Corrected: Using DateTo
-        // 'Total Hours': item.TotalHours, // Removed: Not present in your IOvertimeRequest interface
+        'Overtime From': moment(item.DateFrom).format('YYYY-MM-DD HH:mm'),
+        'Overtime To': moment(item.DateTo).format('YYYY-MM-DD HH:mm'),
         'Purpose': item.Purpose,
         'Status': item.Status ? item.Status.Title : '',
         'Approver': item.Approver ? item.Approver.Title : '',
-        'SSD Approver': item.SSDApprover ? item.SSDApprover.Title : '', // Added: Based on your IOvertimeRequest interface
-        'Requested By': item.Author ? item.Author.Title : '',           // Added: Based on your IOvertimeRequest interface
-        // 'Remarks': item.Remarks, // Removed: Not explicitly present in your IOvertimeRequest interface
+        'SSD Approver': item.SSDApprover ? item.SSDApprover.Title : '',
+        'Requested By': item.Author ? item.Author.Title : '',
       }));
     } else if (state.vwid === 9 || state.vwid === 3 || state.vwid === 4) {
-      // These vwid's correspond to IOvertimeDetail data (e.g., search by employee name)
       dataToExport = (state.dirListItems as IOvertimeDetail[]).map(item => ({
         'ID': item.ID,
         'Employee Name': item.Title,
-        'Request No': item.RefNo, // Added: Based on your IOvertimeDetail interface
+        'Request No': item.RefNo,
         'Department': item.Dept ? item.Dept.Title : '',
         'Request Date': moment(item.RequestDate).format('YYYY-MM-DD HH:mm'),
-        'Overtime From': moment(item.TimeFrom).format('YYYY-MM-DD HH:mm'), // Corrected: Using TimeFrom
-        'Overtime To': moment(item.TimeTo).format('YYYY-MM-DD HH:mm'),     // Corrected: Using TimeTo
-        'Entry Type': item.Etype, // Added: Based on your IOvertimeDetail interface
-        'Other Source': item.OtherSource || '', // Added: Based on your IOvertimeDetail interface
+        'Overtime From': moment(item.TimeFrom).format('YYYY-MM-DD HH:mm'),
+        'Overtime To': moment(item.TimeTo).format('YYYY-MM-DD HH:mm'),
+        'Entry Type': item.Etype,
+        'Other Source': item.OtherSource || '',
         'Status': item.Status ? item.Status.Title : '',
-        // 'Approver': item.Approver ? item.Approver.Title : '', // Removed: Not present in your IOvertimeDetail interface
-        'Encoded By': item.Author ? item.Author.Title : '',           // Added: Based on your IOvertimeDetail interface
-        // 'Remarks': item.Remarks, // Removed: Not explicitly present in your IOvertimeDetail interface
+        'Encoded By': item.Author ? item.Author.Title : '',
       }));
     } else {
       console.warn("Download not supported for current view type (vwid: " + state.vwid + ")");
@@ -628,43 +608,30 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, reportType);
 
-    // Generate Excel file and trigger download
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     saveAs(new Blob([wbout], { type: 'application/octet-stream' }), fileName);
   };
 
-
-  // Initialize component
   useEffect(() => {
     (async () => {
       try {
-        sp.setup({ // Ensure pnp is setup
+        sp.setup({
           spfxContext: props.context
         });
 
-        // Get current user
         user = await SharePointService.getCurrentUser();
-
-        // Get user groups
         const groups = await SharePointService.getCurrentUserGroups();
-
-        // Get users per department
         usersPerDept = await SharePointService.getUsersPerDept(user.Id);
-
-        // Get approvers
         approversPerDept = await SharePointService.getApprovers(user.Id);
 
-        // Prepare state updates
         let isEncoder = usersPerDept.length > 0;
         let isApprover = approversPerDept.length > 0;
         let isReceptionist = false;
         let isSSDUser = false;
 
-        // Update global variables
         isencoder = isEncoder;
         isapprover = isApprover;
 
-        // Check if user is in Receptionist group
         for (let i = 0; i < groups.length; i++) {
           if (groups[i].LoginName === Receptionist_Group) {
             isReceptionist = true;
@@ -673,7 +640,6 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
           }
         }
 
-        // Check if user is in SSD group
         for (let i = 0; i < groups.length; i++) {
           if (groups[i].LoginName === SSD_Group) {
             isSSDUser = true;
@@ -682,7 +648,6 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
           }
         }
 
-        // Check if user is in HOUsers or SPCUsers groups
         for (let i = 0; i < groups.length; i++) {
           if (groups[i].LoginName === HOUsers_Group) {
             ishouser = true;
@@ -691,7 +656,6 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
           }
         }
 
-        // Set up tabs based on user roles
         let temptabs: string[] = [];
 
         if (isEncoder || isReceptionist || isSSDUser || isApprover) {
@@ -706,12 +670,10 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
           temptabs.push('SSD');
         }
 
-        // Add Reports tab if any of these roles are active
         if (isEncoder || isReceptionist || isSSDUser || isApprover) {
           temptabs.push('Reports');
         }
 
-        // Update state with all changes at once
         setState(prevState => ({
           ...prevState,
           viewName: "Overtime / Overstay Views",
@@ -722,13 +684,12 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
           menuTabs: temptabs
         }));
 
-        // Check for saved tab in cookie after state has been updated
         const cookietab = getCookie('ViewOverTimeTab');
 
         if (cookietab) {
           const index = temptabs.indexOf(cookietab);
 
-          if (index !== -1) { // Only attempt to set if the tab exists
+          if (index !== -1) {
             setTimeout(() => {
               setState(prevState => ({
                 ...prevState,
@@ -754,7 +715,7 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
               };
               handleTabChange(syntheticEvent, index);
             }, 0);
-          } else { // If cookie tab is not found in current available tabs, default to first tab
+          } else {
             const defaultTabContent = temptabs[0];
             const defaultIndex = 0;
             const syntheticEvent: React.ChangeEvent<{}> = {
@@ -776,7 +737,7 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
             };
             handleTabChange(syntheticEvent, defaultIndex);
           }
-        } else if (temptabs.length > 0) { // If no cookie, set default to the first available tab
+        } else if (temptabs.length > 0) {
           const defaultTabContent = temptabs[0];
           const defaultIndex = 0;
           const syntheticEvent: React.ChangeEvent<{}> = {
@@ -806,100 +767,106 @@ export default function ViewOvertime(props: IViewOvertimeProps) {
   }, []);
 
   return (
-    <form noValidate autoComplete="off">
-      <div className={classes.root} style={{ padding: '12px' }}>
-        <Grid container spacing={1}>
-          <Grid item xs={12}>
-            <HeaderSection title={state.viewName} />
-          </Grid>
+    <PrivacyGate context={props.context}>
+      <form noValidate autoComplete="off">
+        <div className={classes.root} style={{ padding: '12px' }}>
+          <Grid container spacing={1}>
+            <Grid item xs={12}>
+              <HeaderSection title={state.viewName} />
+            </Grid>
 
-          <Grid item xs={12}>
-            <TabsNavigation
-              tabs={state.menuTabs}
-              value={state.tabvalue}
-              onChange={handleTabChange}
-            />
-          </Grid>
-
-          {/* Conditional rendering for DateRangeSelector based on vwid */}
-          {((state.vwid !== 9) && (state.vwid !== 0) && (state.vwid !== 10)) && (
-            <DateRangeSelector
-              fromDate={state.selectedFromDate.toDate()}
-              toDate={state.selectedToDate.toDate()}
-              onFromDateChange={onFromDateChange}
-              onToDateChange={onToDateChange}
-              pickerType="date"
-            />
-          )}
-
-          {((state.vwid === 9)) && (
-            <Grid item xs={12} sm={12}>
-              <SearchBox
-                searchText={state.txtSearch}
-                onSearchChange={handleChangeTxt}
+            <Grid item xs={12}>
+              <TabsNavigation
+                tabs={state.menuTabs}
+                value={state.tabvalue}
+                onChange={handleTabChange}
               />
             </Grid>
-          )}
 
-          {/* Reports Tab UI */}
-          {((state.vwid === 10)) && (
-            <Grid item xs={12}>
-              <FormControl component="fieldset" className={classes.formControl}>
-                <FormLabel component="legend">Report View</FormLabel>
-                <RadioGroup row aria-label="report-view" name="report-view" value={state.reportView} onChange={handleReportViewChange}>
-                  <FormControlLabel value="Daily" control={<Radio />} label="Daily Overtime" />
-                  <FormControlLabel value="Monthly" control={<Radio />} label="Monthly Overtime" />
-                </RadioGroup>
-              </FormControl>
+            {((state.vwid !== 9) && (state.vwid !== 0) && (state.vwid !== 10)) && (
+              <DateRangeSelector
+                fromDate={state.selectedFromDate.toDate()}
+                toDate={state.selectedToDate.toDate()}
+                onFromDateChange={onFromDateChange}
+                onToDateChange={onToDateChange}
+                pickerType="date"
+              />
+            )}
 
-              <Grid container spacing={1}>
-                <Grid item xs={12} sm={6}>
-                  <DateRangeSelector
-                    fromDate={state.selectedFromDate.toDate()}
-                    toDate={state.selectedToDate.toDate()}
-                    onFromDateChange={handleDateChangeForReport}
-                    onToDateChange={handleDateChangeForReport}
-                    pickerType={state.reportView === 'Daily' ? 'date' : 'month'}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-start' }}>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={handleDownloadReport}
-                    className={classes.downloadButton}
-                    disabled={state.dirListItems.length === 0}
+            {((state.vwid === 9)) && (
+              <Grid item xs={12} sm={12}>
+                <SearchBox
+                  searchText={state.txtSearch}
+                  onSearchChange={handleChangeTxt}
+                />
+              </Grid>
+            )}
+
+            {((state.vwid === 10)) && (
+              <Grid item xs={12}>
+                <FormControl component="fieldset" className={classes.formControl}>
+                  <FormLabel component="legend">Report View</FormLabel>
+                  <RadioGroup
+                    row
+                    aria-label="report-view"
+                    name="report-view"
+                    value={state.reportView}
+                    onChange={handleReportViewChange}
                   >
-                    Download Report
-                  </Button>
+                    <FormControlLabel value="Daily" control={<Radio />} label="Daily Overtime" />
+                    <FormControlLabel value="Monthly" control={<Radio />} label="Monthly Overtime" />
+                  </RadioGroup>
+                </FormControl>
+
+                <Grid container spacing={1}>
+                  <Grid item xs={12} sm={6}>
+                    <DateRangeSelector
+                      fromDate={state.selectedFromDate.toDate()}
+                      toDate={state.selectedToDate.toDate()}
+                      onFromDateChange={handleDateChangeForReport}
+                      onToDateChange={handleDateChangeForReport}
+                      pickerType={state.reportView === 'Daily' ? 'date' : 'month'}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6} style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-start' }}>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={handleDownloadReport}
+                      className={classes.downloadButton}
+                      disabled={state.dirListItems.length === 0}
+                    >
+                      Download Report
+                    </Button>
+                  </Grid>
                 </Grid>
               </Grid>
+            )}
+
+            <Grid item xs={12}>
+              <Paper variant="outlined" className={classes.paper}>
+                {(((state.vwid === 1) || (state.vwid === 2) || (state.vwid === 5) || (state.vwid === 6) || (state.vwid === 7) || (state.vwid === 8) || (state.vwid === 10)) && (state.dirListItems.length > 0)) && (
+                  <OvertimeRequestsTable
+                    data={state.dirListItems as IOvertimeRequest[]}
+                    onViewAction={viewAction}
+                  />
+                )}
+
+                {(((state.vwid === 3) || (state.vwid === 4) || (state.vwid === 9)) && (state.dirListItems.length > 0)) && (
+                  <OvertimeDetailsTable
+                    data={state.dirListItems as IOvertimeDetail[]}
+                    onViewAction={viewAction2}
+                  />
+                )}
+              </Paper>
             </Grid>
-          )}
 
-          <Grid item xs={12}>
-            <Paper variant="outlined" className={classes.paper}>
-              {(((state.vwid === 1) || (state.vwid === 2) || (state.vwid === 5) || (state.vwid === 6) || (state.vwid === 7) || (state.vwid === 8) || (state.vwid === 10)) && (state.dirListItems.length > 0)) && (
-                <OvertimeRequestsTable
-                  data={state.dirListItems as IOvertimeRequest[]}
-                  onViewAction={viewAction}
-                />
-              )}
-
-              {(((state.vwid === 3) || (state.vwid === 4) || (state.vwid === 9)) && (state.dirListItems.length > 0)) && (
-                <OvertimeDetailsTable
-                  data={state.dirListItems as IOvertimeDetail[]}
-                  onViewAction={viewAction2}
-                />
-              )}
-            </Paper>
+            <Grid item xs={12}>
+              <ActionButtons onClose={onClickCancel} />
+            </Grid>
           </Grid>
-
-          <Grid item xs={12}>
-            <ActionButtons onClose={onClickCancel} />
-          </Grid>
-        </Grid>
-      </div>
-    </form>
+        </div>
+      </form>
+    </PrivacyGate>
   );
 }
