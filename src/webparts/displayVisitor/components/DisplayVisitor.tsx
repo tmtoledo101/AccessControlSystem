@@ -172,7 +172,7 @@ const initialVisitorDetailError: IVisitorDetailsError = {
   Car: "",
   AccessCard: "",
   PlateNo: "",
-  TypeofVehicle: "",
+  //TypeofVehicle: "",
   Color: "",
   DriverName: "",
   //DriverFirstName: "",
@@ -554,11 +554,13 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     ) {
       requiredDetailFields.push("Title");
       if (visitorDetails.Car)
-        requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverName");
+        //requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverName");
+        requiredDetailFields.push("PlateNo", "Color", "DriverName");
     } else if (isReceptionist && (inputFields.StatusId === 4 || inputFields.StatusId === 9)) {
       requiredDetailFields.push("Title", "AccessCard", "IDPresented", "GateNo");
       if (visitorDetails.Car)
-        requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverName");
+        //requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverName");
+        requiredDetailFields.push("PlateNo", "Color", "DriverName");
       if (!visitorDetails.Files || visitorDetails.Files.length === 0) {
         tempErrors.Files = "Please upload a file.";
         isValid = false;
@@ -765,7 +767,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
         _sourceURL = document.referrer;
         //_itemId = parseInt(getUrlParameter("pid"));
-        _itemId = 128;
+        _itemId = 129;
 
         const user = await sharePointService.getCurrentUser();
         setCurrentUser(user);

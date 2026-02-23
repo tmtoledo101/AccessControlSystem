@@ -235,9 +235,11 @@ export function validateVisitorDetails(
   
   // Determine required fields based on user role and status
   if ((isEncoder) && ((statusId === 1) || (statusId === 2))) {
-    required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverName');
+    //required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverName');
+    required.push('Title', 'PlateNo','Color', 'DriverName');
   } else if ((isReceptionist) && ((statusId === 4) || (statusId === 9))) {
-    required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverName', 'AccessCard', 'IDPresented', 'GateNo');
+    //required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverName', 'AccessCard', 'IDPresented', 'GateNo');
+    required.push('Title', 'PlateNo', 'Color', 'DriverName', 'AccessCard', 'IDPresented', 'GateNo');
     
     // Check for files
     if (visitorDetails.Files.length === 0 && visitorDetails.initFiles.length === 0) {

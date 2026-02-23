@@ -398,15 +398,14 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       {checkVisibility('cedit') && (
                         <TextField
                           inputProps={{ maxLength: 255 }}
-                          error={!!errorDetails.TypeofVehicle}
-                          required
+                          //error={!!errorDetails.TypeofVehicle}
                           label="Type of Vehicle"
                           name="TypeofVehicle"
                           onChange={onChangeTxt}
                           value={visitorDetails.TypeofVehicle}
                           variant="standard"
                           className={classes.textField}
-                          helperText={errorDetails.TypeofVehicle}
+                          //helperText={errorDetails.TypeofVehicle}
                         />
                       )}
                       

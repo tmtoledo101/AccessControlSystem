@@ -286,15 +286,14 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                   <Paper variant="outlined" className={classes.paper}>
                     <TextField
                       inputProps={{ maxLength: 255 }}
-                      error={Boolean(errors.TypeofVehicle)}
-                      required
+                      //error={Boolean(errors.TypeofVehicle)}
                       label="Type of Vehicle"
                       name="TypeofVehicle"
                       onChange={handleTextChange}
                       value={visitorDetails.TypeofVehicle || ''}
                       variant="standard"
                       className={classes.textField}
-                      helperText={errors.TypeofVehicle}
+                      //helperText={errors.TypeofVehicle}
                     />
                   </Paper>
                 </Grid>
