@@ -128,8 +128,10 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
     switch (element) {
       case 'cedit': return isEdit && (forEncoder || forReceptionist);
       case 'cdisp': return !isEdit || (isEdit && !forEncoder && !forReceptionist);
-      case 'deptedit': return isEdit && ((isEncoder && visitor.StatusId === 1) || forReceptionist);
-      case 'deptdisp': return !isEdit || (isEdit && (visitor.StatusId === 2 || !forEncoder));
+      // case 'deptedit': return isEdit && ((isEncoder && visitor.StatusId === 1) || forReceptionist);
+      // case 'deptdisp': return !isEdit || (isEdit && (visitor.StatusId === 2 || !forEncoder));
+      case 'deptedit': {const canEditDept = isEdit && (forEncoder || forReceptionist);return canEditDept;}
+      case 'deptdisp': {const canEditDept = isEdit && (forEncoder || forReceptionist);return !canEditDept;}
       default: return false;
     }
   };
@@ -224,18 +226,34 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
               <Select
                 labelId="deptLabel"
                 id="Dept"
-                value={visitor.DeptId}
-                onChange={onChangeCbo}
-                name='DeptId'
+                value={visitor.DeptId === null || visitor.DeptId === undefined ? "" : visitor.DeptId}
+                onChange={(e) =>
+                  onChangeCbo({
+                    target: { name: "DeptId", value: Number(e.target.value) },
+                  } as any)
+                }
+                name="DeptId"
               >
                 {deptList.map((item) => (
-                  <MenuItem key={item.Id} value={item.Id}>{item.Title}</MenuItem>
+                  <MenuItem key={item.Id} value={item.Id}>
+                    {item.Title}
+                  </MenuItem>
                 ))}
-              </Select>
+            </Select>
               <FormHelperText>{errorFields.DeptId}</FormHelperText>
             </FormControl>
           )}
-          {checkVisibility('deptdisp') && <DisplayField label="Department to Visit" value={visitor.Dept.Title} classes={classes} />}
+          {checkVisibility("deptdisp") && (
+          <DisplayField
+            label="Department to Visit"
+            value={
+              (visitor.Dept && visitor.Dept.Title) ||
+              (((deptList.find((d) => Number(d.Id) === Number(visitor.DeptId)) || {}) as any).Title) ||
+              "-"
+            }
+            classes={classes}
+          />
+        )}
         </Paper>
       </Grid>
 

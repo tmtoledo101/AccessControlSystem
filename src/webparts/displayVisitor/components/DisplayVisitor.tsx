@@ -347,6 +347,59 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const [countToDate, setCountToDate] = useState<Date>(new Date());
   const [countRows, setCountRows] = useState<IVisitorCount[]>([]);
 
+  // ADDED: normalize departments so deptList always has { Id, Title }
+  const normalizeDepartments = (rows: any[]): any[] => {
+    return (rows || [])
+      .map((d: any) => {
+        const idRaw =
+          d && d.Id !== undefined
+            ? d.Id
+            : d && d.ID !== undefined
+            ? d.ID
+            : d && d.DeptId !== undefined
+            ? d.DeptId
+            : d && d.DeptID !== undefined
+            ? d.DeptID
+            : d && d.DepartmentId !== undefined
+            ? d.DepartmentId
+            : d && d.departmentId !== undefined
+            ? d.departmentId
+            : undefined;
+
+        const titleRaw =
+          d && d.Title !== undefined
+            ? d.Title
+            : d && d.DeptTitle !== undefined
+            ? d.DeptTitle
+            : d && d.DepartmentTitle !== undefined
+            ? d.DepartmentTitle
+            : d && d.Dept && d.Dept.Title !== undefined
+            ? d.Dept.Title
+            : "";
+
+        return {
+          ...d,
+          Id: idRaw !== undefined && idRaw !== null && idRaw !== "" ? Number(idRaw) : undefined,
+          Title: titleRaw !== undefined && titleRaw !== null ? String(titleRaw) : "",
+        };
+      })
+      .filter((d: any) => d.Id !== undefined && d.Id !== null && String(d.Title).trim() !== "");
+  };
+
+  // ADDED: match users_per_dept rows safely (handles DeptId/DeptID as string/number)
+  const getUserDeptId = (row: any): number | null => {
+    const raw =
+      row && row.DeptId !== undefined
+        ? row.DeptId
+        : row && row.DeptID !== undefined
+        ? row.DeptID
+        : row && row.DepartmentId !== undefined
+        ? row.DepartmentId
+        : null;
+    const n = Number(raw);
+    return isNaN(n) ? null : n;
+  };
+
   const loadAllVisitorCountsForAllRequests = async (list: IVisitorDetails[], req: IVisitor) => {
     if (!list || list.length === 0) {
       setCountRows([]);
@@ -440,7 +493,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       tempErrors[name] = "This is a required input field";
     } else if (name === "DateTimeVisit" || name === "DateTimeArrival") {
       const visitDate = inputFields.DateTimeVisit ? new Date(inputFields.DateTimeVisit) : null;
-      const arrivalDate = inputFields.DateTimeArrival ? new Date(inputFields.DateTimeArrival) : null;
+      const arrivalDate = inputFields.DateTimeArrival
+        ? new Date(inputFields.DateTimeArrival)
+        : null;
       if (visitDate && arrivalDate && visitDate > arrivalDate) {
         tempErrors.DateTimeVisit = "From Date should be earlier than To Date";
         tempErrors.DateTimeArrival = "To Date should be later than From Date";
@@ -553,14 +608,10 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       (inputFields.StatusId === 1 || inputFields.StatusId === 2)
     ) {
       requiredDetailFields.push("Title");
-      if (visitorDetails.Car)
-        //requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverName");
-        requiredDetailFields.push("PlateNo", "Color", "DriverName");
+      if (visitorDetails.Car) requiredDetailFields.push("PlateNo", "Color", "DriverName");
     } else if (isReceptionist && (inputFields.StatusId === 4 || inputFields.StatusId === 9)) {
       requiredDetailFields.push("Title", "AccessCard", "IDPresented", "GateNo");
-      if (visitorDetails.Car)
-        //requiredDetailFields.push("PlateNo", "TypeofVehicle", "Color", "DriverName");
-        requiredDetailFields.push("PlateNo", "Color", "DriverName");
+      if (visitorDetails.Car) requiredDetailFields.push("PlateNo", "Color", "DriverName");
       if (!visitorDetails.Files || visitorDetails.Files.length === 0) {
         tempErrors.Files = "Please upload a file.";
         isValid = false;
@@ -594,17 +645,13 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
     let ssdUsersToUse = SSDUsers;
 
-    // Typically SSD needs to be notified once Dept Approver approves (Status becomes 3)
     const needsSSDRecipients = visitorForEmail.StatusId === 3;
 
     if (needsSSDRecipients && (!ssdUsersToUse || ssdUsersToUse.length === 0)) {
       try {
-        //ssdUsersToUse = await sharePointService.getSSDUsers();
-        //setSSD(ssdUsersToUse);
         ssdUsersToUse = await sharePointService.getGroupUsersByName(SSD_Notify_Group);
         setSSD(ssdUsersToUse);
       } catch (e) {
-        // Do not block saving or page usage for approvers who cannot read SSD group members
         console.warn("Cannot read SSD group members. Skipping SSD recipients.", e);
         ssdUsersToUse = [];
       }
@@ -851,20 +898,54 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           const building = await sharePointService.getBuildings();
           setBldg(building);
 
-          const depts = await sharePointService.getDepartments();
+          // FIX: normalize departments + always include the current visitor.DeptId in the list
+          const deptsRaw = await sharePointService.getDepartments();
+          const allDepts = normalizeDepartments(deptsRaw);
+
+          const currentDeptId = Number((visitor as any).DeptId);
+          const hasCurrent = allDepts.some((d: any) => Number(d.Id) === currentDeptId);
+
+          let allDeptsWithCurrent = allDepts;
+          if (!hasCurrent && !isNaN(currentDeptId) && currentDeptId) {
+            // Fallback placeholder so Select can render the current value and not go blank/out-of-range
+            allDeptsWithCurrent = [
+              ...allDepts,
+              { Id: currentDeptId, Title: (visitor.Dept && visitor.Dept.Title) || "Current Department" },
+            ];
+          }
+
           if (isencoder) {
             const mappedrows: any[] = [];
-            depts.forEach((row: any) => {
-              const filtered = users_per_dept.filter((item: any) => item.DeptId === row.Id);
-              if (filtered.length > 0) mappedrows.push(row);
+
+            allDeptsWithCurrent.forEach((deptRow: any) => {
+              const deptRowId = Number(deptRow.Id);
+
+              const filtered = (users_per_dept || []).filter((u: any) => {
+                const uDeptId = getUserDeptId(u);
+                if (uDeptId === null) return false;
+                return Number(uDeptId) === deptRowId;
+              });
+
+              if (filtered.length > 0) mappedrows.push(deptRow);
             });
-            setDept(mappedrows);
-          } else if (isreceptionist) setDept(depts);
+
+            // IMPORTANT: if mapping ends up empty (common when DeptId types mismatch),
+            // fall back to all departments so dropdown is not blank.
+            if (mappedrows.length > 0) {
+              setDept(mappedrows);
+            } else {
+              setDept(allDeptsWithCurrent);
+            }
+          } else if (isreceptionist) {
+            setDept(allDeptsWithCurrent);
+          } else {
+            // safe fallback
+            setDept(allDeptsWithCurrent);
+          }
 
           const optionContacts = await sharePointService.getEmployeeByEmpNo(visitor.EmpNo);
           setContacts(optionContacts);
 
-          // FIX 2: Do NOT call getSSDUsers() here (prevents 403 for approvers on page load)
           setSSD([]);
 
           const visitordetails = await sharePointService.getVisitorDetailsByParentId(_itemId);
@@ -877,7 +958,14 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           const idpresented = await sharePointService.getIDTypes();
           setIDs(idpresented);
 
-          setInputs({ ...visitor });
+          // FIX: ensure DeptId is numeric so it matches MenuItem values
+          setInputs({
+            ...visitor,
+            DeptId:
+              (visitor as any).DeptId !== null && (visitor as any).DeptId !== undefined
+                ? Number((visitor as any).DeptId)
+                : (visitor as any).DeptId,
+          } as any);
         } else {
           alert("You are not authorized to access this page!");
           window.open(props.siteUrl, "_self");
@@ -903,15 +991,22 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
   const handleChangeCbo = async (event: any) => {
     const { name, value } = event.target;
+
+    let nextValue: any = value;
+
     if (name === "DeptId") {
-      const deptfiltered = deptList.filter((d) => d.Id === value);
+      const deptIdNum = Number(value);
+      nextValue = deptIdNum;
+
+      const deptfiltered = deptList.filter((d) => Number(d.Id) === deptIdNum);
       if (deptfiltered.length > 0) _deptName = deptfiltered[0].Title;
+
       if (inputFields.ExternalType === "Walk-in") {
-        const walkinapprovers = await sharePointService.getWalkinApprovers(value);
+        const walkinapprovers = await sharePointService.getWalkinApprovers(deptIdNum);
         setWalkinApprovers(walkinapprovers);
         setApprovers([]);
       } else {
-        const approvers = await sharePointService.getApprovers(value, currentUser.Id);
+        const approvers = await sharePointService.getApprovers(deptIdNum, currentUser.Id);
         setApprovers(approvers);
         setWalkinApprovers([]);
       }
@@ -924,8 +1019,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       const filtered = colorList.filter((c) => c.Title === value);
       if (filtered.length > 0) _colorValue = filtered[0].ColorCode;
     }
-    setInputs((prev) => ({ ...prev, [name]: value }));
-    validateInputs(name, value);
+
+    setInputs((prev) => ({ ...prev, [name]: nextValue }));
+    validateInputs(name, nextValue);
   };
 
   const handleChangeTxt = (e: any) => {
@@ -1321,26 +1417,21 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           <Snackbar open={isSavingDone} autoHideDuration={2000} onClose={() => setSavingDone(false)}>
             <Alert severity="success" onClose={() => setSavingDone(false)}>
               Data has been saved successfully.
-              {((isEncoder || isReceptionist) && (sAction === 'submit')) && <div>
-                An email notification has been sent to approver {approverDetails.name}.
-              </div>
-              }
-              {((isApproverUser) && (inputFields.StatusId === 2) && (sAction === 'approve')) && <div>
-                An email notification has been sent to the SSD group .
-              </div>
-              }
-              {((isWalkinApproverUser) && (inputFields.StatusId === 2) && (sAction === 'approve')) && <div>
-                An email notification has been sent to requestor {inputFields.Author.Title}.
-              </div>
-              }
-              {((isSSDUser) && (inputFields.StatusId === 3) && (sAction === 'approve')) && <div>
-                An email notification has been sent to requestor {inputFields.Author.Title}.
-              </div>
-              }
-              {(sAction === 'deny') && <div>
-                An email notification has been sent to requestor {inputFields.Author.Title}.
-              </div>
-              }
+              {(isEncoder || isReceptionist) && sAction === "submit" && (
+                <div>An email notification has been sent to approver {approverDetails.name}.</div>
+              )}
+              {isApproverUser && inputFields.StatusId === 2 && sAction === "approve" && (
+                <div>An email notification has been sent to the SSD group .</div>
+              )}
+              {isWalkinApproverUser && inputFields.StatusId === 2 && sAction === "approve" && (
+                <div>An email notification has been sent to requestor {inputFields.Author.Title}.</div>
+              )}
+              {isSSDUser && inputFields.StatusId === 3 && sAction === "approve" && (
+                <div>An email notification has been sent to requestor {inputFields.Author.Title}.</div>
+              )}
+              {sAction === "deny" && (
+                <div>An email notification has been sent to requestor {inputFields.Author.Title}.</div>
+              )}
             </Alert>
           </Snackbar>
         </div>
