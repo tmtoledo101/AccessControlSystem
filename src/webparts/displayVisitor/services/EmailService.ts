@@ -179,37 +179,38 @@ export class EmailService {
         toEmails = Array.from(new Set(toEmails)).filter((x) => !!x);
         subject = `BSP ACCESS CONTROL SYSTEM : Approved by SSD - ${refNo}`;
 
-      // Create visitor details table
-      let visitorTable = "";
-      if (visitorDetailsList && visitorDetailsList.length > 0) {
-        visitorTable =
-          '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">' +
-          '<tr style="background-color: #f2f2f2;">' +
-          "<th>Visitor Name</th>" +
-          "<th>SSD Approval</th>" +
-          "</tr>";
+    // Create visitor details table
+    let visitorTable = "";
+    if (visitorDetailsList && visitorDetailsList.length > 0) {
+      visitorTable =
+        '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">' +
+        '<tr style="background-color: #f2f2f2;">' +
+        "<th>Visitor Name</th>" +
+        "<th>SSD Approval</th>" +
+        "<th>Parking Request</th>" +
+        "</tr>";
 
-        for (let i = 0; i < visitorDetailsList.length; i++) {
-          const currentVisitorDetail = visitorDetailsList[i];
-          const approvalStatus =
-            currentVisitorDetail.SSDApprove === "Yes" ? "Approved" : "Not Approved";
-          const rowStyle = i % 2 === 0 ? "" : "background-color: #f9f9f9;";
+    for (let i = 0; i < visitorDetailsList.length; i++) {
+    const currentVisitorDetail = visitorDetailsList[i];
 
-          visitorTable +=
-            '<tr style="' +
-            rowStyle +
-            '">' +
-            "<td>" +
-            currentVisitorDetail.Title +
-            "</td>" +
-            "<td>" +
-            approvalStatus +
-            "</td>" +
-            "</tr>";
-        }
+    const ssdApprovalStatus =
+      currentVisitorDetail.SSDApprove === "Yes" ? "Approved" : "Disapproved";
 
-        visitorTable += "</table>";
+    const parkingRequestStatus =
+      currentVisitorDetail.ParkingRequest === "Yes" ? "Approved" : "Disapproved";
+
+    const rowStyle = i % 2 === 0 ? "" : "background-color: #f9f9f9;";
+
+    visitorTable +=
+      '<tr style="' + rowStyle + '">' +
+      "<td>" + (currentVisitorDetail.Title || "") + "</td>" +
+      "<td>" + ssdApprovalStatus + "</td>" +
+      "<td>" + parkingRequestStatus + "</td>" +
+      "</tr>";
       }
+
+      visitorTable += "</table>";
+    }
 
       body =
         `BSP Access Control System For Approval Notification.</br></br>` +
