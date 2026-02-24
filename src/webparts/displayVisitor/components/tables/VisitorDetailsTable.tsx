@@ -76,20 +76,44 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
   const columns: any[] = [
     { title: 'Last Name', field: 'Title' },
     { title: 'First Name', field: 'FirstName' },
-    { title: 'Access Card', field: 'AccessCard' },
     {
-      //title: 'Car',
+        title: 'Access Card',
+        render: (rowData: IVisitorDetails) => {
+          const ac: any = rowData.AccessCard;
+
+          if (!ac) return '';
+
+          // If properly expanded
+          if (ac.Title) return ac.Title;
+
+          // If SharePoint returned deferred object
+          if (ac.__deferred) return '';
+
+          return '';
+      }
+    },
+    {
       title: 'With Car?',
       field: 'Car',
-      //render: (rowData: IVisitorDetails) => <span>{rowData.Car ? 'With' : 'Without'}</span>
       render: rowData => <span>{rowData.Car ? 'Yes' : 'No'}</span>
     },
     { title: 'Plate No.', field: 'PlateNo' },
     { title: 'Type of Vehicle', field: 'TypeofVehicle' },
     { title: "Driver's Last Name", field: 'DriverName' },
-    { title: "Driver's First Name", field: 'DriverFirstName' },
-    { title: 'Gate', field: 'GateNo' },
-    { title: 'ID Presented', field: 'IDPresented' },
+    {
+      title: 'ID Presented',
+      render: (rowData: any) => {
+        const idp = rowData.IDPresented;
+
+        if (!idp) return '';
+
+        if (typeof idp === 'string') return idp;
+
+        if (idp.Title) return idp.Title;
+
+        return '';
+      }
+    }
   ];
 
 // Add SSD Approve column if user is an SSD user

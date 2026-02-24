@@ -56,6 +56,57 @@ export class SharePointService {
   }
 
   /**
+   * Gets the list of UsersPerDept entries for the given user
+   * Used to determine if the user is an Encoder (exists in UsersPerDept)
+   */
+  public async getUsersPerDept(userId: number): Promise<any[]> {
+    return await sp.web.lists
+      .getByTitle("UsersPerDept")
+      .items.select("*,Name/Title,Dept/Title")
+      .expand("Name,Dept")
+      .top(5000)
+      .orderBy("Modified", true)
+      .filter(`NameId eq ${userId}`)
+      .get();
+  }
+
+  /**
+   * Loads AccessPass items and returns a lookup map:
+   * AccessPassId -> { title, buildings[] }
+   */
+  public async getAccessCardOptions(): Promise<{
+    [key: number]: { title: string; buildings: string[] };
+  }> {
+    const items = await sp.web.lists
+      .getByTitle("AccessPass")
+      .items.select("Id", "Title", "Building/Title", "Building/Id")
+      .expand("Building")
+      .top(5000)
+      .get();
+
+    const lookup: { [key: number]: { title: string; buildings: string[] } } = {};
+
+    for (const item of items as any[]) {
+      let buildings: string[] = [];
+
+      if (item.Building && item.Building.results) {
+        for (const b of item.Building.results) {
+          if (b && b.Title) buildings.push(b.Title);
+        }
+      } else if (item.Building && item.Building.Title) {
+        buildings = [item.Building.Title];
+      }
+
+      lookup[item.Id] = {
+        title: item.Title,
+        buildings,
+      };
+    }
+
+    return lookup;
+  }
+
+  /**
    * Gets a visitor by ID
    * @param id Visitor ID
    * @returns Visitor information
@@ -74,7 +125,6 @@ export class SharePointService {
     if (visitors.length > 0) {
       const visitor = visitors[0];
 
-      // Get files
       const visitorsLib = await sp.web
         .getFolderByServerRelativeUrl(this.siteRelativeUrl + "/VisitorsLib/" + id)
         .files.select("*")
@@ -102,7 +152,24 @@ export class SharePointService {
   public async getVisitorDetailsByParentId(parentId: number): Promise<any[]> {
     const visitorDetails = await sp.web.lists
       .getByTitle("VisitorDetails")
-      .items.select("*,SSDApprove,ParkingRequest")
+      .items
+      .select(
+        "ID",
+        "Title",
+        "FirstName",
+        "Car",
+        "PlateNo",
+        "TypeofVehicle",
+        "Color",
+        "DriverName",
+        "ParentId",
+        "SSDApprove",
+        "ParkingRequest",
+        "AccessCard/Id",
+        "AccessCard/Title",
+        "IDPresented"
+      )
+      .expand("AccessCard")
       .top(5000)
       .filter(`ParentId eq ${parentId}`)
       .get();
@@ -123,11 +190,7 @@ export class SharePointService {
         row.initFiles = files;
         row.origFiles = visitorDetailsLib;
 
-        // SSD Approve: boolean -> 'Yes' | 'No'
         row.SSDApprove = row.SSDApprove === true ? "Yes" : "No";
-
-        // Parking Request: boolean -> 'Yes' | 'No'
-        // If the field is missing or null, default to 'No'
         row.ParkingRequest = row.ParkingRequest === true ? "Yes" : "No";
       })
     );
@@ -213,7 +276,6 @@ export class SharePointService {
       .filter(`DeptId eq ${deptId}`)
       .get();
 
-    // Filter out current user
     return approvers.filter((item) => item.NameId !== currentUserId);
   }
 
@@ -249,9 +311,9 @@ export class SharePointService {
   public async getGroupUsersByName(groupLoginName: string): Promise<any[]> {
     const siteGroups = await sp.web.siteGroups();
     const g = siteGroups.find((x) => x.LoginName === groupLoginName);
-      if (!g) return [];
-        return await sp.web.siteGroups.getById(g.Id).users();
-   }
+    if (!g) return [];
+    return await sp.web.siteGroups.getById(g.Id).users();
+  }
 
   /**
    * Gets the list of gates
@@ -295,10 +357,7 @@ export class SharePointService {
    * @param deptName Department name to filter by
    * @returns Array of matching employees
    */
-  public async getEmployeesByName(
-    name: string,
-    deptName: string
-  ): Promise<any[]> {
+  public async getEmployeesByName(name: string, deptName: string): Promise<any[]> {
     if (name.length > 2) {
       return await sp.web.lists
         .getByTitle("Employees")
@@ -378,10 +437,6 @@ export class SharePointService {
 
   /**
    * Saves a visitor
-   * @param visitor Visitor data
-   * @param action Action being performed (submit, savedraft, approve, deny)
-   * @param currentUser Current user
-   * @returns Updated visitor data
    */
   public async saveVisitor(
     visitor: IVisitor,
@@ -398,12 +453,9 @@ export class SharePointService {
     let receptionistId = visitor.ReceptionistId;
     let refNo = visitor.Title;
 
-    // Update status and dates based on action
     if (action === "submit") {
       const buildings = await this.getBuildings();
-      const bldgFiltered = buildings.filter(
-        (item) => item.Title === visitor.Bldg
-      );
+      const bldgFiltered = buildings.filter((item) => item.Title === visitor.Bldg);
       refNo = await this.createRequestNo(bldgFiltered[0].LocationCode);
       requestDate = new Date();
       statusId = 2;
@@ -417,10 +469,7 @@ export class SharePointService {
       if (visitor.StatusId === 2 && visitor.ExternalType === "Pre-arranged") {
         statusId = 3;
         deptApproveDate = new Date();
-      } else if (
-        visitor.StatusId === 2 &&
-        visitor.ExternalType === "Walk-in"
-      ) {
+      } else if (visitor.StatusId === 2 && visitor.ExternalType === "Walk-in") {
         statusId = 9;
         deptApproveDate = new Date();
       } else if (visitor.StatusId === 3) {
@@ -431,26 +480,19 @@ export class SharePointService {
     } else if (action === "deny") {
       if (visitor.StatusId === 2 && visitor.ExternalType === "Pre-arranged") {
         statusId = 6;
-      } else if (
-        visitor.StatusId === 2 &&
-        visitor.ExternalType === "Walk-in"
-      ) {
+      } else if (visitor.StatusId === 2 && visitor.ExternalType === "Walk-in") {
         statusId = 8;
       } else if (visitor.StatusId === 3) {
         statusId = 7;
       }
     }
 
-    // Get contact name
     let contactName = "";
     if (visitor.EmpNo) {
       const contacts = await this.getEmployeeByEmpNo(visitor.EmpNo);
-      if (contacts.length > 0) {
-        contactName = contacts[0].Name;
-      }
+      if (contacts.length > 0) contactName = contacts[0].Name;
     }
 
-    // Update visitor
     await list.items.getById(visitor.ID).update({
       Title: refNo,
       ContactName: contactName,
@@ -477,17 +519,12 @@ export class SharePointService {
       Remarks2: visitor.Remarks2,
       SSDApproverId: ssdApproverId,
       SSDDate: ssdDate ? toISOString(ssdDate) : null,
-      DeptApproverDate: deptApproveDate
-        ? toISOString(deptApproveDate)
-        : null,
-      MarkCompleteDate: markCompleteDate
-        ? toISOString(markCompleteDate)
-        : null,
+      DeptApproverDate: deptApproveDate ? toISOString(deptApproveDate) : null,
+      MarkCompleteDate: markCompleteDate ? toISOString(markCompleteDate) : null,
       ReceptionistId: receptionistId,
       PurposeOthers: visitor.PurposeOthers,
     });
 
-    // Return updated visitor with new status and refNo
     return {
       ...visitor,
       Title: refNo,
@@ -503,10 +540,6 @@ export class SharePointService {
 
   /**
    * Uploads files for a visitor
-   * @param visitorId Visitor ID
-   * @param files Files to upload
-   * @param origFiles Original files
-   * @param deleteFiles Files to delete
    */
   public async uploadVisitorFiles(
     visitorId: number,
@@ -516,34 +549,26 @@ export class SharePointService {
   ): Promise<void> {
     const folderPath = this.siteRelativeUrl + "/VisitorsLib/" + visitorId;
 
-    // Upload new files
     await Promise.all(
       files.map(async (file) => {
         const filtered = origFiles.filter((f) => f.Name === file.name);
         if (filtered.length === 0) {
           if (file.size <= 10485760) {
-            // Small upload
-            await sp.web
-              .getFolderByServerRelativeUrl(folderPath)
-              .files.add(file.name, file, true);
+            await sp.web.getFolderByServerRelativeUrl(folderPath).files.add(file.name, file, true);
           } else {
-            // Large upload
-            await sp.web
-              .getFolderByServerRelativeUrl(folderPath)
-              .files.addChunked(
-                file.name,
-                file,
-                (data) => {
-                  console.log({ data });
-                },
-                true
-              );
+            await sp.web.getFolderByServerRelativeUrl(folderPath).files.addChunked(
+              file.name,
+              file,
+              (data) => {
+                console.log({ data });
+              },
+              true
+            );
           }
         }
       })
     );
 
-    // Delete files
     await Promise.all(
       deleteFiles.map(async (file) => {
         const fullPath = folderPath + "/" + file.Name;
@@ -554,16 +579,6 @@ export class SharePointService {
 
   /**
    * Saves visitor details
-   * @param visitorDetails Visitor details to save
-   * @param parentId Parent visitor ID
-   * @param refNo Reference number
-   * @param deptId Department ID
-   * @param dateTimeVisit Visit date
-   * @param dateTimeArrival Arrival date
-   * @param companyName Company name
-   * @param statusId Status ID
-   * @param requestDate Request date
-   * @returns Saved visitor details
    */
   public async saveVisitorDetails(
     visitorDetails: IVisitorDetails,
@@ -577,24 +592,20 @@ export class SharePointService {
     requestDate: Date
   ): Promise<IVisitorDetails> {
     if (visitorDetails.ID) {
-      // Update existing visitor details
-      console.log("visitorDetails", visitorDetails);
       await sp.web.lists
         .getByTitle("VisitorDetails")
         .items.getById(visitorDetails.ID)
         .update({
-          // ParentId: parentId,
           Title: visitorDetails.Title,
           FirstName: visitorDetails.FirstName,
           Car: visitorDetails.Car,
           Color: visitorDetails.Color,
           DriverName: visitorDetails.DriverName,
-          //DriverFirstName: visitorDetails.DriverFirstName,
           TypeofVehicle: visitorDetails.TypeofVehicle,
           PlateNo: visitorDetails.PlateNo,
-          GateNo: visitorDetails.GateNo,
           IDPresented: visitorDetails.IDPresented,
-          AccessCard: visitorDetails.AccessCard,
+          //AccessCard: visitorDetails.AccessCard,
+          AccessCardId: visitorDetails.AccessCardId ? Number(visitorDetails.AccessCardId) : null,
           RequestDate: toISOString(requestDate),
           DeptId: deptId,
           RefNo: refNo,
@@ -603,13 +614,11 @@ export class SharePointService {
           CompanyName: companyName,
           StatusId: statusId,
           SSDApprove: visitorDetails.SSDApprove === "Yes" ? true : false,
-          ParkingRequest:
-            visitorDetails.ParkingRequest === "Yes" ? true : false,
+          ParkingRequest: visitorDetails.ParkingRequest === "Yes" ? true : false,
         });
 
       return visitorDetails;
     } else {
-      // Create new visitor details
       const result: IItemAddResult = await sp.web.lists
         .getByTitle("VisitorDetails")
         .items.add({
@@ -619,12 +628,11 @@ export class SharePointService {
           Car: visitorDetails.Car,
           Color: visitorDetails.Color,
           DriverName: visitorDetails.DriverName,
-          //DriverFirstName: visitorDetails.DriverFirstName,
           TypeofVehicle: visitorDetails.TypeofVehicle,
           PlateNo: visitorDetails.PlateNo,
-          GateNo: visitorDetails.GateNo,
           IDPresented: visitorDetails.IDPresented,
-          AccessCard: visitorDetails.AccessCard,
+          //AccessCard: visitorDetails.AccessCard,
+          AccessCardId: visitorDetails.AccessCardId ? Number(visitorDetails.AccessCardId) : null,
           RequestDate: toISOString(requestDate),
           DeptId: deptId,
           RefNo: refNo,
@@ -633,11 +641,9 @@ export class SharePointService {
           CompanyName: companyName,
           StatusId: statusId,
           SSDApprove: visitorDetails.SSDApprove === "Yes" ? true : false,
-          ParkingRequest:
-            visitorDetails.ParkingRequest === "Yes" ? true : false,
+          ParkingRequest: visitorDetails.ParkingRequest === "Yes" ? true : false,
         });
 
-      // Create folder for files
       await sp.web.lists
         .getByTitle("VisitorDetailsLib")
         .rootFolder.folders.add(result.data.ID.toString());
@@ -652,40 +658,29 @@ export class SharePointService {
 
   /**
    * Uploads files for visitor details
-   * @param visitorDetailsId Visitor details ID
-   * @param files Files to upload
-   * @param origFiles Original files
    */
   public async uploadVisitorDetailsFiles(
     visitorDetailsId: number,
     files: any[],
     origFiles: any[]
   ): Promise<void> {
-    const folderPath =
-      this.siteRelativeUrl + "/VisitorDetailsLib/" + visitorDetailsId;
+    const folderPath = this.siteRelativeUrl + "/VisitorDetailsLib/" + visitorDetailsId;
 
-    // Upload new files
     await Promise.all(
       files.map(async (file) => {
         const filtered = origFiles.filter((f) => f.Name === file.name);
         if (filtered.length === 0) {
           if (file.size <= 10485760) {
-            // Small upload
-            await sp.web
-              .getFolderByServerRelativeUrl(folderPath)
-              .files.add(file.name, file, true);
+            await sp.web.getFolderByServerRelativeUrl(folderPath).files.add(file.name, file, true);
           } else {
-            // Large upload
-            await sp.web
-              .getFolderByServerRelativeUrl(folderPath)
-              .files.addChunked(
-                file.name,
-                file,
-                (data) => {
-                  console.log({ data });
-                },
-                true
-              );
+            await sp.web.getFolderByServerRelativeUrl(folderPath).files.addChunked(
+              file.name,
+              file,
+              (data) => {
+                console.log({ data });
+              },
+              true
+            );
           }
         }
       })
@@ -694,7 +689,6 @@ export class SharePointService {
 
   /**
    * Deletes visitor details files
-   * @param deleteFiles Files to delete
    */
   public async deleteVisitorDetailsFiles(
     deleteFiles: { Id: number; Filename: string }[]
@@ -714,7 +708,6 @@ export class SharePointService {
 
   /**
    * Deletes visitor details
-   * @param id Visitor details ID
    */
   public async deleteVisitorDetails(id: number): Promise<void> {
     await sp.web.lists.getByTitle("VisitorDetails").items.getById(id).delete();

@@ -166,7 +166,7 @@ const PrintIDDialog: React.FC<IPrintIDDialogProps> = (props) => {
                             )}
                           </td>
                           <td style={{ fontSize: '8px', whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
-                            {`${visitorDetails.GateNo}\n${visitor.Title}\nValidity:\n${formatDate(visitor.DateTimeVisit)}-\n${formatDate(visitor.DateTimeArrival)}`}
+                            {`${visitor.Title}\nValidity:\n${formatDate(visitor.DateTimeVisit)}-\n${formatDate(visitor.DateTimeArrival)}`}
                           </td>
                         </tr>
                       </tbody>

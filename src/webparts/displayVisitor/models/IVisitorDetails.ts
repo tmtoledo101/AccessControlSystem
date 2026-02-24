@@ -6,18 +6,27 @@ export interface IVisitorDetails {
   Title: string;
   FirstName: string;
   Car: boolean;
-  AccessCard: string;
+
+  // Lookup object from SharePoint (after expand)
+  AccessCard?: {
+    Id: number;
+    Title: string;
+  };
+
+  // NEW lookup ID (this is what we save)
+  AccessCardId?: number;
+
   PlateNo: string;
   TypeofVehicle: string;
   Color: string;
   DriverName: string;
-  //DriverFirstName: string;
   IDPresented: string;
-  GateNo: string;
   ParentId: number;
+
   Files: any[];
   initFiles: any[];
   origFiles: any[];
+
   SSDApprove?: string; // Yes/No value for SSD approval
   ParkingRequest?: string; // Yes/No value for Parking Request
 }
@@ -29,13 +38,13 @@ export interface IVisitorDetailsError {
   Title: string;
   FirstName: string;
   Car: string;
-  AccessCard: string;
+
+  // Change error field to match lookup
+  AccessCardId?: string;
+
   PlateNo: string;
-  //TypeofVehicle: string;
   Color: string;
   DriverName: string;
-  //DriverFirstName: string;
   IDPresented: string;
-  GateNo: string;
   Files: string;
 }

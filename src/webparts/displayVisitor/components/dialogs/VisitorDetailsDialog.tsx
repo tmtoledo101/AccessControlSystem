@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { IVisitorDetails, IVisitorDetailsError } from '../../models/IVisitorDetails';
+import { SharePointService } from '../../services/SharePointService';
 
 import Box from '@material-ui/core/Box';
 import Button from '@material-ui/core/Button';
@@ -63,85 +64,31 @@ const useStyles = makeStyles((theme: Theme) =>
   }),
 );
 
+const RECEPTIONIST_V2_GROUP = "Receptionist_V2";
+
 export interface IVisitorDetailsDialogProps {
-  /**
-   * Whether the dialog is open
-   */
   open: boolean;
-
-  /**
-   * Visitor details data
-   */
   visitorDetails: IVisitorDetails;
-
-  /**
-   * Error details
-   */
   errorDetails: IVisitorDetailsError;
-
-  /**
-   * Whether the form is in edit mode
-   */
   isEdit: boolean;
-
-  /**
-   * List of ID types
-   */
   idList: any[];
-
-  /**
-   * List of gates
-   */
   gateList: any[];
-
-  /**
-   * Whether the current user is a department approver
-   */
   isApproverUser?: boolean;
-
-  /**
-   * Whether the current user is an SSD user
-   */
   isSSDUser?: boolean;
 
-  /**
-   * Callback when the dialog is closed
-   * @param confirmed Whether the user confirmed the action
-   */
+  // ✅ NEW: parent visitor’s building (from Visitors list)
+  parentBldg: string;
+
+  // ✅ service instance from parent
+  spService: SharePointService;
+
   onClose: (confirmed: boolean) => void;
-
-  /**
-   * Callback when a text field is changed
-   * @param e Change event
-   */
   onChangeTxt: (e: React.ChangeEvent<HTMLInputElement>) => void;
-
-  /**
-   * Callback when a select field is changed
-   * @param e Change event
-   */
   onChangeCbo: (e: React.ChangeEvent<{ name?: string; value: any }>) => void;
-
-  /**
-   * Callback when the dropzone is changed
-   * @param files Files
-   */
   onChangeDropZone: (files: any[]) => void;
-
-  /**
-   * Callback when a chip is clicked
-   * @param e Event
-   * @param row Row data
-   * @param ctrl Control name
-   */
   onChipClick: (e: React.MouseEvent, row: any, ctrl: string) => void;
 }
 
-/**
- * Visitor details dialog component
- * @param props Component properties
- * @returns JSX element
- */
 const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
   const {
     open,
@@ -152,6 +99,8 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
     gateList,
     isApproverUser,
     isSSDUser,
+    spService,
+    parentBldg,
     onClose,
     onChangeTxt,
     onChangeCbo,
@@ -160,16 +109,70 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
   } = props;
 
   const classes = useStyles();
-  const [fullWidth, setFullWidth] = React.useState(true);
-  const [maxWidth, setMaxWidth] = React.useState<DialogProps['maxWidth']>('md');
+  const [fullWidth] = React.useState(true);
+  const [maxWidth] = React.useState<DialogProps['maxWidth']>('md');
 
-  /**
-   * Checks if a field should be visible based on user role and form state
-   * @param element Element name
-   * @returns Whether the element should be visible
-   */
+  const [accessCardLookup, setAccessCardLookup] = React.useState<{
+    [key: number]: { title: string; buildings: string[] };
+  }>({});
+
+  const [canEditAccessCard, setCanEditAccessCard] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    let mounted = true;
+
+    const init = async () => {
+      try {
+        const lookup = await spService.getAccessCardOptions();
+        if (mounted) setAccessCardLookup(lookup);
+
+        const groups = await spService.getCurrentUserGroups();
+        const isReceptionistV2 = (groups || []).some((g: any) => {
+          const name = (g && (g.LoginName || g.Title || g.Name))
+            ? String(g.LoginName || g.Title || g.Name)
+            : "";
+          return name === RECEPTIONIST_V2_GROUP;
+        });
+
+        const me = await spService.getCurrentUser();
+        const userPerDept = await spService.getUsersPerDept(me.Id);
+        const isEncoder = Array.isArray(userPerDept) && userPerDept.length > 0;
+
+        if (mounted) setCanEditAccessCard(isReceptionistV2 || isEncoder);
+
+        // quick sanity logs (remove later)
+        console.log("parentBldg:", parentBldg);
+        console.log("accessCardLookup keys:", Object.keys(lookup || {}).length);
+      } catch (e) {
+        console.error("AccessCard init failed:", e);
+        if (mounted) {
+          setCanEditAccessCard(false);
+          setAccessCardLookup({});
+        }
+      }
+    };
+
+    init();
+
+    return () => {
+      mounted = false;
+    };
+  }, [spService, parentBldg]);
+
+  const getSelectedBuildings = (): string[] => {
+    const bldgRaw = String(parentBldg || "");
+    return bldgRaw
+      .split(/[,;/]+/)
+      .map((b) => b.trim().toLowerCase())
+      .filter(Boolean);
+  };
+
+  const isAllBuildings = (selectedBuildings: string[]) => {
+    const joined = selectedBuildings.join(" ");
+    return joined.includes("all building") || joined.includes("all buildings");
+  };
+
   const checkVisibility = (element: string): boolean => {
-    // For approvers and SSD users, we want to show display mode even if isEdit is true
     const isViewOnly = isApproverUser || isSSDUser;
 
     switch (element) {
@@ -183,14 +186,13 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
         return isEdit && !isViewOnly;
       case 'detailsidpresenteddisp':
         return (!isEdit || isViewOnly) && !!visitorDetails.IDPresented;
-      case 'detailsgateedit':
-        return isEdit && !isViewOnly;
-      case 'detailsgatedisp':
-        return (!isEdit || isViewOnly) && !!visitorDetails.GateNo;
+
       case 'detailsaccesscardedit':
-        return isEdit && !isViewOnly;
+        return isEdit && !isViewOnly && canEditAccessCard;
+
       case 'detailsaccesscarddisp':
-        return (!isEdit || isViewOnly) && !!visitorDetails.AccessCard;
+        return (!isEdit || isViewOnly || !canEditAccessCard) && !!(visitorDetails as any).AccessCard;
+
       case 'dropzone2edit':
         return isEdit && !isViewOnly;
       case 'dropzone2disp':
@@ -198,15 +200,6 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
       default:
         return false;
     }
-  };
-
-  /**
-   * Validates the form before submission
-   * @returns Whether the form is valid
-   */
-  const validateOnSubmit = (): boolean => {
-    // This is a simplified validation for the dialog
-    return true;
   };
 
   return (
@@ -383,14 +376,12 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       {checkVisibility('cedit') && (
                         <TextField
                           inputProps={{ maxLength: 255 }}
-                          //error={!!errorDetails.TypeofVehicle}
                           label="Type of Vehicle"
                           name="TypeofVehicle"
                           onChange={onChangeTxt}
                           value={visitorDetails.TypeofVehicle || ""}
                           variant="standard"
                           className={classes.textField}
-                          //helperText={errorDetails.TypeofVehicle}
                         />
                       )}
 
@@ -446,54 +437,45 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
 
               <Grid item xs={12} sm={6}>
                 <Paper variant="outlined" className={classes.paper}>
-                  {checkVisibility('detailsgateedit') && (
-                    <FormControl className={classes.textField} error={!!errorDetails.GateNo}>
-                      <InputLabel id="gateLabel">Gate</InputLabel>
-                      <Select
-                        labelId="gateLabel"
-                        id="gate"
-                        value={visitorDetails.GateNo || ""}
-                        onChange={onChangeCbo as any}
-                        name="GateNo"
-                      >
-                        {gateList.map((item) => (
-                          <MenuItem key={item.Title} value={item.Title}>
-                            {item.Title}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      <FormHelperText>{errorDetails.GateNo}</FormHelperText>
-                    </FormControl>
-                  )}
-
-                  {checkVisibility('detailsgatedisp') && (
-                    <>
-                      <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
-                        Gate
-                      </Box>
-                      <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
-                        {visitorDetails.GateNo}
-                      </Box>
-                    </>
-                  )}
-                </Paper>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <Paper variant="outlined" className={classes.paper}>
                   {checkVisibility('detailsaccesscardedit') && (
-                    <TextField
-                      inputProps={{ maxLength: 255 }}
-                      error={!!errorDetails.AccessCard}
-                      required
-                      label="Access Card No."
-                      name="AccessCard"
-                      onChange={onChangeTxt}
-                      value={visitorDetails.AccessCard || ""}
-                      variant="standard"
-                      className={classes.textField}
-                      helperText={errorDetails.AccessCard}
-                    />
+                    <FormControl className={classes.textField}>
+                      <InputLabel id="accessCardLabel">Access Card</InputLabel>
+                      <Select
+                        labelId="accessCardLabel"
+                        id="AccessCardId"
+                        value={
+                          (visitorDetails as any).AccessCardId !== undefined &&
+                          (visitorDetails as any).AccessCardId !== null
+                            ? (visitorDetails as any).AccessCardId
+                            : ""
+                        }
+                        onChange={onChangeCbo as any}
+                        name="AccessCardId"
+                      >
+                        <MenuItem value="">
+                          -- Select Access Card --
+                        </MenuItem>
+
+                        {(() => {
+                          const selectedBuildings = getSelectedBuildings();
+                          const allowAll = isAllBuildings(selectedBuildings);
+
+                          return Object.entries(accessCardLookup)
+                            .filter(([_, val]) => {
+                              if (allowAll) return true; // ✅ All Buildings => show all cards
+                              if (selectedBuildings.length === 0) return false; // no building => none
+                              return val.buildings.some((accessCardBldg) =>
+                                selectedBuildings.includes(String(accessCardBldg).toLowerCase())
+                              );
+                            })
+                            .map(([id, val]) => (
+                              <MenuItem key={id} value={Number(id)}>
+                                {val.title}
+                              </MenuItem>
+                            ));
+                        })()}
+                      </Select>
+                    </FormControl>
                   )}
 
                   {checkVisibility('detailsaccesscarddisp') && (
@@ -502,14 +484,13 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                         Access Card
                       </Box>
                       <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
-                        {visitorDetails.AccessCard}
+                        {String((visitorDetails as any).AccessCard || "")}
                       </Box>
                     </>
                   )}
                 </Paper>
               </Grid>
 
-              {/* Hide the entire attachment section for SSD users and approvers */}
               {!(isApproverUser || isSSDUser) && (
                 <Grid item xs={12} sm={6}>
                   <Paper variant="outlined" className={classes.paper}>

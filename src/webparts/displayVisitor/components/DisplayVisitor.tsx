@@ -152,14 +152,13 @@ const initialVisitorDetail: IVisitorDetails = {
   Title: "",
   FirstName: "",
   Car: false,
-  AccessCard: "",
+  AccessCard: undefined,          // keep for display safety
+  AccessCardId: undefined,
   PlateNo: "",
   TypeofVehicle: "",
   Color: "",
   DriverName: "",
-  //DriverFirstName: "",
   IDPresented: "",
-  GateNo: "",
   ParentId: null,
   Files: [],
   initFiles: [],
@@ -170,14 +169,11 @@ const initialVisitorDetailError: IVisitorDetailsError = {
   Title: "",
   FirstName: "",
   Car: "",
-  AccessCard: "",
+  AccessCardId: "",
   PlateNo: "",
-  //TypeofVehicle: "",
   Color: "",
   DriverName: "",
-  //DriverFirstName: "",
   IDPresented: "",
-  GateNo: "",
   Files: "",
 };
 
@@ -584,7 +580,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         const row = visitorDetailsList[i];
         const hasFiles =
           (row.Files && row.Files.length > 0) || (row.initFiles && row.initFiles.length > 0);
-        if (!hasFiles || !row.AccessCard || !row.GateNo || !row.IDPresented) {
+        //if (!hasFiles || !row.AccessCard || !row.IDPresented) {
+        if (!hasFiles || !row.AccessCardId || !row.IDPresented) {
           tempErrors.Details = `Please complete Visitor Details of ${
             row.Title || `Visitor ${i + 1}`
           } on row ${i + 1} before saving!`;
@@ -614,7 +611,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       requiredDetailFields.push("Title");
       if (visitorDetails.Car) requiredDetailFields.push("PlateNo", "Color", "DriverName");
     } else if (isReceptionist && (inputFields.StatusId === 4 || inputFields.StatusId === 9)) {
-      requiredDetailFields.push("Title", "AccessCard", "IDPresented", "GateNo");
+      //requiredDetailFields.push("Title", "AccessCard", "IDPresented", "GateNo");
+      requiredDetailFields.push("Title", "AccessCardId", "IDPresented");
       if (visitorDetails.Car) requiredDetailFields.push("PlateNo", "Color", "DriverName");
       if (!visitorDetails.Files || visitorDetails.Files.length === 0) {
         tempErrors.Files = "Please upload a file.";
@@ -1427,6 +1425,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
               gateList={GateList}
               isApproverUser={isApproverUser}
               isSSDUser={isSSDUser}
+              spService={sharePointService}
+              parentBldg={inputFields.Bldg}
               onClose={handleCloseDialogFab}
               onChangeTxt={handleChangeTxtDetails}
               onChangeCbo={handleChangeCboDetails}

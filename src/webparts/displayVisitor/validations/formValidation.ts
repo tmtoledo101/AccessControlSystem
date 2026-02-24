@@ -199,7 +199,7 @@ export function validateForm(
         havefiles = true;
       }
       
-      if ((!havefiles) || (!rowData.AccessCard) || (!rowData.GateNo) || (!rowData.IDPresented)) {
+      if ((!havefiles) || (!rowData.AccessCard) || (!rowData.IDPresented)) {
         validbit.push('Details');
         alert(`Please complete Visitor Details of ${rowData.Title} on row ${i + 1} before saving!`);
         onViewVisitorDetails('view', rowData);
