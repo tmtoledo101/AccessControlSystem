@@ -462,8 +462,8 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
 
                           return Object.entries(accessCardLookup)
                             .filter(([_, val]) => {
-                              if (allowAll) return true; // ✅ All Buildings => show all cards
-                              if (selectedBuildings.length === 0) return false; // no building => none
+                              if (allowAll) return true;
+                              if (selectedBuildings.length === 0) return false;
                               return val.buildings.some((accessCardBldg) =>
                                 selectedBuildings.includes(String(accessCardBldg).toLowerCase())
                               );
@@ -491,8 +491,36 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                 </Paper>
               </Grid>
 
+              {/* ✅ FIXED PLACEMENT: Access Card No. is now inside Grid item + Paper */}
+              <Grid item xs={12} sm={6}>
+                <Paper variant="outlined" className={classes.paper}>
+                  {checkVisibility("cedit") && (
+                    <TextField
+                      inputProps={{ maxLength: 255 }}
+                      label="Access Card No."
+                      name="AccessCardNo"
+                      onChange={onChangeTxt}
+                      value={(visitorDetails as any).AccessCardNo || ""}
+                      variant="standard"
+                      className={classes.textField}
+                    />
+                  )}
+
+                  {checkVisibility("cdisp") && (
+                    <>
+                      <Box component="span" style={{ display: "block", margin: "4px" }} className={classes.labeltop}>
+                        Access Card No.
+                      </Box>
+                      <Box component="span" style={{ display: "block", fontWeight: 500, margin: "4px" }} className={classes.labelbottom}>
+                        {(visitorDetails as any).AccessCardNo || ""}
+                      </Box>
+                    </>
+                  )}
+                </Paper>
+              </Grid>
+
               {!(isApproverUser || isSSDUser) && (
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12}>
                   <Paper variant="outlined" className={classes.paper}>
                     {checkVisibility('dropzone2edit') && (
                       <DropzoneArea

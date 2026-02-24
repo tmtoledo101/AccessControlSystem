@@ -152,8 +152,9 @@ const initialVisitorDetail: IVisitorDetails = {
   Title: "",
   FirstName: "",
   Car: false,
-  AccessCard: undefined,          // keep for display safety
+  AccessCard: undefined,
   AccessCardId: undefined,
+  AccessCardNo: "",
   PlateNo: "",
   TypeofVehicle: "",
   Color: "",

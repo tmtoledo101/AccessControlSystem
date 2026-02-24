@@ -165,6 +165,7 @@ export class SharePointService {
         "ParentId",
         "SSDApprove",
         "ParkingRequest",
+        "AccessCardNo",
         "AccessCard/Id",
         "AccessCard/Title",
         "IDPresented"
@@ -188,7 +189,7 @@ export class SharePointService {
         const acObj = (row as any).AccessCard;
         (row as any).AccessCardId = acObj && acObj.Id ? Number(acObj.Id) : null;
         (row as any).AccessCard = acObj && acObj.Title ? String(acObj.Title) : "";
-        
+
         const files = visitorDetailsLib.map((fileRow) => fileRow.Name);
         row.Files = [];
         row.initFiles = files;
@@ -610,8 +611,8 @@ export class SharePointService {
           TypeofVehicle: visitorDetails.TypeofVehicle,
           PlateNo: visitorDetails.PlateNo,
           IDPresented: visitorDetails.IDPresented,
-          //AccessCard: visitorDetails.AccessCard,
           AccessCardId: visitorDetails.AccessCardId ? Number(visitorDetails.AccessCardId) : null,
+          AccessCardNo: visitorDetails.AccessCardNo || "",
           RequestDate: toISOString(requestDate),
           DeptId: deptId,
           RefNo: refNo,

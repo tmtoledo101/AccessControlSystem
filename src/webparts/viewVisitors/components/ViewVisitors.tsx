@@ -54,7 +54,7 @@ const useStyles = makeStyles((theme: Theme) =>
 );
 
 // Constants
-const Receptionist_Group = 'Receptionist_v2';
+const Receptionist_Group = 'Receptionist_V2';
 const SSD_Group_v2 = 'SSD_v2';
 
 // Status labels
@@ -686,6 +686,36 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
         user = await SharePointService.getCurrentUser();
         const groups = await SharePointService.getCurrentUserGroups();
+
+        console.log("Current User:", user);
+        console.log("Groups raw:", groups);
+
+        console.log(
+          "Groups mapped:",
+          (groups || []).map(function (g: any) {
+            return {
+              Title: g && g.Title ? g.Title : "",
+              LoginName: g && g.LoginName ? g.LoginName : "",
+              Id: g && g.Id ? g.Id : "",
+            };
+          })
+        );
+
+        console.log(
+          "Has Receptionist_v2 via Title?",
+          (groups || []).some(function (g: any) {
+            var t = (g && g.Title ? String(g.Title) : "").toLowerCase();
+            return t === "receptionist_v2";
+          })
+        );
+
+        console.log(
+          "Has Receptionist_v2 via LoginName?",
+          (groups || []).some(function (g: any) {
+            var ln = (g && g.LoginName ? String(g.LoginName) : "").toLowerCase();
+            return ln.indexOf("receptionist_v2") >= 0;
+          })
+        );
 
         usersPerDept = await SharePointService.getUsersPerDept(user.Id);
         approversPerDept = await SharePointService.getApprovers(user.Id);
