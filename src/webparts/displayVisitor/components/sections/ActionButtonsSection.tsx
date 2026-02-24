@@ -130,28 +130,29 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
     <Grid container justify="flex-end">
       {isEdit && (
         <ButtonGroup>
+          {/* ✅ FIX: Remove Fragment inside ButtonGroup */}
           {checkVisibility('addmain1') && (
-            <>
-              <Button
-                className={classes.paperbutton}
-                startIcon={<CancelIcon />}
-                variant="contained"
-                color="secondary"
-                onClick={onCancel}
-              >
-                Close
-              </Button>
-              <Button
-                name="savedraft"
-                className={classes.paperbutton}
-                startIcon={<SaveIcon />}
-                variant="contained"
-                color="default"
-                onClick={(e) => onSubmit(e, 'savedraft')}
-              >
-                Save
-              </Button>
-            </>
+            <Button
+              className={classes.paperbutton}
+              startIcon={<CancelIcon />}
+              variant="contained"
+              color="secondary"
+              onClick={onCancel}
+            >
+              Close
+            </Button>
+          )}
+          {checkVisibility('addmain1') && (
+            <Button
+              name="savedraft"
+              className={classes.paperbutton}
+              startIcon={<SaveIcon />}
+              variant="contained"
+              color="default"
+              onClick={(e) => onSubmit(e, 'savedraft')}
+            >
+              Save
+            </Button>
           )}
 
           {checkVisibility('addmain2') && (
@@ -185,7 +186,6 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
       {/* Buttons for Approver Users */}
       {checkVisibility('approverActions') && (
         <ButtonGroup>
-
           <Button
             name="deny"
             className={classes.paperbutton}

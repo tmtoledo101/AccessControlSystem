@@ -68,66 +68,66 @@ export interface IVisitorDetailsDialogProps {
    * Whether the dialog is open
    */
   open: boolean;
-  
+
   /**
    * Visitor details data
    */
   visitorDetails: IVisitorDetails;
-  
+
   /**
    * Error details
    */
   errorDetails: IVisitorDetailsError;
-  
+
   /**
    * Whether the form is in edit mode
    */
   isEdit: boolean;
-  
+
   /**
    * List of ID types
    */
   idList: any[];
-  
+
   /**
    * List of gates
    */
   gateList: any[];
-  
+
   /**
    * Whether the current user is a department approver
    */
   isApproverUser?: boolean;
-  
+
   /**
    * Whether the current user is an SSD user
    */
   isSSDUser?: boolean;
-  
+
   /**
    * Callback when the dialog is closed
    * @param confirmed Whether the user confirmed the action
    */
   onClose: (confirmed: boolean) => void;
-  
+
   /**
    * Callback when a text field is changed
    * @param e Change event
    */
   onChangeTxt: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  
+
   /**
    * Callback when a select field is changed
    * @param e Change event
    */
   onChangeCbo: (e: React.ChangeEvent<{ name?: string; value: any }>) => void;
-  
+
   /**
    * Callback when the dropzone is changed
    * @param files Files
    */
   onChangeDropZone: (files: any[]) => void;
-  
+
   /**
    * Callback when a chip is clicked
    * @param e Event
@@ -158,11 +158,11 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
     onChangeDropZone,
     onChipClick
   } = props;
-  
+
   const classes = useStyles();
   const [fullWidth, setFullWidth] = React.useState(true);
   const [maxWidth, setMaxWidth] = React.useState<DialogProps['maxWidth']>('md');
-  
+
   /**
    * Checks if a field should be visible based on user role and form state
    * @param element Element name
@@ -171,7 +171,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
   const checkVisibility = (element: string): boolean => {
     // For approvers and SSD users, we want to show display mode even if isEdit is true
     const isViewOnly = isApproverUser || isSSDUser;
-    
+
     switch (element) {
       case 'cedit':
         return isEdit && !isViewOnly;
@@ -199,7 +199,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
         return false;
     }
   };
-  
+
   /**
    * Validates the form before submission
    * @returns Whether the form is valid
@@ -208,7 +208,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
     // This is a simplified validation for the dialog
     return true;
   };
-  
+
   return (
     <Dialog
       fullWidth={fullWidth}
@@ -232,7 +232,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       label="Visitor's Last Name"
                       name="Title"
                       onChange={onChangeTxt}
-                      value={visitorDetails.Title}
+                      value={visitorDetails.Title || ""}
                       variant="standard"
                       className={classes.textField}
                       helperText={errorDetails.Title}
@@ -247,13 +247,13 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       label="Visitor's First Name"
                       name="FirstName"
                       onChange={onChangeTxt}
-                      value={visitorDetails.FirstName}
+                      value={visitorDetails.FirstName || ""}
                       variant="standard"
                       className={classes.textField}
                       helperText={errorDetails.FirstName}
                     />
                   )}
-                  
+
                   {checkVisibility('cdisp') && (
                     <>
                       <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
@@ -266,14 +266,14 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                   )}
                 </Paper>
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <Paper variant="outlined" className={classes.paper}>
                   <div className={classes.datelabel}>
                     <FormControlLabel
                       control={
                         <Checkbox
-                          checked={visitorDetails.Car}
+                          checked={!!visitorDetails.Car}
                           onChange={onChangeTxt}
                           name="Car"
                           color="primary"
@@ -285,7 +285,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                   </div>
                 </Paper>
               </Grid>
-              
+
               {visitorDetails.Car && (
                 <>
                   <Grid item xs={12} sm={6}>
@@ -298,13 +298,13 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                           label="Color"
                           name="Color"
                           onChange={onChangeTxt}
-                          value={visitorDetails.Color}
+                          value={visitorDetails.Color || ""}
                           variant="standard"
                           className={classes.textField}
                           helperText={errorDetails.Color}
                         />
                       )}
-                      
+
                       {checkVisibility('cdisp') && (
                         <>
                           <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
@@ -317,7 +317,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       )}
                     </Paper>
                   </Grid>
-                  
+
                   <Grid item xs={12} sm={6}>
                     <Paper variant="outlined" className={classes.paper}>
                       {checkVisibility('cedit') && (
@@ -328,13 +328,13 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                           label="Plate No."
                           name="PlateNo"
                           onChange={onChangeTxt}
-                          value={visitorDetails.PlateNo}
+                          value={visitorDetails.PlateNo || ""}
                           variant="standard"
                           className={classes.textField}
                           helperText={errorDetails.PlateNo}
                         />
                       )}
-                      
+
                       {checkVisibility('cdisp') && (
                         <>
                           <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
@@ -347,7 +347,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       )}
                     </Paper>
                   </Grid>
-                  
+
                   <Grid item xs={12} sm={6}>
                     <Paper variant="outlined" className={classes.paper}>
                       {checkVisibility('cedit') && (
@@ -358,28 +358,13 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                           label="Driver's Name"
                           name="DriverName"
                           onChange={onChangeTxt}
-                          value={visitorDetails.DriverName}
+                          value={visitorDetails.DriverName || ""}
                           variant="standard"
                           className={classes.textField}
                           helperText={errorDetails.DriverName}
                         />
                       )}
 
-                      {/* {checkVisibility('cedit') && (
-                        <TextField
-                          inputProps={{ maxLength: 255 }}
-                          error={!!errorDetails.DriverFirstName}
-                          required
-                          label="Driver's First Name"
-                          name="DriverFirstName"
-                          onChange={onChangeTxt}
-                          value={visitorDetails.DriverFirstName}
-                          variant="standard"
-                          className={classes.textField}
-                          helperText={errorDetails.DriverFirstName}
-                        />
-                      )} */}
-                      
                       {checkVisibility('cdisp') && (
                         <>
                           <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
@@ -392,7 +377,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       )}
                     </Paper>
                   </Grid>
-                  
+
                   <Grid item xs={12} sm={6}>
                     <Paper variant="outlined" className={classes.paper}>
                       {checkVisibility('cedit') && (
@@ -402,13 +387,13 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                           label="Type of Vehicle"
                           name="TypeofVehicle"
                           onChange={onChangeTxt}
-                          value={visitorDetails.TypeofVehicle}
+                          value={visitorDetails.TypeofVehicle || ""}
                           variant="standard"
                           className={classes.textField}
                           //helperText={errorDetails.TypeofVehicle}
                         />
                       )}
-                      
+
                       {checkVisibility('cdisp') && (
                         <>
                           <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
@@ -423,7 +408,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                   </Grid>
                 </>
               )}
-              
+
               <Grid item xs={12} sm={6}>
                 <Paper variant="outlined" className={classes.paper}>
                   {checkVisibility('detailsidpresentededit') && (
@@ -432,9 +417,9 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       <Select
                         labelId="idPresentedLabel"
                         id="idPresented"
-                        value={visitorDetails.IDPresented}
-                        onChange={onChangeCbo}
-                        name='IDPresented'
+                        value={visitorDetails.IDPresented || ""}
+                        onChange={onChangeCbo as any}
+                        name="IDPresented"
                       >
                         {idList.map((item) => (
                           <MenuItem key={item.Title} value={item.Title}>
@@ -445,7 +430,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       <FormHelperText>{errorDetails.IDPresented}</FormHelperText>
                     </FormControl>
                   )}
-                  
+
                   {checkVisibility('detailsidpresenteddisp') && (
                     <>
                       <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
@@ -458,7 +443,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                   )}
                 </Paper>
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <Paper variant="outlined" className={classes.paper}>
                   {checkVisibility('detailsgateedit') && (
@@ -467,9 +452,9 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       <Select
                         labelId="gateLabel"
                         id="gate"
-                        value={visitorDetails.GateNo}
-                        onChange={onChangeCbo}
-                        name='GateNo'
+                        value={visitorDetails.GateNo || ""}
+                        onChange={onChangeCbo as any}
+                        name="GateNo"
                       >
                         {gateList.map((item) => (
                           <MenuItem key={item.Title} value={item.Title}>
@@ -480,7 +465,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       <FormHelperText>{errorDetails.GateNo}</FormHelperText>
                     </FormControl>
                   )}
-                  
+
                   {checkVisibility('detailsgatedisp') && (
                     <>
                       <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
@@ -493,7 +478,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                   )}
                 </Paper>
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <Paper variant="outlined" className={classes.paper}>
                   {checkVisibility('detailsaccesscardedit') && (
@@ -504,13 +489,13 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       label="Access Card No."
                       name="AccessCard"
                       onChange={onChangeTxt}
-                      value={visitorDetails.AccessCard}
+                      value={visitorDetails.AccessCard || ""}
                       variant="standard"
                       className={classes.textField}
                       helperText={errorDetails.AccessCard}
                     />
                   )}
-                  
+
                   {checkVisibility('detailsaccesscarddisp') && (
                     <>
                       <Box component="span" style={{ display: 'block', margin: '4px' }} className={classes.labeltop}>
@@ -523,7 +508,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                   )}
                 </Paper>
               </Grid>
-              
+
               {/* Hide the entire attachment section for SSD users and approvers */}
               {!(isApproverUser || isSSDUser) && (
                 <Grid item xs={12} sm={6}>
@@ -542,13 +527,13 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                         previewChipProps={{ classes: { root: classes.previewChip } }}
                         previewText="Selected files"
                         dropzoneText="Add a picture"
-                        initialFiles={visitorDetails.initFiles}
+                        initialFiles={visitorDetails.initFiles || []}
                       />
                     )}
-                    
+
                     {checkVisibility('dropzone2disp') && (
                       <div className={classes.rootChip}>
-                        {visitorDetails.initFiles.map((row) => (
+                        {(visitorDetails.initFiles || []).map((row) => (
                           <Chip
                             key={row}
                             icon={<AttachFileIcon />}
@@ -559,7 +544,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                         ))}
                       </div>
                     )}
-                    
+
                     <FormControl error>
                       <FormHelperText>{errorDetails.Files}</FormHelperText>
                     </FormControl>
@@ -570,7 +555,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
           </div>
         </form>
       </DialogContent>
-      
+
       <DialogActions>
         <Button onClick={() => onClose(false)} color="default">
           Cancel

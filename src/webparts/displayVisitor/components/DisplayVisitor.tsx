@@ -328,16 +328,20 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     [visitorIsEditMode, setEditMode] = useState(false),
     [currentUser, setCurrentUser] = useState<any>(null);
 
-  let _idx = -1,
-    _deptName = "",
-    _itemId = 0,
-    _itemIdDetails = 0,
-    _sourceURL: string | null = null,
-    _refno = "",
-    _colorValue = "Green";
-  let deleteFiles: any[] = [];
-  let deleteFilesDetails: any[] = [];
-  let _origVisitorDetailsList: IVisitorDetails[] = [];
+  /**
+   * FIX: These were previously `let` locals, which reset on every re-render.
+   * That breaks dialog edits because `_idx` becomes -1 again by the time OK is clicked.
+   */
+  const idxRef = useRef<number>(-1);
+  const deptNameRef = useRef<string>("");
+  const itemIdRef = useRef<number>(0);
+  const itemIdDetailsRef = useRef<number>(0);
+  const sourceUrlRef = useRef<string | null>(null);
+  const refNoRef = useRef<string>("");
+  const colorValueRef = useRef<string>("Green");
+  const deleteFilesRef = useRef<any[]>([]);
+  const deleteFilesDetailsRef = useRef<any[]>([]);
+  const origVisitorDetailsListRef = useRef<IVisitorDetails[]>([]);
 
   // Visitor count panel
   const countPanelRef = useRef<HTMLDivElement>(null);
@@ -509,7 +513,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
   const validateInputsDetails = (name: string, value: any) => {
     const tempErrors = { ...errorDetails };
-    tempErrors[name] = isEmptyString(value) ? "This is a required input field" : "";
+    (tempErrors as any)[name] = isEmptyString(value) ? "This is a required input field" : "";
     setErrorDetails(tempErrors);
   };
 
@@ -686,7 +690,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const save = async () => {
     try {
       setProgress(true);
-      const origVisitor = await sharePointService.getVisitorById(_itemId);
+
+      const origVisitor = await sharePointService.getVisitorById(itemIdRef.current);
       if (origVisitor && origVisitor.Modified !== modifiedDate) {
         alert(
           "Record has been changed by another user! Please refresh the page to see the latest updates."
@@ -696,19 +701,19 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       }
 
       const updatedVisitor = await sharePointService.saveVisitor(inputFields, sAction, currentUser);
-      _refno = updatedVisitor.Title;
+      refNoRef.current = updatedVisitor.Title;
 
       await fileService.uploadVisitorFiles(
-        _itemId,
+        itemIdRef.current,
         inputFields.Files,
         inputFields.origFiles,
-        deleteFiles
+        deleteFilesRef.current
       );
 
       await sendEmail(updatedVisitor);
 
       for (const visitorDetail of visitorDetailsList) {
-        const detailToSave = { ...visitorDetail, ParentId: _itemId };
+        const detailToSave = { ...visitorDetail, ParentId: itemIdRef.current };
         let detailStatusId = updatedVisitor.StatusId;
 
         if (isSSDUser && (visitorDetail as any).SSDApprove !== undefined) {
@@ -719,8 +724,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
         const savedDetail = await sharePointService.saveVisitorDetails(
           detailToSave,
-          _itemId,
-          _refno,
+          itemIdRef.current,
+          refNoRef.current,
           inputFields.DeptId,
           inputFields.DateTimeVisit,
           inputFields.DateTimeArrival,
@@ -740,9 +745,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         }
       }
 
-      await fileService.deleteVisitorDetailsFiles(deleteFilesDetails);
+      await fileService.deleteVisitorDetailsFiles(deleteFilesDetailsRef.current);
 
-      for (const origDetail of _origVisitorDetailsList) {
+      for (const origDetail of origVisitorDetailsListRef.current) {
         const exists = visitorDetailsList.some((d) => d.ID === origDetail.ID);
         if (!exists && origDetail.ID) {
           await sharePointService.deleteVisitorDetails(origDetail.ID);
@@ -753,7 +758,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
       setTimeout(() => {
         let url = props.siteUrl;
-        if (_sourceURL) url = _sourceURL;
+        if (sourceUrlRef.current) url = sourceUrlRef.current;
         if ((inputFields.StatusId === 4 || inputFields.StatusId === 9) && isReceptionist) {
           url = window.location.href;
         }
@@ -778,29 +783,34 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     ) {
       save();
     } else if (msg.includes("discard")) {
-      const url = _sourceURL || props.siteUrl;
+      const url = sourceUrlRef.current || props.siteUrl;
       window.open(url, "_self");
     }
   };
 
   const handleCloseDialogIDFab = () => setOpenDialogIDFab(false);
 
+  // FIX: Persist dialog edits to visitorDetailsList by keeping row index in a ref across re-renders
   const handleCloseDialogFab = (confirmed: boolean) => {
     const isViewOnly = isApproverUser || isSSDUser;
-    if (confirmed && visitorIsEditMode && !isViewOnly) {
+
+    if (confirmed && !isViewOnly) {
       if (!validateOnSubmitDetails()) return;
-      const detailToSave = { ...visitorDetails, ParentId: _itemId };
+
+      const detailToSave = { ...visitorDetails, ParentId: itemIdRef.current };
+
       if (visitorDetailsMode === "add") {
         setVisitorDetailsList((prev) => [...prev, detailToSave]);
         setError((prev) => ({ ...prev, Details: "" }));
       } else {
         const updated = [...visitorDetailsList];
-        if (_idx !== -1) {
-          updated[_idx] = detailToSave;
+        if (idxRef.current !== -1) {
+          updated[idxRef.current] = detailToSave;
           setVisitorDetailsList(updated);
         }
       }
     }
+
     setOpenDialogFab(false);
   };
 
@@ -812,9 +822,10 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         const ctx = (props as any).context;
         if (ctx) sp.setup({ spfxContext: ctx });
 
-        _sourceURL = document.referrer;
-        //_itemId = parseInt(getUrlParameter("pid"));
-        _itemId = 129;
+        sourceUrlRef.current = document.referrer;
+
+        // _itemId = parseInt(getUrlParameter("pid"));
+        itemIdRef.current = 129;
 
         const user = await sharePointService.getCurrentUser();
         setCurrentUser(user);
@@ -839,7 +850,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           }
         }
 
-        const visitor = await sharePointService.getVisitorById(_itemId);
+        const visitor = await sharePointService.getVisitorById(itemIdRef.current);
         if (!visitor) {
           setProgress(false);
           return;
@@ -890,7 +901,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         }
 
         if (isUser) {
-          _deptName = visitor.Dept.Title;
+          deptNameRef.current = visitor.Dept.Title;
 
           const purpose = await sharePointService.getPurposes();
           setPurpose(purpose);
@@ -910,7 +921,10 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             // Fallback placeholder so Select can render the current value and not go blank/out-of-range
             allDeptsWithCurrent = [
               ...allDepts,
-              { Id: currentDeptId, Title: (visitor.Dept && visitor.Dept.Title) || "Current Department" },
+              {
+                Id: currentDeptId,
+                Title: (visitor.Dept && visitor.Dept.Title) || "Current Department",
+              },
             ];
           }
 
@@ -948,8 +962,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
           setSSD([]);
 
-          const visitordetails = await sharePointService.getVisitorDetailsByParentId(_itemId);
-          _origVisitorDetailsList = visitordetails;
+          const visitordetails = await sharePointService.getVisitorDetailsByParentId(itemIdRef.current);
+          origVisitorDetailsListRef.current = visitordetails;
           setVisitorDetailsList(visitordetails);
 
           const gates = await sharePointService.getGates();
@@ -999,7 +1013,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       nextValue = deptIdNum;
 
       const deptfiltered = deptList.filter((d) => Number(d.Id) === deptIdNum);
-      if (deptfiltered.length > 0) _deptName = deptfiltered[0].Title;
+      if (deptfiltered.length > 0) deptNameRef.current = deptfiltered[0].Title;
 
       if (inputFields.ExternalType === "Walk-in") {
         const walkinapprovers = await sharePointService.getWalkinApprovers(deptIdNum);
@@ -1017,11 +1031,23 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       }
     } else if (name === "colorAccess") {
       const filtered = colorList.filter((c) => c.Title === value);
-      if (filtered.length > 0) _colorValue = filtered[0].ColorCode;
+      if (filtered.length > 0) colorValueRef.current = filtered[0].ColorCode;
     }
 
     setInputs((prev) => ({ ...prev, [name]: nextValue }));
     validateInputs(name, nextValue);
+  };
+
+  // FIX: dedicated dropdown handler for VisitorDetailsDialog (GateNo, IDPresented, etc.)
+  const handleChangeCboDetails = (event: any) => {
+    const { name, value } = event.target;
+
+    setVisitorDetails((prev) => {
+      const next = { ...prev, [name]: value } as IVisitorDetails;
+      return next;
+    });
+
+    validateInputsDetails(name, value);
   };
 
   const handleChangeTxt = (e: any) => {
@@ -1064,7 +1090,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     const filesToDelete = inputFields.origFiles.filter(
       (origFile: any) => !files.some((f: any) => f.name === origFile.Name)
     );
-    deleteFiles = filesToDelete;
+    deleteFilesRef.current = filesToDelete;
   };
 
   const handleChangeDropZone2 = (files: any[]) => {
@@ -1073,16 +1099,16 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     tempErrorDetails.Files = files.length > 0 ? "" : "Please upload a file.";
     setErrorDetails(tempErrorDetails);
 
-    if (_itemIdDetails) {
+    if (itemIdDetailsRef.current) {
       const filesToDeleteForDetail = visitorDetails.origFiles
         .filter((origFile: any) => !files.some((f: any) => f.name === origFile.Name))
-        .map((file: any) => ({ Id: _itemIdDetails, Filename: file.Name }));
+        .map((file: any) => ({ Id: itemIdDetailsRef.current, Filename: file.Name }));
 
       filesToDeleteForDetail.forEach((fileToDelete: any) => {
-        const exists = deleteFilesDetails.some(
+        const exists = deleteFilesDetailsRef.current.some(
           (it) => it.Id === fileToDelete.Id && it.Filename === fileToDelete.Filename
         );
-        if (!exists) deleteFilesDetails.push(fileToDelete);
+        if (!exists) deleteFilesDetailsRef.current.push(fileToDelete);
       });
     }
   };
@@ -1117,7 +1143,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     }));
     if (searchTerm.length > 2) {
       setAC1Open(true);
-      const options = await sharePointService.getEmployeesByName(searchTerm, _deptName);
+      const options = await sharePointService.getEmployeesByName(searchTerm, deptNameRef.current);
       setContacts(options);
     } else {
       setContacts([]);
@@ -1127,6 +1153,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
   const handleAddVisitorDetails = () => {
     setVisitorDetailsMode("add");
+    idxRef.current = -1;
+    itemIdDetailsRef.current = 0;
     setVisitorDetails({
       ...initialVisitorDetail,
       Car: inputFields.RequireParking,
@@ -1138,19 +1166,27 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
   function handleVisitorDetailsAction(action: string, rowData: IVisitorDetails) {
     if (action === "view") {
-      _idx = visitorDetailsList.indexOf(rowData);
-      if (rowData.ID) _itemIdDetails = rowData.ID;
-      const detailWithParentId = { ...rowData, ParentId: rowData.ParentId || _itemId };
+      const idxById = rowData.ID ? visitorDetailsList.findIndex((d) => d.ID === rowData.ID) : -1;
+      idxRef.current = idxById !== -1 ? idxById : visitorDetailsList.indexOf(rowData);
+
+      if (rowData.ID) itemIdDetailsRef.current = rowData.ID;
+
+      const detailWithParentId = { ...rowData, ParentId: rowData.ParentId || itemIdRef.current };
       setVisitorDetails(detailWithParentId);
       setVisitorDetailsMode("edit");
       setOpenDialogFab(true);
     } else if (action === "delete") {
-      const idxToDelete = visitorDetailsList.indexOf(rowData);
+      const idxToDelete = rowData.ID
+        ? visitorDetailsList.findIndex((d) => d.ID === rowData.ID)
+        : visitorDetailsList.indexOf(rowData);
+
       if (idxToDelete > -1) {
         const tempList = [...visitorDetailsList];
         tempList.splice(idxToDelete, 1);
         setVisitorDetailsList(tempList);
-        if (rowData.ID) deleteFilesDetails.push({ Id: rowData.ID, Filename: null });
+
+        if (rowData.ID) deleteFilesDetailsRef.current.push({ Id: rowData.ID, Filename: null });
+
         if (tempList.length === 0)
           setError((prev) => ({
             ...prev,
@@ -1158,8 +1194,11 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           }));
       }
     } else if (action === "print") {
-      _idx = visitorDetailsList.indexOf(rowData);
-      if (rowData.ID) _itemIdDetails = rowData.ID;
+      const idxById = rowData.ID ? visitorDetailsList.findIndex((d) => d.ID === rowData.ID) : -1;
+      idxRef.current = idxById !== -1 ? idxById : visitorDetailsList.indexOf(rowData);
+
+      if (rowData.ID) itemIdDetailsRef.current = rowData.ID;
+
       setVisitorDetails(rowData);
       setOpenDialogIDFab(true);
     } else if (action === "updateSSDApprove") {
@@ -1196,8 +1235,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const handleChipClick = (e: any, fileName: string, controlType: string) => {
     let fileUrl = "";
     if (controlType === "inputFields")
-      fileUrl = `${props.siteUrl}/VisitorsLib/${_itemId}/${fileName}`;
-    else fileUrl = `${props.siteUrl}/VisitorDetailsLib/${_itemIdDetails}/${fileName}`;
+      fileUrl = `${props.siteUrl}/VisitorsLib/${itemIdRef.current}/${fileName}`;
+    else fileUrl = `${props.siteUrl}/VisitorDetailsLib/${itemIdDetailsRef.current}/${fileName}`;
     const link = document.createElement("a");
     link.href = fileUrl;
     link.download = fileName;
@@ -1285,7 +1324,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
               contactList={contactList}
               isAC1Open={isAC1Open}
               siteUrl={props.siteUrl}
-              itemId={_itemId}
+              itemId={itemIdRef.current}
               onChangeTxt={handleChangeTxt}
               onChangeCbo={handleChangeCbo}
               onDateTimeVisitChange={onDateTimeVisitChange}
@@ -1390,7 +1429,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
               isSSDUser={isSSDUser}
               onClose={handleCloseDialogFab}
               onChangeTxt={handleChangeTxtDetails}
-              onChangeCbo={handleChangeCbo}
+              onChangeCbo={handleChangeCboDetails}
               onChangeDropZone={handleChangeDropZone2}
               onChipClick={handleChipClick}
             />
@@ -1401,9 +1440,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
               open={openDialogIDFab}
               visitorDetails={visitorDetails}
               visitor={inputFields}
-              colorValue={_colorValue}
-              itemId={_itemId}
-              itemIdDetails={_itemIdDetails}
+              colorValue={colorValueRef.current}
+              itemId={itemIdRef.current}
+              itemIdDetails={itemIdDetailsRef.current}
               siteUrl={props.siteUrl}
               printRef={printRef}
               onClose={handleCloseDialogIDFab}
