@@ -1173,6 +1173,17 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       setVisitorDetails(detailWithParentId);
       setVisitorDetailsMode("edit");
       setOpenDialogFab(true);
+      console.log("VIEW rowData:", rowData);
+      var ac: any = (rowData as any).AccessCard;
+      console.log("VIEW AccessCard (raw):", ac);
+      console.log("VIEW AccessCardId:", (rowData as any).AccessCardId);
+
+      if (ac) {
+        console.log("VIEW AccessCard.Id:", ac.Id);
+        console.log("VIEW AccessCard.Title:", ac.Title);
+      } else {
+        console.log("VIEW AccessCard is null/undefined");
+      }
     } else if (action === "delete") {
       const idxToDelete = rowData.ID
         ? visitorDetailsList.findIndex((d) => d.ID === rowData.ID)

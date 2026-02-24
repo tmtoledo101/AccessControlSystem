@@ -77,19 +77,16 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
     { title: 'Last Name', field: 'Title' },
     { title: 'First Name', field: 'FirstName' },
     {
-        title: 'Access Card',
-        render: (rowData: IVisitorDetails) => {
-          const ac: any = rowData.AccessCard;
+      title: "Access Card",
+      render: (rowData: IVisitorDetails) => {
+        const ac: any = (rowData as any).AccessCard;
 
-          if (!ac) return '';
+        if (!ac) return "";
 
-          // If properly expanded
-          if (ac.Title) return ac.Title;
+        if (typeof ac === "string") return ac;
+        if (ac.Title) return ac.Title;
 
-          // If SharePoint returned deferred object
-          if (ac.__deferred) return '';
-
-          return '';
+        return "";
       }
     },
     {

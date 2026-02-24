@@ -185,6 +185,10 @@ export class SharePointService {
           .expand("ListItemAllFields")
           .get();
 
+        const acObj = (row as any).AccessCard;
+        (row as any).AccessCardId = acObj && acObj.Id ? Number(acObj.Id) : null;
+        (row as any).AccessCard = acObj && acObj.Title ? String(acObj.Title) : "";
+        
         const files = visitorDetailsLib.map((fileRow) => fileRow.Name);
         row.Files = [];
         row.initFiles = files;
@@ -192,6 +196,8 @@ export class SharePointService {
 
         row.SSDApprove = row.SSDApprove === true ? "Yes" : "No";
         row.ParkingRequest = row.ParkingRequest === true ? "Yes" : "No";
+
+
       })
     );
 
