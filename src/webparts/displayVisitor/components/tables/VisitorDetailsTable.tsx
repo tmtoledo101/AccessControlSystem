@@ -113,80 +113,69 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
     }
   ];
 
-// Add SSD Approve column if user is an SSD user
+// Entry Request
 if (isSSDUser) {
   columns.push({
     title: 'Entry Request?',
     field: 'SSDApprove',
     render: (rowData: IVisitorDetails) => {
-      const value = rowData.SSDApprove === 'Yes' ? 'Yes' : 'No';
+      const value =
+        rowData.SSDApprove === 'Yes' ? 'Yes' : rowData.SSDApprove === 'No' ? 'No' : '';
 
       return (
         <select
           value={value}
           disabled={!isEdit}
-          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+          onChange={(e) => {
             const newValue: 'Yes' | 'No' = e.target.value === 'Yes' ? 'Yes' : 'No';
 
-            // If Entry is disapproved, force Parking to disapproved as well
             const updatedRowData: IVisitorDetails = {
               ...rowData,
               SSDApprove: newValue,
-              ...(newValue === 'No' ? { ParkingRequest: 'No' as 'Yes' | 'No' } : {})
+              ...(newValue === 'No' ? { ParkingRequest: 'No' as 'Yes' | 'No' } : {}),
             };
 
-            // Update Entry
             onAction('updateSSDApprove', updatedRowData);
-
-            // Optional: if your parent logic expects a separate action for parking,
-            // also fire the parking update explicitly
-            if (newValue === 'No') {
-              onAction('updateParkingRequest', updatedRowData);
-            }
           }}
           style={{ minWidth: 130 }}
         >
+          <option value="" disabled>Select</option>
           <option value="Yes">Approved</option>
           <option value="No">Disapproved</option>
         </select>
       );
-    }
+    },
   });
 }
 
-// Parking Request column
+// Parking Request
 if (isSSDUser) {
   columns.push({
     title: 'Parking Request?',
     field: 'ParkingRequest',
     render: (rowData: IVisitorDetails) => {
-      const value = rowData.ParkingRequest === 'Yes' ? 'Yes' : 'No';
+      const value =
+        rowData.ParkingRequest === 'Yes' ? 'Yes' : rowData.ParkingRequest === 'No' ? 'No' : '';
       const isEntryDisapproved = rowData.SSDApprove === 'No';
 
       return (
         <select
           value={value}
-          disabled={!isEdit || isEntryDisapproved} // disable parking if entry is disapproved
-          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+          disabled={!isEdit || isEntryDisapproved}
+          onChange={(e) => {
             const newValue: 'Yes' | 'No' = e.target.value === 'Yes' ? 'Yes' : 'No';
-
-            // Guard: even if user somehow changes it, keep it No when Entry is No
             const finalValue: 'Yes' | 'No' = isEntryDisapproved ? 'No' : newValue;
 
-            const updatedRowData: IVisitorDetails = {
-              ...rowData,
-              ParkingRequest: finalValue
-            };
-
-            onAction('updateParkingRequest', updatedRowData);
+            onAction('updateParkingRequest', { ...rowData, ParkingRequest: finalValue });
           }}
           style={{ minWidth: 130 }}
         >
+          <option value="" disabled>Select</option>
           <option value="Yes">Approved</option>
           <option value="No">Disapproved</option>
         </select>
       );
-    }
+    },
   });
 }
 

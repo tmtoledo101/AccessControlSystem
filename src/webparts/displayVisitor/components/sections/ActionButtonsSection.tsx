@@ -210,7 +210,7 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
       )}
 
       {/* Buttons for SSD Users */}
-      {checkVisibility('ssdActions') && (
+      {checkVisibility("ssdActions") && (
         <ButtonGroup>
           <Button
             className={classes.paperbutton}
@@ -221,13 +221,14 @@ const ActionButtonsSection: React.FC<IActionButtonsSectionProps> = (props) => {
           >
             Close
           </Button>
+
           <Button
-            name="approve" // Distinct name for clarity
+            name="save_ssd"
             className={classes.paperbutton}
             startIcon={<SaveIcon />}
             variant="contained"
             color="primary"
-            onClick={(e) => onSubmit(e, 'approve')} // Distinct action for clarity
+            onClick={(e) => onSubmit(e, "save_ssd")}
           >
             Save
           </Button>

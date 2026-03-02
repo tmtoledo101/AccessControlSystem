@@ -266,6 +266,45 @@ function countUniqueVisitDays(records: any[], clipFrom?: Date, clipTo?: Date) {
   return days.size;
 }
 
+/**
+ * SSD decision is based ONLY on Entry Request (SSDApprove).
+ * ParkingRequest must NOT affect header status nor email action.
+ */
+type SsdFormDecision = {
+  statusId: number;
+  statusTitle: string;
+  action: "approve" | "deny";
+};
+
+function computeSsdFormDecision(list: IVisitorDetails[]): SsdFormDecision | null {
+  const arr = list || [];
+
+  const hasAny = arr.some((d: any) => d && d.SSDApprove !== undefined && d.SSDApprove !== null);
+  if (!hasAny) return null;
+
+  const anyDenied = arr.some((d: any) => {
+    const v =
+      d && d.SSDApprove !== undefined && d.SSDApprove !== null ? String(d.SSDApprove) : "";
+    return v.toLowerCase() === "no";
+  });
+
+  if (anyDenied) {
+    return { statusId: 7, statusTitle: "Denied by SSD", action: "deny" };
+  }
+
+  const anyApproved = arr.some((d: any) => {
+    const v =
+      d && d.SSDApprove !== undefined && d.SSDApprove !== null ? String(d.SSDApprove) : "";
+    return v.toLowerCase() === "yes";
+  });
+
+  if (anyApproved) {
+    return { statusId: 4, statusTitle: "Approved by SSD", action: "approve" };
+  }
+
+  return null;
+}
+
 const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const classes = useStyles();
   const printRef = useRef<HTMLDivElement>(null);
@@ -325,10 +364,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     [visitorIsEditMode, setEditMode] = useState(false),
     [currentUser, setCurrentUser] = useState<any>(null);
 
-  /**
-   * FIX: These were previously `let` locals, which reset on every re-render.
-   * That breaks dialog edits because `_idx` becomes -1 again by the time OK is clicked.
-   */
+  // Persisted refs (avoid reinit every render)
   const idxRef = useRef<number>(-1);
   const deptNameRef = useRef<string>("");
   const itemIdRef = useRef<number>(0);
@@ -348,7 +384,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const [countToDate, setCountToDate] = useState<Date>(new Date());
   const [countRows, setCountRows] = useState<IVisitorCount[]>([]);
 
-  // ADDED: normalize departments so deptList always has { Id, Title }
+  // Normalize departments so deptList always has { Id, Title }
   const normalizeDepartments = (rows: any[]): any[] => {
     return (rows || [])
       .map((d: any) => {
@@ -387,7 +423,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       .filter((d: any) => d.Id !== undefined && d.Id !== null && String(d.Title).trim() !== "");
   };
 
-  // ADDED: match users_per_dept rows safely (handles DeptId/DeptID as string/number)
   const getUserDeptId = (row: any): number | null => {
     const raw =
       row && row.DeptId !== undefined
@@ -486,12 +521,12 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const validateInputs = (name: string, value: any) => {
     const tempErrors = { ...errorFields };
     if (name === "EmpNo") {
-      tempErrors[name] = "";
+      (tempErrors as any)[name] = "";
       setError(tempErrors);
       return;
     }
     if (isEmptyString(value)) {
-      tempErrors[name] = "This is a required input field";
+      (tempErrors as any)[name] = "This is a required input field";
     } else if (name === "DateTimeVisit" || name === "DateTimeArrival") {
       const visitDate = inputFields.DateTimeVisit ? new Date(inputFields.DateTimeVisit) : null;
       const arrivalDate = inputFields.DateTimeArrival
@@ -504,7 +539,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         tempErrors.DateTimeVisit = "";
         tempErrors.DateTimeArrival = "";
       }
-    } else tempErrors[name] = "";
+    } else {
+      (tempErrors as any)[name] = "";
+    }
     setError(tempErrors);
   };
 
@@ -561,13 +598,17 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           tempErrors.DateTimeVisit = "From Date should be earlier than To Date";
           tempErrors.DateTimeArrival = "To Date should be later than From Date";
           validationErrorsFound.push(field);
-        } else (tempErrors as any)[field] = "";
+        } else {
+          (tempErrors as any)[field] = "";
+        }
       } else if (field === "ApproverId" && t === "savedraft") {
         (tempErrors as any)[field] = "";
       } else if (isEmptyString((inputFields as any)[field])) {
         (tempErrors as any)[field] = "This is a required input field";
         validationErrorsFound.push(field);
-      } else (tempErrors as any)[field] = "";
+      } else {
+        (tempErrors as any)[field] = "";
+      }
     }
 
     if (visitorDetailsList.length === 0) {
@@ -634,7 +675,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       } else if (isEmptyString((visitorDetails as any)[field])) {
         (tempErrors as any)[field] = "This is a required input field";
         detailValidationErrorsFound.push(field);
-      } else (tempErrors as any)[field] = "";
+      } else {
+        (tempErrors as any)[field] = "";
+      }
     }
 
     if (detailValidationErrorsFound.length > 0) isValid = false;
@@ -642,8 +685,8 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     return isValid;
   };
 
-  // FIX 2: Lazy-load SSD users only when we actually need to notify SSD
-  const sendEmail = async (visitorForEmail: IVisitor) => {
+  // Lazy-load SSD users only when we actually need to notify SSD
+  const sendEmail = async (visitorForEmail: IVisitor, actionOverride: string = "") => {
     const emailService = new EmailService(props.siteUrl, currentUser.Email);
 
     let ssdUsersToUse = SSDUsers;
@@ -660,8 +703,10 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       }
     }
 
+    const finalAction = actionOverride && actionOverride.length > 0 ? actionOverride : sAction;
+
     await emailService.sendNotification(
-      sAction,
+      finalAction,
       visitorForEmail,
       approverDetails,
       isEncoder,
@@ -674,7 +719,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     );
 
     const message = emailService.getSuccessMessage(
-      sAction,
+      finalAction,
       visitorForEmail,
       approverDetails,
       isEncoder,
@@ -683,6 +728,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       isWalkinApproverUser,
       isSSDUser
     );
+
     setSuccessMessage(message);
   };
 
@@ -699,33 +745,57 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         return;
       }
 
-      const updatedVisitor = await sharePointService.saveVisitor(inputFields, sAction, currentUser);
+      // SSD: compute effective status/action from Entry Request (SSDApprove) at save-time
+      let effectiveAction = sAction;
+      let visitorToSave: IVisitor = inputFields;
+
+      if (isSSDUser) {
+        const decision = computeSsdFormDecision(visitorDetailsList);
+        if (decision) {
+          visitorToSave = {
+            ...inputFields,
+            StatusId: decision.statusId,
+            Status: { Title: decision.statusTitle },
+          } as any;
+
+          // If SSD uses "Save" (not explicit approve/deny), still force proper email action
+          if (!effectiveAction || effectiveAction === "savedraft" || effectiveAction === "save") {
+            effectiveAction = decision.action;
+          }
+        }
+      }
+
+      const updatedVisitor = await sharePointService.saveVisitor(
+        visitorToSave,
+        effectiveAction,
+        currentUser
+      );
       refNoRef.current = updatedVisitor.Title;
 
       await fileService.uploadVisitorFiles(
         itemIdRef.current,
-        inputFields.Files,
-        inputFields.origFiles,
+        visitorToSave.Files,
+        visitorToSave.origFiles,
         deleteFilesRef.current
       );
 
+      // Save details
       for (const visitorDetail of visitorDetailsList) {
         const detailToSave = { ...visitorDetail, ParentId: itemIdRef.current };
         let detailStatusId = updatedVisitor.StatusId;
 
         if (isSSDUser && (visitorDetail as any).SSDApprove !== undefined) {
           detailStatusId = (visitorDetail as any).SSDApprove === "Yes" ? 4 : 7;
-        } 
-        
+        }
 
         const savedDetail = await sharePointService.saveVisitorDetails(
           detailToSave,
           itemIdRef.current,
           refNoRef.current,
-          inputFields.DeptId,
-          inputFields.DateTimeVisit,
-          inputFields.DateTimeArrival,
-          inputFields.CompanyName,
+          visitorToSave.DeptId,
+          visitorToSave.DateTimeVisit,
+          visitorToSave.DateTimeArrival,
+          visitorToSave.CompanyName,
           detailStatusId,
           updatedVisitor.RequestDate
         );
@@ -741,13 +811,46 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         }
       }
 
-      await sendEmail(updatedVisitor);
+      // Use the SAME effective status/action for email
+      let visitorForEmail: IVisitor = updatedVisitor;
+      if (isSSDUser) {
+        const decision = computeSsdFormDecision(visitorDetailsList);
+        if (decision) {
+          visitorForEmail = {
+            ...updatedVisitor,
+            StatusId: decision.statusId,
+            Status: { Title: decision.statusTitle },
+          } as any;
+
+          if (!effectiveAction || effectiveAction === "savedraft" || effectiveAction === "save") {
+            effectiveAction = decision.action;
+          }
+        }
+      }
+
+      await sendEmail(visitorForEmail, effectiveAction);
+
       await fileService.deleteVisitorDetailsFiles(deleteFilesDetailsRef.current);
 
+      // Remove deleted details
       for (const origDetail of origVisitorDetailsListRef.current) {
         const exists = visitorDetailsList.some((d) => d.ID === origDetail.ID);
         if (!exists && origDetail.ID) {
           await sharePointService.deleteVisitorDetails(origDetail.ID);
+        }
+      }
+
+      // Keep UI header consistent after save
+      if (isSSDUser) {
+        const decision = computeSsdFormDecision(visitorDetailsList);
+        if (decision) {
+          setInputs((prev) => ({
+            ...prev,
+            StatusId: decision.statusId,
+            Status: { Title: decision.statusTitle },
+          }));
+          // Also keep sAction aligned, so your existing Snackbar conditions work
+          setsAction(decision.action);
         }
       }
 
@@ -770,6 +873,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const handleCloseDialog = (confirmed: boolean) => {
     setOpenDialog(false);
     if (!confirmed) return;
+
     const msg = dialogMessage.toLowerCase();
     if (
       msg.includes("submit") ||
@@ -787,7 +891,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
   const handleCloseDialogIDFab = () => setOpenDialogIDFab(false);
 
-  // FIX: Persist dialog edits to visitorDetailsList by keeping row index in a ref across re-renders
   const handleCloseDialogFab = (confirmed: boolean) => {
     const isViewOnly = isApproverUser || isSSDUser;
 
@@ -821,14 +924,11 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
         sourceUrlRef.current = document.referrer;
 
-        // FIX: Assign pid into itemIdRef.current (your whole file relies on itemIdRef.current)
         const pidRaw = getUrlParameter("pid");
         const pid = Number(pidRaw);
 
-        // If you want a workbench fallback while testing, uncomment the next line and set your test ID:
+        //dont forget to comment
         itemIdRef.current = Number.isFinite(pid) && pid > 0 ? pid : 130;
-
-        //itemIdRef.current = Number.isFinite(pid) && pid > 0 ? pid : 0;
 
         if (!itemIdRef.current) {
           alert("Missing or invalid pid in the URL.");
@@ -918,7 +1018,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           const building = await sharePointService.getBuildings();
           setBldg(building);
 
-          // FIX: normalize departments + always include the current visitor.DeptId in the list
           const deptsRaw = await sharePointService.getDepartments();
           const allDepts = normalizeDepartments(deptsRaw);
 
@@ -927,7 +1026,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
           let allDeptsWithCurrent = allDepts;
           if (!hasCurrent && !isNaN(currentDeptId) && currentDeptId) {
-            // Fallback placeholder so Select can render the current value and not go blank/out-of-range
             allDeptsWithCurrent = [
               ...allDepts,
               {
@@ -952,17 +1050,11 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
               if (filtered.length > 0) mappedrows.push(deptRow);
             });
 
-            // IMPORTANT: if mapping ends up empty (common when DeptId types mismatch),
-            // fall back to all departments so dropdown is not blank.
-            if (mappedrows.length > 0) {
-              setDept(mappedrows);
-            } else {
-              setDept(allDeptsWithCurrent);
-            }
+            if (mappedrows.length > 0) setDept(mappedrows);
+            else setDept(allDeptsWithCurrent);
           } else if (isreceptionist) {
             setDept(allDeptsWithCurrent);
           } else {
-            // safe fallback
             setDept(allDeptsWithCurrent);
           }
 
@@ -983,7 +1075,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
           const idpresented = await sharePointService.getIDTypes();
           setIDs(idpresented);
 
-          // FIX: ensure DeptId is numeric so it matches MenuItem values
           setInputs({
             ...visitor,
             DeptId:
@@ -1023,7 +1114,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       const deptIdNum = Number(value);
       nextValue = deptIdNum;
 
-      const deptfiltered = deptList.filter((d) => Number(d.Id) === deptIdNum);
+      const deptfiltered = deptList.filter((d: any) => Number(d.Id) === deptIdNum);
       if (deptfiltered.length > 0) deptNameRef.current = deptfiltered[0].Title;
 
       if (inputFields.ExternalType === "Walk-in") {
@@ -1041,7 +1132,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         setError((prev) => ({ ...prev, PurposeOthers: "" }));
       }
     } else if (name === "colorAccess") {
-      const filtered = colorList.filter((c) => c.Title === value);
+      const filtered = colorList.filter((c: any) => c.Title === value);
       if (filtered.length > 0) colorValueRef.current = filtered[0].ColorCode;
     }
 
@@ -1049,7 +1140,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     validateInputs(name, nextValue);
   };
 
-  // FIX: dedicated dropdown handler for VisitorDetailsDialog (GateNo, IDPresented, etc.)
   const handleChangeCboDetails = (event: any) => {
     const { name, value } = event.target;
 
@@ -1186,17 +1276,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       setVisitorDetails(detailWithParentId);
       setVisitorDetailsMode("edit");
       setOpenDialogFab(true);
-      console.log("VIEW rowData:", rowData);
-      var ac: any = (rowData as any).AccessCard;
-      console.log("VIEW AccessCard (raw):", ac);
-      console.log("VIEW AccessCardId:", (rowData as any).AccessCardId);
-
-      if (ac) {
-        console.log("VIEW AccessCard.Id:", ac.Id);
-        console.log("VIEW AccessCard.Title:", ac.Title);
-      } else {
-        console.log("VIEW AccessCard is null/undefined");
-      }
     } else if (action === "delete") {
       const idxToDelete = rowData.ID
         ? visitorDetailsList.findIndex((d) => d.ID === rowData.ID)
@@ -1224,45 +1303,53 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       setVisitorDetails(rowData);
       setOpenDialogIDFab(true);
     } else if (action === "updateSSDApprove") {
-    const idx = visitorDetailsList.findIndex((i) => i.ID === rowData.ID);
-    if (idx !== -1) {
-      const temp = [...visitorDetailsList];
-      // enforce rule: if Entry disapproved, Parking auto-disapproved
-      if (isSSDUser && (rowData as any).SSDApprove === "No") {
+      const idx = visitorDetailsList.findIndex((i) => i.ID === rowData.ID);
+      if (idx !== -1) {
+        const temp = [...visitorDetailsList];
+        if (isSSDUser && (rowData as any).SSDApprove === "No") {
+          (rowData as any).ParkingRequest = "No";
+        }
+        temp[idx] = rowData;
+        setVisitorDetailsList(temp);
+
+        if (isSSDUser) {
+          if ((rowData as any).SSDApprove === "Yes") {
+            setInputs((prev) => ({
+              ...prev,
+              StatusId: 4,
+              Status: { Title: "Approved by SSD" },
+            }));
+          } else if ((rowData as any).SSDApprove === "No") {
+            setInputs((prev) => ({
+              ...prev,
+              StatusId: 7,
+              Status: { Title: "Denied by SSD" },
+            }));
+          }
+        }
+      }
+    } else if (action === "updateParkingRequest") {
+      if (!isSSDUser) return;
+      if ((rowData as any).SSDApprove !== "Yes") {
         (rowData as any).ParkingRequest = "No";
       }
-      temp[idx] = rowData;
-      setVisitorDetailsList(temp);
-      if (isSSDUser) {
-        if ((rowData as any).SSDApprove === "Yes")
+
+      const idx = visitorDetailsList.findIndex((i) => i.ID === rowData.ID);
+      if (idx !== -1) {
+        const temp = [...visitorDetailsList];
+        temp[idx] = rowData;
+        setVisitorDetailsList(temp);
+
+        if (isSSDUser && (rowData as any).SSDApprove === "Yes") {
           setInputs((prev) => ({
             ...prev,
             StatusId: 4,
             Status: { Title: "Approved by SSD" },
           }));
-        else if ((rowData as any).SSDApprove === "No")
-          setInputs((prev) => ({
-            ...prev,
-            StatusId: 7,
-            Status: { Title: "Denied by SSD" },
-          }));
         }
       }
-        } else if (action === "updateParkingRequest") {
-          // only SSD can change parking, and only when Entry is approved
-          if (!isSSDUser) return;
-          if ((rowData as any).SSDApprove !== "Yes") {
-            (rowData as any).ParkingRequest = "No";
-          }
-
-          const idx = visitorDetailsList.findIndex((i) => i.ID === rowData.ID);
-          if (idx !== -1) {
-            const temp = [...visitorDetailsList];
-            temp[idx] = rowData;
-            setVisitorDetailsList(temp);
-          }
-        }
-      }
+    }
+  }
 
   const handleChipClick = (e: any, fileName: string, controlType: string) => {
     let fileUrl = "";
@@ -1277,8 +1364,31 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
     document.body.removeChild(link);
   };
 
+  // IMPORTANT: support SSD "save_ssd" action (ActionButtonsSection must call onSubmit(e, "save_ssd"))
   const onClickSubmit = (e: any, t: string) => {
+    if (t === "save_ssd" && isSSDUser) {
+      const decision = computeSsdFormDecision(visitorDetailsList);
+
+      // Align UI header now, but save() will also recompute to be safe
+      if (decision) {
+        setInputs((prev) => ({
+          ...prev,
+          StatusId: decision.statusId,
+          Status: { Title: decision.statusTitle },
+        }));
+        setsAction(decision.action);
+      } else {
+        // default to approve if nothing set yet, keeps existing snackbar logic stable
+        setsAction("approve");
+      }
+
+      setDialogMessage("Do you want to save this request?");
+      setOpenDialog(true);
+      return;
+    }
+
     setsAction(t);
+
     const msgMap: Record<string, string> = {
       savedraft: "Do you want to save and exit?",
       submit: "Do you want to submit this form?",
@@ -1287,6 +1397,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       markcomplete: "Do you want to complete this request?",
     };
     const msg = msgMap[t] || "Do you want to proceed?";
+
     if (validateOnSubmit(t)) {
       setDialogMessage(msg);
       setOpenDialog(true);
@@ -1321,6 +1432,11 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   };
 
   const anyReached14 = countRows.some((r) => (r.VisitCount || 0) >= 14);
+
+  const renderSnackbarLines = (msg: string) => {
+    const safe = msg && msg.trim() ? msg : "Data has been saved successfully.";
+    return safe.split("\n").map((line, i) => <div key={i}>{line}</div>);
+  };
 
   return (
     <form noValidate autoComplete="off">
@@ -1383,7 +1499,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
               onVisitorDetailsAction={handleVisitorDetailsAction}
             />
 
-            {/* AUTO-SHOW Visitor Entry Count */}
             <Grid item xs={12}>
               <div ref={countPanelRef} style={{ marginTop: 8 }}>
                 <div
@@ -1399,9 +1514,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
                 {countLoading && <LinearProgress />}
 
-                {!countLoading && !!countError && (
-                  <Typography color="error">{countError}</Typography>
-                )}
+                {!countLoading && !!countError && <Typography color="error">{countError}</Typography>}
 
                 {!countLoading && !countError && countRows.length > 0 && (
                   <VisitorCountTable
@@ -1487,6 +1600,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
             <CircularProgress color="inherit" />
           </Backdrop>
 
+          {/* DO NOT CHANGE YOUR SNACKBAR (kept as-is) */}
           <Snackbar open={isSavingDone} autoHideDuration={2000} onClose={() => setSavingDone(false)}>
             <Alert severity="success" onClose={() => setSavingDone(false)}>
               Data has been saved successfully.
