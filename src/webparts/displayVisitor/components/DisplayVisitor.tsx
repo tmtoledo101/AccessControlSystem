@@ -576,13 +576,14 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       validationErrorsFound.push("Details");
     }
 
-    if (inputFields.StatusId === 4 || inputFields.StatusId === 9) {
+    if (isReceptionist && (inputFields.StatusId === 4 || inputFields.StatusId === 9)) {
       for (let i = 0; i < visitorDetailsList.length; i++) {
         const row = visitorDetailsList[i];
+
         const hasFiles =
           (row.Files && row.Files.length > 0) || (row.initFiles && row.initFiles.length > 0);
-        //if (!hasFiles || !row.AccessCard || !row.IDPresented) {
-        if (!hasFiles || !row.AccessCardId || !row.IDPresented) {
+
+        if (!hasFiles || !(row as any).AccessCardId || !(row as any).IDPresented) {
           tempErrors.Details = `Please complete Visitor Details of ${
             row.Title || `Visitor ${i + 1}`
           } on row ${i + 1} before saving!`;
@@ -612,7 +613,6 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       requiredDetailFields.push("Title");
       if (visitorDetails.Car) requiredDetailFields.push("PlateNo", "Color", "DriverName");
     } else if (isReceptionist && (inputFields.StatusId === 4 || inputFields.StatusId === 9)) {
-      //requiredDetailFields.push("Title", "AccessCard", "IDPresented", "GateNo");
       requiredDetailFields.push("Title", "AccessCardId", "IDPresented");
       if (visitorDetails.Car) requiredDetailFields.push("PlateNo", "Color", "DriverName");
       if (!visitorDetails.Files || visitorDetails.Files.length === 0) {
@@ -709,17 +709,14 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         deleteFilesRef.current
       );
 
-      await sendEmail(updatedVisitor);
-
       for (const visitorDetail of visitorDetailsList) {
         const detailToSave = { ...visitorDetail, ParentId: itemIdRef.current };
         let detailStatusId = updatedVisitor.StatusId;
 
         if (isSSDUser && (visitorDetail as any).SSDApprove !== undefined) {
           detailStatusId = (visitorDetail as any).SSDApprove === "Yes" ? 4 : 7;
-        } else if (isApproverUser && (visitorDetail as any).ParkingRequest !== undefined) {
-          detailStatusId = (visitorDetail as any).ParkingRequest === "Yes" ? 4 : 7;
-        }
+        } 
+        
 
         const savedDetail = await sharePointService.saveVisitorDetails(
           detailToSave,
@@ -744,6 +741,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         }
       }
 
+      await sendEmail(updatedVisitor);
       await fileService.deleteVisitorDetailsFiles(deleteFilesDetailsRef.current);
 
       for (const origDetail of origVisitorDetailsListRef.current) {
@@ -823,8 +821,20 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
         sourceUrlRef.current = document.referrer;
 
-        // _itemId = parseInt(getUrlParameter("pid"));
-        itemIdRef.current = 129;
+        // FIX: Assign pid into itemIdRef.current (your whole file relies on itemIdRef.current)
+        const pidRaw = getUrlParameter("pid");
+        const pid = Number(pidRaw);
+
+        // If you want a workbench fallback while testing, uncomment the next line and set your test ID:
+        itemIdRef.current = Number.isFinite(pid) && pid > 0 ? pid : 130;
+
+        //itemIdRef.current = Number.isFinite(pid) && pid > 0 ? pid : 0;
+
+        if (!itemIdRef.current) {
+          alert("Missing or invalid pid in the URL.");
+          setProgress(false);
+          return;
+        }
 
         const user = await sharePointService.getCurrentUser();
         setCurrentUser(user);
@@ -961,7 +971,9 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
           setSSD([]);
 
-          const visitordetails = await sharePointService.getVisitorDetailsByParentId(itemIdRef.current);
+          const visitordetails = await sharePointService.getVisitorDetailsByParentId(
+            itemIdRef.current
+          );
           origVisitorDetailsListRef.current = visitordetails;
           setVisitorDetailsList(visitordetails);
 
@@ -1212,35 +1224,45 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       setVisitorDetails(rowData);
       setOpenDialogIDFab(true);
     } else if (action === "updateSSDApprove") {
-      const idx = visitorDetailsList.findIndex((i) => i.ID === rowData.ID);
-      if (idx !== -1) {
-        const temp = [...visitorDetailsList];
-        temp[idx] = rowData;
-        setVisitorDetailsList(temp);
-        if (isSSDUser) {
-          if ((rowData as any).SSDApprove === "Yes")
-            setInputs((prev) => ({
-              ...prev,
-              StatusId: 4,
-              Status: { Title: "Approved by SSD" },
-            }));
-          else if ((rowData as any).SSDApprove === "No")
-            setInputs((prev) => ({
-              ...prev,
-              StatusId: 7,
-              Status: { Title: "Denied by SSD" },
-            }));
+    const idx = visitorDetailsList.findIndex((i) => i.ID === rowData.ID);
+    if (idx !== -1) {
+      const temp = [...visitorDetailsList];
+      // enforce rule: if Entry disapproved, Parking auto-disapproved
+      if (isSSDUser && (rowData as any).SSDApprove === "No") {
+        (rowData as any).ParkingRequest = "No";
+      }
+      temp[idx] = rowData;
+      setVisitorDetailsList(temp);
+      if (isSSDUser) {
+        if ((rowData as any).SSDApprove === "Yes")
+          setInputs((prev) => ({
+            ...prev,
+            StatusId: 4,
+            Status: { Title: "Approved by SSD" },
+          }));
+        else if ((rowData as any).SSDApprove === "No")
+          setInputs((prev) => ({
+            ...prev,
+            StatusId: 7,
+            Status: { Title: "Denied by SSD" },
+          }));
         }
       }
-    } else if (action === "updateParkingRequest") {
-      const idx = visitorDetailsList.findIndex((i) => i.ID === rowData.ID);
-      if (idx !== -1) {
-        const temp = [...visitorDetailsList];
-        temp[idx] = rowData;
-        setVisitorDetailsList(temp);
+        } else if (action === "updateParkingRequest") {
+          // only SSD can change parking, and only when Entry is approved
+          if (!isSSDUser) return;
+          if ((rowData as any).SSDApprove !== "Yes") {
+            (rowData as any).ParkingRequest = "No";
+          }
+
+          const idx = visitorDetailsList.findIndex((i) => i.ID === rowData.ID);
+          if (idx !== -1) {
+            const temp = [...visitorDetailsList];
+            temp[idx] = rowData;
+            setVisitorDetailsList(temp);
+          }
+        }
       }
-    }
-  }
 
   const handleChipClick = (e: any, fileName: string, controlType: string) => {
     let fileUrl = "";
