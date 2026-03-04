@@ -254,7 +254,8 @@ export class EmailService {
         `You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
     }
 
-    else if (isApproverUser && action === "deny" && visitor.StatusId === 2) {
+    //else if (isApproverUser && action === "deny" && visitor.StatusId === 2) {
+    else if (isApproverUser && action === "deny") {
       // Department approver denying a request
       toEmails.push(visitor.Author.EMail);
       subject = `BSP ACCESS CONTROL SYSTEM : Disapproved by ${visitor.Approver.Title} - ${refNo}`;

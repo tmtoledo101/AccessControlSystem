@@ -925,10 +925,10 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         sourceUrlRef.current = document.referrer;
 
         const pidRaw = getUrlParameter("pid");
-        const pid = Number(pidRaw);
+        const pid = parseInt(pidRaw || "", 10);
 
-        //dont forget to comment
-        itemIdRef.current = Number.isFinite(pid) && pid > 0 ? pid : 130;
+        // production behavior
+        itemIdRef.current = Number.isFinite(pid) && pid > 0 ? pid : 0;
 
         if (!itemIdRef.current) {
           alert("Missing or invalid pid in the URL.");
@@ -1613,7 +1613,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
               {isWalkinApproverUser && inputFields.StatusId === 2 && sAction === "approve" && (
                 <div>An email notification has been sent to requestor {inputFields.Author.Title}.</div>
               )}
-              {isSSDUser && inputFields.StatusId === 3 && sAction === "approve" && (
+              {isSSDUser && (inputFields.StatusId === 3 || inputFields.StatusId === 4) && sAction === "approve" && (
                 <div>An email notification has been sent to requestor {inputFields.Author.Title}.</div>
               )}
               {sAction === "deny" && (
