@@ -131,9 +131,9 @@ export class EmailService {
       // de-dupe
       toEmails = Array.from(new Set(toEmails));
 
-      subject = `BSP ACCESS CONTROL SYSTEM : For Approval ${refNo} - ${purpose}`;
+      subject = `BSP ACCESS CONTROL SYSTEM : Approved by Dept Approver ${visitor.Approver.Title} ${refNo} - ${purpose}`;
       body =
-        `BSP Access Control System For Approval Notification.</br></br>` +
+        `BSP Access Control System : Approved by Dept Approver.</br></br>` +
         `Ref No.:${refNo}</br>Purpose:${purpose}</br></br>` +
         `You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
     }
@@ -162,44 +162,10 @@ export class EmailService {
       toEmails = Array.from(new Set(toEmails)).filter((x) => !!x);
       subject = `BSP ACCESS CONTROL SYSTEM : Approved by SSD - ${refNo}`;
 
-      let visitorTable = "";
-      if (visitorDetailsList && visitorDetailsList.length > 0) {
-        visitorTable =
-          '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">' +
-          '<tr style="background-color: #f2f2f2;">' +
-          "<th>Visitor Name</th>" +
-          "<th>SSD Approval</th>" +
-          "<th>Parking Request</th>" +
-          "</tr>";
-
-        for (let i = 0; i < visitorDetailsList.length; i++) {
-          const currentVisitorDetail: any = visitorDetailsList[i] as any;
-
-          const ssdApprovalStatus =
-            currentVisitorDetail.SSDApprove === "Yes" ? "Approved" : "Disapproved";
-
-          const parkingRequestStatus =
-            currentVisitorDetail.ParkingRequest === "Yes" ? "Approved" : "Disapproved";
-
-          const rowStyle = i % 2 === 0 ? "" : "background-color: #f9f9f9;";
-
-          visitorTable +=
-            '<tr style="' + rowStyle + '">' +
-            "<td>" + (currentVisitorDetail.Title || "") + "</td>" +
-            "<td>" + ssdApprovalStatus + "</td>" +
-            "<td>" + parkingRequestStatus + "</td>" +
-            "</tr>";
-        }
-
-        visitorTable += "</table>";
-      }
-
       body =
-        `BSP Access Control System For Approval Notification.</br></br>` +
+        `BSP Access Control System Notification : Approved By SSD.</br></br>` +
         `Ref No.:${refNo}</br>Purpose:${purpose}</br></br>` +
-        `<p><strong>Visitor Details:</strong></p>` +
-        `${visitorTable}` +
-        `</br></br>You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
+        `You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
     }
 
     // =========================================================
@@ -249,7 +215,7 @@ export class EmailService {
 
       subject = `BSP ACCESS CONTROL SYSTEM : Disapproved by SSD - ${refNo}`;
       body =
-        `BSP Access Control System For Approval Notification.</br></br>` +
+        `BSP Access Control System : Disapproved by SSD.</br></br>` +
         `Ref No.:${refNo}</br>Purpose:${purpose}</br></br>` +
         `You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
     }
@@ -276,7 +242,7 @@ export class EmailService {
       toEmails.push(visitor.Author.EMail);
       subject = `BSP ACCESS CONTROL SYSTEM : Disapproved by SSD - ${refNo}`;
       body =
-        `BSP Access Control System For Approval Notification.</br></br>` +
+        `BSP Access Control System : Disapproved By SSD.</br></br>` +
         `Ref No.:${refNo}</br>Purpose:${purpose}</br></br>` +
         `You may open the request by clicking on this <a href="${linkUrl}">link</a>`;
     } else {
