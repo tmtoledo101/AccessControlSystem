@@ -131,7 +131,7 @@ export class EmailService {
       // de-dupe
       toEmails = Array.from(new Set(toEmails));
 
-      subject = `BSP ACCESS CONTROL SYSTEM : Approved by Dept Approver ${visitor.Approver.Title} ${refNo} - ${purpose}`;
+      subject = `BSP ACCESS CONTROL SYSTEM : Approved by Dept Approver ${visitor.Approver.Title} - ${refNo} - ${purpose}`;
       body =
         `BSP Access Control System : Approved by Dept Approver.</br></br>` +
         `Ref No.:${refNo}</br>Purpose:${purpose}</br></br>` +
