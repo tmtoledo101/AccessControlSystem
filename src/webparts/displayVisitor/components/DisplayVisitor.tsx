@@ -311,7 +311,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
   const Receptionist_Group = "Receptionist_V2";
   const SSD_Group = "SSD_v2";
-  const SSD_Notify_Group = "SSD_EmailNotif";
+  //const SSD_Notify_Group = "SSD_EmailNotif";
 
   const sharePointService = new SharePointService(props.siteUrl, props.siteRelativeUrl);
   const fileService = new FileService(props.siteRelativeUrl);
@@ -695,7 +695,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
 
     if (needsSSDRecipients && (!ssdUsersToUse || ssdUsersToUse.length === 0)) {
       try {
-        ssdUsersToUse = await sharePointService.getGroupUsersByName(SSD_Notify_Group);
+        ssdUsersToUse = await sharePointService.getGroupUsersByName(SSD_Group);
         setSSD(ssdUsersToUse);
       } catch (e) {
         console.warn("Cannot read SSD group members. Skipping SSD recipients.", e);
