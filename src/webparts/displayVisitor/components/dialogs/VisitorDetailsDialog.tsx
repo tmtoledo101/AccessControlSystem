@@ -64,7 +64,7 @@ const useStyles = makeStyles((theme: Theme) =>
   }),
 );
 
-const RECEPTIONIST_V2_GROUP = "Receptionist_V2";
+const RECEPTIONIST_V2_GROUP = "Receptionist";
 
 export interface IVisitorDetailsDialogProps {
   open: boolean;

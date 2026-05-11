@@ -11,7 +11,7 @@ interface IVisitorDetailsTableProps {
   title?: string;
 }
 
-const RECEPTIONIST_V2_GROUP = "Receptionist_V2";
+const RECEPTIONIST_V2_GROUP = "Receptionist";
 
 const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = ({ data, onViewAction, title = "Visitors" }) => {
   const [accessCardLookup, setAccessCardLookup] = React.useState<{

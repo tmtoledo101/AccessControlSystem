@@ -1,6 +1,6 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
-  "id": "deec97e3-c0c8-45fd-a839-ed70aff892e9",
+  "id": "e3258130-6a9e-4245-a5d4-c0638cd5a9c5",
   "alias": "NewOvertimeWebPart",
   "componentType": "WebPart",
 

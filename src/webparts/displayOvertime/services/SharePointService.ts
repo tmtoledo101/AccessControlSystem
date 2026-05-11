@@ -182,8 +182,8 @@ export class SharePointService {
    */
   public static async getSSDUsers(): Promise<IUser[]> {
     const siteGroups = await sp.web.siteGroups();
-    //const ssdGroup = siteGroups.find(group => group.LoginName === 'SSD');
-    const ssdGroup = siteGroups.find(group => group.LoginName === 'SSD_v2');
+    const ssdGroup = siteGroups.find(group => group.LoginName === 'SSD');
+    //const ssdGroup = siteGroups.find(group => group.LoginName === 'SSD_v2');
     
     if (ssdGroup) {
       const users = await sp.web.siteGroups.getById(ssdGroup.Id).users();

@@ -109,29 +109,101 @@ export default class SharePointService {
   }
 
   public static async loadVisitorDetails(from: Date, to: Date): Promise<IVisitorDetail[]> {
-    return await sp.web.lists
-      .getByTitle("VisitorDetails")
-      .items.select("*, Status/Title,Dept/Title,Author/Title,Author/EMail")
-      .expand("Dept,Status,Author")
-      .top(5000)
-      .orderBy("Modified", false)
-      .filter(
-        `DateTo ge '${from.toISOString()}' and DateFrom le '${to.toISOString()}'`
-      )
-      .get();
+  const items = await sp.web.lists
+    .getByTitle("VisitorDetails")
+    .items.select(
+      "ID",
+      "Title",
+      "FirstName",
+      "CompanyName",
+      "PlateNo",
+      "DateFrom",
+      "DateTo",
+      "ParentId",
+      "RefNo",
+      "DeptId",
+      "StatusId",
+      "AuthorId",
+      "Modified",
+      "Status/Title",
+      "Dept/Title",
+      "Author/Title",
+      "Author/EMail"
+    )
+    .expand("Dept", "Status", "Author")
+    .top(5000)
+    .filter(`DateTo ge '${from.toISOString()}'`)
+    .get();
+
+  return items
+    .filter((item: any) => {
+      if (!item.DateFrom) return false;
+      return new Date(item.DateFrom) <= to;
+    })
+    .sort((a: any, b: any) => {
+      return new Date(b.Modified).getTime() - new Date(a.Modified).getTime();
+    }) as IVisitorDetail[];
+}
+
+public static async searchVisitorsByName(searchText: string): Promise<IVisitorDetail[]> {
+  const rawSearch = String(searchText || "").trim();
+
+  if (!rawSearch) {
+    return [];
   }
 
-  public static async searchVisitorsByName(searchText: string): Promise<IVisitorDetail[]> {
-    const q = odataEscape(searchText || "");
-    return await sp.web.lists
-      .getByTitle("VisitorDetails")
-      .items.select("*, Status/Title,Dept/Title,Author/Title,Author/EMail")
-      .expand("Dept,Status,Author")
-      .top(5000)
-      .orderBy("Modified", false)
-      .filter(`substringof('${q}', Title) or substringof('${q}', FirstName)`)
-      .get();
-  }
+  const selectFields = [
+    "ID",
+    "Title",
+    "FirstName",
+    "CompanyName",
+    "PlateNo",
+    "DateFrom",
+    "DateTo",
+    "ParentId",
+    "RefNo",
+    "DeptId",
+    "StatusId",
+    "AuthorId",
+    "Modified",
+    "Status/Title",
+    "Dept/Title",
+    "Author/Title",
+    "Author/EMail"
+  ].join(",");
+
+  const tokens = rawSearch
+    .replace(/[.,]/g, " ")
+    .split(/\s+/)
+    .filter((x) => x);
+
+  const searchTokens = tokens.map((x) => x.toLowerCase());
+
+  // For full name search, use the last token as surname.
+  // Example: "Djerson R. Estrella" -> "Estrella"
+  const surnameToken = tokens[tokens.length - 1];
+  const q = odataEscape(surnameToken);
+
+  const items = await sp.web.lists
+    .getByTitle("VisitorDetails")
+    .items.select(selectFields)
+    .expand("Dept", "Status", "Author")
+    .filter(`startswith(Title,'${q}')`)
+    .top(500)
+    .get();
+
+  return items.filter((item: any) => {
+    const nameText = `${item.FirstName || ""} ${item.Title || ""}`
+      .toLowerCase()
+      .replace(/[.,]/g, " ");
+
+    return searchTokens.every((token) => {
+      // Ignore middle initials like R
+      if (token.length === 1) return true;
+      return nameText.indexOf(token) >= 0;
+    });
+  }) as IVisitorDetail[];
+}
 
   public static async getVisitorEntryCounts(
     from: Date,
