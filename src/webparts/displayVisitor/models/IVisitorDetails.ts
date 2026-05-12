@@ -6,7 +6,7 @@ export interface IVisitorDetails {
   Title: string;
   FirstName: string;
   Car: boolean;
-  AccessCard?: {
+  AccessCards?: {
     Id: number;
     Title: string;
   };

@@ -50,9 +50,9 @@ export interface IVisitorDetail {
   DateTo: Date | string;
   CompanyName: string;
   Car: boolean;
-  //AccessCard: string;
+  //AccessCards: string;
   AccessCardId?: number; // 👈 Lookup ID from SharePoint
-  AccessCard?: {
+  AccessCards?: {
     Title: string;       // 👈 Actual title of the selected item
   };
   StatusId: number;
@@ -72,7 +72,7 @@ export interface IVisitorDetailExtended extends IVisitorDetail {
   DateTimeVisit?: Date | string | null;
   Bldg?: string;
   AccessCardId?: number;
-  AccessCard?: { Title: string };
+  AccessCards?: { Title: string };
 }
 
 /** Department mapping */

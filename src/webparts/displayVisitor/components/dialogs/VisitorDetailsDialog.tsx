@@ -144,7 +144,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
         console.log("parentBldg:", parentBldg);
         console.log("accessCardLookup keys:", Object.keys(lookup || {}).length);
       } catch (e) {
-        console.error("AccessCard init failed:", e);
+        console.error("AccessCards init failed:", e);
         if (mounted) {
           setCanEditAccessCard(false);
           setAccessCardLookup({});
@@ -191,7 +191,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
         return isEdit && !isViewOnly && canEditAccessCard;
 
       case 'detailsaccesscarddisp':
-        return (!isEdit || isViewOnly || !canEditAccessCard) && !!(visitorDetails as any).AccessCard;
+        return (!isEdit || isViewOnly || !canEditAccessCard) && !!(visitorDetails as any).AccessCards;
 
       case 'dropzone2edit':
         return isEdit && !isViewOnly;
@@ -484,7 +484,7 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                         Access Card
                       </Box>
                       <Box component="span" style={{ display: 'block', fontWeight: 500, margin: '4px' }} className={classes.labelbottom}>
-                        {String((visitorDetails as any).AccessCard || "")}
+                        {String((visitorDetails as any).AccessCards || "")}
                       </Box>
                     </>
                   )}

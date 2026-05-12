@@ -166,11 +166,11 @@ export class SharePointService {
         "SSDApprove",
         "ParkingRequest",
         "AccessCardNo",
-        "AccessCard/Id",
-        "AccessCard/Title",
+        "AccessCards/Id",
+        "AccessCards/Title",
         "IDPresented"
       )
-      .expand("AccessCard")
+      .expand("AccessCards")
       .top(5000)
       .filter(`ParentId eq ${parentId}`)
       .get();
@@ -186,9 +186,9 @@ export class SharePointService {
           .expand("ListItemAllFields")
           .get();
 
-        const acObj = (row as any).AccessCard;
+        const acObj = (row as any).AccessCards;
         (row as any).AccessCardId = acObj && acObj.Id ? Number(acObj.Id) : null;
-        (row as any).AccessCard = acObj && acObj.Title ? String(acObj.Title) : "";
+        (row as any).AccessCards = acObj && acObj.Title ? String(acObj.Title) : "";
 
         const files = visitorDetailsLib.map((fileRow) => fileRow.Name);
         row.Files = [];
@@ -638,7 +638,7 @@ export class SharePointService {
           TypeofVehicle: visitorDetails.TypeofVehicle,
           PlateNo: visitorDetails.PlateNo,
           IDPresented: visitorDetails.IDPresented,
-          //AccessCard: visitorDetails.AccessCard,
+          //AccessCards: visitorDetails.AccessCards,
           AccessCardId: visitorDetails.AccessCardId ? Number(visitorDetails.AccessCardId) : null,
           RequestDate: toISOString(requestDate),
           DeptId: deptId,

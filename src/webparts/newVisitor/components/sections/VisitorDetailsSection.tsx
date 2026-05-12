@@ -76,7 +76,7 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
     IDPresented: '',
     GateNo: '',
     ParentId: null,
-    AccessCard: '',
+    AccessCards: '',
     Files: [],
     VisitorType: visitorType // Use the visitorType from props
   });
@@ -99,7 +99,7 @@ const VisitorDetailsSection: React.FC<IVisitorDetailsSectionProps> = (props) => 
       IDPresented: '',
       GateNo: '',
       ParentId: null,
-      AccessCard: '',
+      AccessCards: '',
       Files: [],
       VisitorType: visitorType // Use the visitorType from props
     });

@@ -109,7 +109,7 @@ export function checkVisibility(
     case 'detailsaccesscardedit':
       return isEdit && forReceptionistCompletion;
     case 'detailsaccesscarddisp':
-      return !isEdit && !!visitor.AccessCard;
+      return !isEdit && !!visitor.AccessCards;
     case 'dropzone2edit':
       return isEdit && forReceptionistCompletion;
     case 'dropzone2disp':

@@ -31,7 +31,7 @@ export interface IVisitorDetailsErrors {
   Title?: string;
   FirstName?: string;
   Car?: string;
-  AccessCard?: string;
+  AccessCards?: string;
   PlateNo?: string;
   //TypeofVehicle?: string;
   Color?: string;

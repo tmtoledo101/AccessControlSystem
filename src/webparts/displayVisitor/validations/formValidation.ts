@@ -199,7 +199,7 @@ export function validateForm(
         havefiles = true;
       }
       
-      if ((!havefiles) || (!rowData.AccessCard) || (!rowData.IDPresented)) {
+      if ((!havefiles) || (!rowData.AccessCards) || (!rowData.IDPresented)) {
         validbit.push('Details');
         alert(`Please complete Visitor Details of ${rowData.Title} on row ${i + 1} before saving!`);
         onViewVisitorDetails('view', rowData);
@@ -238,8 +238,8 @@ export function validateVisitorDetails(
     //required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverName');
     required.push('Title', 'PlateNo','Color', 'DriverName');
   } else if ((isReceptionist) && ((statusId === 4) || (statusId === 9))) {
-    //required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverName', 'AccessCard', 'IDPresented', 'GateNo');
-    required.push('Title', 'PlateNo', 'Color', 'DriverName', 'AccessCard', 'IDPresented', 'GateNo');
+    //required.push('Title', 'PlateNo', 'TypeofVehicle', 'Color', 'DriverName', 'AccessCards', 'IDPresented', 'GateNo');
+    required.push('Title', 'PlateNo', 'Color', 'DriverName', 'AccessCards', 'IDPresented', 'GateNo');
     
     // Check for files
     if (visitorDetails.Files.length === 0 && visitorDetails.initFiles.length === 0) {

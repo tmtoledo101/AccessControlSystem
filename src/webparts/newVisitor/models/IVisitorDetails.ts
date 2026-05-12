@@ -5,7 +5,7 @@ export interface IVisitorDetails {
   Title: string;
   FirstName: string;
   Car: boolean;
-  AccessCard: string;
+  AccessCards: string;
   PlateNo: string;
   TypeofVehicle: string;
   Color: string;

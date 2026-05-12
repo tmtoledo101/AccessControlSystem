@@ -113,30 +113,102 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     setState((prev) => ({ ...prev, refFilter: value }));
   };
 
+  const normalizeText = (value: any): string => {
+    return String(value || '').trim().toUpperCase();
+  };
+
+  const normalizeRefText = (value: any): string => {
+    return normalizeText(value)
+      .replace(/\s+/g, '')
+      .replace(/_/g, '-');
+  };
+
+  const getRefNo = (row: any): string => {
+    return normalizeRefText(
+      (row && row.RefNo) ||
+      (row && row.ReferenceNo) ||
+      (row && row.Title) ||
+      '',
+    );
+  };
+
+  const getBldg = (row: any): string => {
+    return normalizeText((row && row.Bldg) || '');
+  };
+
+  const isRefMatch = (row: any, filter: 'ALL' | 'HO' | 'SPC'): boolean => {
+    if (filter === 'ALL') return true;
+
+    const ref = getRefNo(row);
+
+    if (filter === 'HO') {
+      return ref.startsWith('HO-') || ref.startsWith('HO');
+    }
+
+    if (filter === 'SPC') {
+      return ref.startsWith('SPC-') || ref.startsWith('SPC');
+    }
+
+    return true;
+  };
+
+  const isBldgMatch = (row: any, filter: 'ALL' | 'HO' | 'SPC'): boolean => {
+    if (filter === 'ALL') return true;
+
+    const bldg = getBldg(row);
+
+    if (filter === 'HO') {
+      return bldg.includes('HO') || bldg.includes('5-STOREY');
+    }
+
+    if (filter === 'SPC') {
+      return bldg.includes('SPC');
+    }
+
+    return true;
+  };
+
+  const isAllowedForCurrentUserBuilding = (rowOrBldg: any): boolean => {
+    const row = typeof rowOrBldg === 'string'
+      ? { Bldg: rowOrBldg }
+      : rowOrBldg;
+
+    if (isHOUser) return isBldgMatch(row, 'HO');
+    if (isSPCUser) return isBldgMatch(row, 'SPC');
+
+    return true;
+  };
+
+  const normalizeRequestRow = (row: any): any => ({
+    ...row,
+    RefNo: (row && row.RefNo) || (row && row.ReferenceNo) || (row && row.Title) || '',
+    ReferenceNo: (row && row.ReferenceNo) || (row && row.RefNo) || (row && row.Title) || '',
+  });
+
   /**
-   * Reference filter:
-   * - Requests rows: reference is Title (HO-xxxx / SPC-xxxx)
-   * - Details rows: reference is RefNo (HO-xxxx / SPC-xxxx)
-   * - Reports combined rows: reference is Title, and we also set RefNo = Title for safety
+   * Reference filter behavior:
+   * - By Request and request-based approval tabs: reference number only.
+   * - By Visitor Details: parent request reference number and parent building.
+   * - Reports: reference number and building.
+   * - Search by Visitor Name: reference number only.
    */
   const filterByReference = (rows: any[], filter: 'ALL' | 'HO' | 'SPC') => {
     if (!rows || rows.length === 0) return [];
     if (filter === 'ALL') return rows;
 
-    const prefix = (filter + '-').toUpperCase();
-
-    return rows.filter((r: any) => {
-      let ref = '';
-
-      if (r && typeof r.RefNo === 'string' && r.RefNo) {
-        ref = r.RefNo;
-      } else if (r && typeof r.ReferenceNo === 'string' && r.ReferenceNo) {
-        ref = r.ReferenceNo;
-      } else if (r && typeof r.Title === 'string' && r.Title && /^(HO|SPC)-/i.test(r.Title)) {
-        ref = r.Title;
+    return rows.filter((row: any) => {
+      // Reports tab
+      if (state.vwid === 10) {
+        return isRefMatch(row, filter) && isBldgMatch(row, filter);
       }
 
-      return ref.toUpperCase().indexOf(prefix) === 0;
+      // By Visitor Details tabs
+      if (state.vwid === 3 || state.vwid === 4) {
+        return isRefMatch(row, filter) && isBldgMatch(row, filter);
+      }
+
+      // By Request, request approval tabs, and Search by Visitor Name
+      return isRefMatch(row, filter);
     });
   };
 
@@ -356,8 +428,8 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         if (isHOUser || isSPCUser) {
           filteredDetails = visitorDetails.filter((detail: any) => {
             const parentBldg = visitorBldgMap[detail.ParentId];
-            if (isHOUser) return parentBldg === '(HO) 5-Storey Building';
-            if (isSPCUser) return parentBldg === 'SPC';
+            if (isHOUser) return isBldgMatch({ Bldg: parentBldg }, 'HO');
+            if (isSPCUser) return isBldgMatch({ Bldg: parentBldg }, 'SPC');
             return true;
           });
         }
@@ -365,7 +437,8 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         const enrichedDetails: any[] = filteredDetails.map((d: any) => ({
           ...d,
           Bldg: visitorBldgMap[d.ParentId] || '',
-          RefNo: d.RefNo || visitorRefMap[d.ParentId] || '',
+          RefNo: visitorRefMap[d.ParentId] || d.RefNo || d.ReferenceNo || '',
+          ReferenceNo: visitorRefMap[d.ParentId] || d.ReferenceNo || d.RefNo || '',
         }));
 
         if (currentState.isReceptionist || currentState.isSSDUser) {
@@ -393,37 +466,24 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     let fetchedData: any[] = [];
 
     if (action === 1) {
+      // By Request must keep the full request list so the Reference Filter can work.
+      // The old code filtered by the user's department first. That removed SPC rows
+      // before the SPC reference filter was applied.
       const visitors = await SharePointService.loadVisitorRequests(from, to);
-      const mappedrows: any[] = [];
-
-      visitors.forEach((row: any) => {
-        let filtered: any[] = [];
-        let includeRow = true;
-
-        if (currentState.isEncoder) filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
-        else if (currentState.isApprover) filtered = approversPerDept.filter((item) => item.DeptId === row.DeptId);
-        else if (currentState.isWalkinApprover) filtered = walkinapprovers.filter((item) => item.DeptId === row.DeptId);
-
-        if (isHOUser && row.Bldg !== '(HO) 5-Storey Building') includeRow = false;
-        else if (isSPCUser && row.Bldg !== 'SPC') includeRow = false;
-
-        if (filtered.length > 0 && includeRow) mappedrows.push(row);
-      });
-
-      fetchedData = mappedrows;
+      fetchedData = visitors.map(normalizeRequestRow);
     } else if (action === 2) {
       const visitors = await SharePointService.loadVisitorRequests(from, to);
       let filteredVisitors: any[] = visitors;
 
       if (isHOUser || isSPCUser) {
         filteredVisitors = visitors.filter((row: any) => {
-          if (isHOUser) return row.Bldg === '(HO) 5-Storey Building';
-          if (isSPCUser) return row.Bldg === 'SPC';
+          if (isHOUser) return isBldgMatch(row, 'HO');
+          if (isSPCUser) return isBldgMatch(row, 'SPC');
           return true;
         });
       }
 
-      fetchedData = filteredVisitors;
+      fetchedData = filteredVisitors.map(normalizeRequestRow);
     } else if (action === 3 || action === 4) {
       const visitorDetails = await SharePointService.loadVisitorDetails(from, to);
       const visitorRequests = await SharePointService.loadVisitorRequests(from, to);
@@ -439,8 +499,8 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       if (isHOUser || isSPCUser) {
         filteredDetails = filteredDetails.filter((detail: any) => {
           const parentBldg = visitorBldgMap[detail.ParentId];
-          if (isHOUser) return parentBldg === '(HO) 5-Storey Building';
-          if (isSPCUser) return parentBldg === 'SPC';
+          if (isHOUser) return isBldgMatch({ Bldg: parentBldg }, 'HO');
+          if (isSPCUser) return isBldgMatch({ Bldg: parentBldg }, 'SPC');
           return true;
         });
       }
@@ -448,21 +508,18 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       const enriched: any[] = filteredDetails.map((d: any) => ({
         ...d,
         Bldg: visitorBldgMap[d.ParentId] || '',
-        RefNo: d.RefNo || visitorRefMap[d.ParentId] || '',
+        RefNo: visitorRefMap[d.ParentId] || d.RefNo || d.ReferenceNo || '',
+          ReferenceNo: visitorRefMap[d.ParentId] || d.ReferenceNo || d.RefNo || '',
       }));
 
       if (action === 4) {
         fetchedData = enriched;
       } else {
-        const mappedrows: any[] = [];
-        enriched.forEach((row: any) => {
-          let filtered: any[] = [];
-          if (currentState.isEncoder) filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
-          else if (currentState.isApprover) filtered = approversPerDept.filter((item) => item.DeptId === row.DeptId);
-          else if (currentState.isWalkinApprover) filtered = walkinapprovers.filter((item) => item.DeptId === row.DeptId);
-          if (filtered.length > 0) mappedrows.push(row);
-        });
-        fetchedData = mappedrows;
+        // By Visitor Details must keep the full enriched detail list so the
+        // Reference Filter can check the parent RefNo + parent Bldg.
+        // The old code filtered by the user's department first. That removed
+        // SPC visitor detail rows before the SPC reference filter was applied.
+        fetchedData = enriched.map(normalizeRequestRow);
       }
     } else if (action === 5) {
       // Dept. Approver (Pre-arranged) - only For Approval
@@ -477,13 +534,12 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
         const filtered = approversPerDept.filter((a) => a.DeptId === row.DeptId);
 
-        if (isHOUser && row.Bldg !== '(HO) 5-Storey Building') includeRow = false;
-        else if (isSPCUser && row.Bldg !== 'SPC') includeRow = false;
+        if (!isAllowedForCurrentUserBuilding(row)) includeRow = false;
 
         if (filtered.length > 0 && includeRow) mappedrows.push(row);
       });
 
-      fetchedData = mappedrows;
+      fetchedData = mappedrows.map(normalizeRequestRow);
     } else if (action === 6) {
       // SSD tab - only Approved by Dept Head
       const visitors = await SharePointService.loadVisitorRequests(from, to);
@@ -491,15 +547,15 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
       if (isHOUser || isSPCUser) {
         filteredVisitors = filteredVisitors.filter((row: any) => {
-          if (isHOUser) return row.Bldg === '(HO) 5-Storey Building';
-          if (isSPCUser) return row.Bldg === 'SPC';
+          if (isHOUser) return isBldgMatch(row, 'HO');
+          if (isSPCUser) return isBldgMatch(row, 'SPC');
           return true;
         });
       }
 
       filteredVisitors = filteredVisitors.filter((row: any) => row.Status && row.Status.Title === STATUS_APPROVED_BY_DEPT_HEAD);
 
-      fetchedData = filteredVisitors;
+      fetchedData = filteredVisitors.map(normalizeRequestRow);
     } else if (action === 7) {
       // Dept. Approver (Walk-in) - only For Approval
       const visitors = await SharePointService.loadVisitorRequests(from, to);
@@ -513,13 +569,12 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
         const filtered = walkinapprovers.filter((a) => a.DeptId === row.DeptId);
 
-        if (isHOUser && row.Bldg !== '(HO) 5-Storey Building') includeRow = false;
-        else if (isSPCUser && row.Bldg !== 'SPC') includeRow = false;
+        if (!isAllowedForCurrentUserBuilding(row)) includeRow = false;
 
         if (filtered.length > 0 && includeRow) mappedrows.push(row);
       });
 
-      fetchedData = mappedrows;
+      fetchedData = mappedrows.map(normalizeRequestRow);
     } else if (action === 10) {
       // REPORTS: requests + details combined
       let reportRequests: any[] = [];
@@ -538,7 +593,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       let filteredRequests: any[] = reportRequests;
       if (isHOUser || isSPCUser) {
         filteredRequests = reportRequests.filter((row: any) => {
-          return row.Bldg === (isHOUser ? '(HO) 5-Storey Building' : 'SPC');
+          return isAllowedForCurrentUserBuilding(row);
         });
       }
 
@@ -560,13 +615,14 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         return {
           ...req,
           RefNo: req.Title,
+          ReferenceNo: req.Title,
           VisitorLastName: lastNames,
           VisitorFirstName: firstNames,
           VisitorPlateNo: plateNos,
         };
       });
 
-      fetchedData = combinedReports;
+      fetchedData = combinedReports.map(normalizeRequestRow);
     } else if (action === 11) {
       const visitorCounts = await SharePointService.getVisitorEntryCounts(from, to, 14, 'exact');
       fetchedData = visitorCounts as any[];

@@ -290,9 +290,9 @@ public static async searchVisitorsByName(searchText: string): Promise<IVisitorDe
       .items.select(
         "ID,Title,FirstName,DateFrom,DateTo,CompanyName,Status/Title,Dept/Title,ParentId," +
         "VisitorTypeId,VisitorType/Title," +
-        "AccessCardId,AccessCard/Title"
+        "AccessCardId,AccessCards/Title"
       )
-      .expand("Status", "Dept", "VisitorType", "AccessCard")
+      .expand("Status", "Dept", "VisitorType", "AccessCards")
       .top(5000)
       .filter(
         `(Title eq '${ln}' and FirstName eq '${fn}')` +

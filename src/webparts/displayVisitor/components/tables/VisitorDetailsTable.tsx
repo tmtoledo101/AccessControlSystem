@@ -79,7 +79,7 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = (props) => {
     {
       title: "Access Card",
       render: (rowData: IVisitorDetails) => {
-        const ac: any = (rowData as any).AccessCard;
+        const ac: any = (rowData as any).AccessCards;
 
         if (!ac) return "";
 
