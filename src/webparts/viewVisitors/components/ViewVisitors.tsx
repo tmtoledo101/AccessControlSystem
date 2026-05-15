@@ -185,6 +185,107 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     ReferenceNo: (row && row.ReferenceNo) || (row && row.RefNo) || (row && row.Title) || '',
   });
 
+  const splitLegacyVisitorName = (title: any, firstName: any) => {
+    const titleText = String(title || '').trim();
+    const firstText = String(firstName || '').trim();
+
+    // Enhanced/new data:
+    // Title = Last Name
+    // FirstName = First Name
+    if (firstText) {
+      const lastName = titleText;
+      const firstNameValue = firstText;
+
+      return {
+        LastName: lastName,
+        FirstName: firstNameValue,
+        FullName: `${firstNameValue} ${lastName}`.trim(),
+        ReverseFullName: `${lastName} ${firstNameValue}`.trim(),
+        SearchName: `${firstNameValue} ${lastName} ${lastName} ${firstNameValue}`.trim().toUpperCase(),
+      };
+    }
+
+    // Old/legacy data:
+    // Title = First Name + Last Name, example: Djerson Estrella
+    // FirstName = empty
+    const parts = titleText.split(/\s+/).filter(Boolean);
+
+    if (parts.length <= 1) {
+      return {
+        LastName: titleText,
+        FirstName: '',
+        FullName: titleText,
+        ReverseFullName: titleText,
+        SearchName: titleText.toUpperCase(),
+      };
+    }
+
+    const firstNameValue = parts[0];
+    const lastName = parts.slice(1).join(' ');
+
+    return {
+      LastName: lastName,
+      FirstName: firstNameValue,
+      FullName: `${firstNameValue} ${lastName}`.trim(),
+      ReverseFullName: `${lastName} ${firstNameValue}`.trim(),
+      SearchName: `${firstNameValue} ${lastName} ${lastName} ${firstNameValue}`.trim().toUpperCase(),
+    };
+  };
+
+  const normalizeVisitorDetailName = (detail: any) => {
+    const name = splitLegacyVisitorName(detail.Title, detail.FirstName);
+
+    return {
+      ...detail,
+      Title: name.LastName,
+      FirstName: name.FirstName,
+      FullName: name.FullName,
+      ReverseFullName: name.ReverseFullName,
+      SearchName: name.SearchName,
+    };
+  };
+
+  const isVisitorNameMatch = (detail: any, searchText: string): boolean => {
+    const normalized = normalizeVisitorDetailName(detail);
+    const cleanSearchText = normalizeText(searchText);
+
+    if (!cleanSearchText) return true;
+
+    // Keep the raw values too. This is important for old records where:
+    // Title = Djerson Estrella
+    // FirstName = blank
+    const rawTitle = normalizeText(detail.Title);
+    const rawFirstName = normalizeText(detail.FirstName);
+
+    // Normalized values support the enhanced records where:
+    // Title = Estrella
+    // FirstName = Djerson
+    const lastName = normalizeText(normalized.Title);
+    const firstName = normalizeText(normalized.FirstName);
+    const fullName = normalizeText(normalized.FullName);
+    const reverseFullName = normalizeText(normalized.ReverseFullName);
+    const searchName = normalizeText(normalized.SearchName);
+
+    const allSearchText = [
+      rawTitle,
+      rawFirstName,
+      lastName,
+      firstName,
+      fullName,
+      reverseFullName,
+      searchName,
+    ].join(' ');
+
+    // Token search makes these all work:
+    // Djerson Estrella
+    // Estrella Djerson
+    // Djerson
+    // Estrella
+    const searchTokens = cleanSearchText.split(/\s+/).filter(Boolean);
+
+    return searchTokens.every((token) => allSearchText.indexOf(token) > -1);
+  };
+
   /**
    * Reference filter behavior:
    * - By Request and request-based approval tabs: reference number only.
@@ -403,61 +504,86 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
   const handleChangeTxt = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const searchText = e.target.value;
+      const cleanSearchText = normalizeText(searchText);
 
       setState((prevState) => {
         const newState: any = { ...prevState, txtSearch: searchText };
-        if (searchText.length < 3) newState.dirListItems = [];
+        if (cleanSearchText.length < 3) newState.dirListItems = [];
         return newState;
       });
 
-      if (searchText.length > 2) {
-        const currentState: any = { ...state };
+      if (cleanSearchText.length < 3) return;
 
-        const visitorDetails = await SharePointService.searchVisitorsByName(searchText);
+      const currentState: any = { ...state };
 
-        const visitorRequests = await SharePointService.loadVisitorRequests(state.selectedFromDate.toDate(), state.selectedToDate.toDate());
+      // Load parent requests first by date range.
+      // This avoids scanning the whole VisitorDetails list and helps prevent list view threshold errors.
+      const visitorRequests = await SharePointService.loadVisitorRequests(
+        state.selectedFromDate.toDate(),
+        state.selectedToDate.toDate(),
+      );
 
-        const visitorBldgMap: { [key: number]: string } = {};
-        const visitorRefMap: { [key: number]: string } = {};
-        visitorRequests.forEach((v: any) => {
-          visitorBldgMap[v.ID] = v.Bldg;
-          visitorRefMap[v.ID] = v.Title;
+      const visitorBldgMap: { [key: number]: string } = {};
+      const visitorRefMap: { [key: number]: string } = {};
+      const parentIds: number[] = [];
+
+      visitorRequests.forEach((v: any) => {
+        visitorBldgMap[v.ID] = v.Bldg;
+        visitorRefMap[v.ID] = v.Title;
+        parentIds.push(v.ID);
+      });
+
+      if (parentIds.length === 0) {
+        setState((prevState) => ({ ...prevState, dirListItems: [] }));
+        return;
+      }
+
+      // Required in SharePointService.ts:
+      // loadVisitorDetailsByParentIds(parentIds)
+      const visitorDetails = await SharePointService.loadVisitorDetailsByParentIds(parentIds);
+
+      let filteredDetails: any[] = visitorDetails.filter((detail: any) => {
+        return isVisitorNameMatch(detail, cleanSearchText);
+      });
+
+      if (isHOUser || isSPCUser) {
+        filteredDetails = filteredDetails.filter((detail: any) => {
+          const parentBldg = visitorBldgMap[detail.ParentId];
+          if (isHOUser) return isBldgMatch({ Bldg: parentBldg }, 'HO');
+          if (isSPCUser) return isBldgMatch({ Bldg: parentBldg }, 'SPC');
+          return true;
         });
+      }
 
-        let filteredDetails: any[] = visitorDetails;
-        if (isHOUser || isSPCUser) {
-          filteredDetails = visitorDetails.filter((detail: any) => {
-            const parentBldg = visitorBldgMap[detail.ParentId];
-            if (isHOUser) return isBldgMatch({ Bldg: parentBldg }, 'HO');
-            if (isSPCUser) return isBldgMatch({ Bldg: parentBldg }, 'SPC');
-            return true;
-          });
-        }
+      const enrichedDetails: any[] = filteredDetails.map((d: any) => {
+        const normalized = normalizeVisitorDetailName(d);
 
-        const enrichedDetails: any[] = filteredDetails.map((d: any) => ({
-          ...d,
+        return {
+          ...normalized,
           Bldg: visitorBldgMap[d.ParentId] || '',
           RefNo: visitorRefMap[d.ParentId] || d.RefNo || d.ReferenceNo || '',
           ReferenceNo: visitorRefMap[d.ParentId] || d.ReferenceNo || d.RefNo || '',
-        }));
+        };
+      });
 
-        if (currentState.isReceptionist || currentState.isSSDUser) {
-          setState((prevState) => ({ ...prevState, dirListItems: enrichedDetails }));
-        } else if (currentState.isEncoder || currentState.isApprover || currentState.isWalkinApprover) {
-          const mappedrows: any[] = [];
-          enrichedDetails.forEach((row: any) => {
-            let filtered: any[] = [];
-            if (currentState.isEncoder) filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
-            else if (currentState.isApprover) filtered = approversPerDept.filter((item) => item.DeptId === row.DeptId);
-            else if (currentState.isWalkinApprover) filtered = walkinapprovers.filter((item) => item.DeptId === row.DeptId);
-            if (filtered.length > 0) mappedrows.push(row);
-          });
-          setState((prevState) => ({ ...prevState, dirListItems: mappedrows }));
-        }
+      if (currentState.isReceptionist || currentState.isSSDUser) {
+        setState((prevState) => ({ ...prevState, dirListItems: enrichedDetails }));
+      } else if (currentState.isEncoder || currentState.isApprover || currentState.isWalkinApprover) {
+        const mappedrows: any[] = [];
+
+        enrichedDetails.forEach((row: any) => {
+          let filtered: any[] = [];
+          if (currentState.isEncoder) filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
+          else if (currentState.isApprover) filtered = approversPerDept.filter((item) => item.DeptId === row.DeptId);
+          else if (currentState.isWalkinApprover) filtered = walkinapprovers.filter((item) => item.DeptId === row.DeptId);
+          if (filtered.length > 0) mappedrows.push(row);
+        });
+
+        setState((prevState) => ({ ...prevState, dirListItems: mappedrows }));
       }
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.log(err);
+      console.log('Search by visitor name error:', err);
     }
   };
 
@@ -505,12 +631,16 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         });
       }
 
-      const enriched: any[] = filteredDetails.map((d: any) => ({
-        ...d,
-        Bldg: visitorBldgMap[d.ParentId] || '',
-        RefNo: visitorRefMap[d.ParentId] || d.RefNo || d.ReferenceNo || '',
+      const enriched: any[] = filteredDetails.map((d: any) => {
+        const normalized = normalizeVisitorDetailName(d);
+
+        return {
+          ...normalized,
+          Bldg: visitorBldgMap[d.ParentId] || '',
+          RefNo: visitorRefMap[d.ParentId] || d.RefNo || d.ReferenceNo || '',
           ReferenceNo: visitorRefMap[d.ParentId] || d.ReferenceNo || d.RefNo || '',
-      }));
+        };
+      });
 
       if (action === 4) {
         fetchedData = enriched;
@@ -608,8 +738,16 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       const combinedReports: any[] = filteredRequests.map((req: any) => {
         const list = detailsByParent[req.ID] || [];
 
-        const lastNames = list.map((x) => x.Title).filter(Boolean).join(', ');
-        const firstNames = list.map((x) => x.FirstName).filter(Boolean).join(', ');
+        const lastNames = list
+          .map((x) => splitLegacyVisitorName(x.Title, x.FirstName).LastName)
+          .filter(Boolean)
+          .join(', ');
+
+        const firstNames = list
+          .map((x) => splitLegacyVisitorName(x.Title, x.FirstName).FirstName)
+          .filter(Boolean)
+          .join(', ');
+
         const plateNos = list.map((x) => x.PlateNo).filter(Boolean).join(', ');
 
         return {

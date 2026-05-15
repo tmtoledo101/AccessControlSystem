@@ -10,7 +10,7 @@ export interface IVisitorDetails {
     Id: number;
     Title: string;
   };
-  AccessCardId?: number;
+  AccessCardsId?: number;
   AccessCardNo?: string;
   PlateNo: string;
   TypeofVehicle: string;
@@ -32,7 +32,7 @@ export interface IVisitorDetailsError {
   Title: string;
   FirstName: string;
   Car: string;
-  AccessCardId?: string;
+  AccessCardsId?: string;
   PlateNo: string;
   Color: string;
   DriverName: string;

@@ -187,7 +187,7 @@ export class SharePointService {
           .get();
 
         const acObj = (row as any).AccessCards;
-        (row as any).AccessCardId = acObj && acObj.Id ? Number(acObj.Id) : null;
+        (row as any).AccessCardsId = acObj && acObj.Id ? Number(acObj.Id) : null;
         (row as any).AccessCards = acObj && acObj.Title ? String(acObj.Title) : "";
 
         const files = visitorDetailsLib.map((fileRow) => fileRow.Name);
@@ -611,7 +611,7 @@ export class SharePointService {
           TypeofVehicle: visitorDetails.TypeofVehicle,
           PlateNo: visitorDetails.PlateNo,
           IDPresented: visitorDetails.IDPresented,
-          AccessCardId: visitorDetails.AccessCardId ? Number(visitorDetails.AccessCardId) : null,
+          AccessCardsId: visitorDetails.AccessCardsId ? Number(visitorDetails.AccessCardsId) : null,
           AccessCardNo: visitorDetails.AccessCardNo || "",
           RequestDate: toISOString(requestDate),
           DeptId: deptId,
@@ -639,7 +639,7 @@ export class SharePointService {
           PlateNo: visitorDetails.PlateNo,
           IDPresented: visitorDetails.IDPresented,
           //AccessCards: visitorDetails.AccessCards,
-          AccessCardId: visitorDetails.AccessCardId ? Number(visitorDetails.AccessCardId) : null,
+          AccessCardsId: visitorDetails.AccessCardsId ? Number(visitorDetails.AccessCardsId) : null,
           RequestDate: toISOString(requestDate),
           DeptId: deptId,
           RefNo: refNo,

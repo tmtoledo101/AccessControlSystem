@@ -53,6 +53,38 @@ function buildVisitorTypeFilter(lookupInternalName: string, titles: string[]): s
   return titles.map(t => `${left} eq '${odataEscape(t)}'`).join(" or ");
 }
 
+function splitLegacyVisitorName(title: any, firstName: any) {
+  const titleText = String(title || "").trim();
+  const firstText = String(firstName || "").trim();
+
+  if (firstText) {
+    return {
+      LastName: titleText,
+      FirstName: firstText,
+      FullName: `${firstText} ${titleText}`.trim(),
+      LegacyTitle: titleText,
+    };
+  }
+
+  const parts = titleText.split(/\s+/).filter(Boolean);
+
+  if (parts.length <= 1) {
+    return {
+      LastName: titleText,
+      FirstName: "",
+      FullName: titleText,
+      LegacyTitle: titleText,
+    };
+  }
+
+  return {
+    LastName: parts[0],
+    FirstName: parts.slice(1).join(" "),
+    FullName: titleText,
+    LegacyTitle: titleText,
+  };
+}
+
 export default class SharePointService {
   public static async getCurrentUser() {
     return await sp.web.currentUser();
@@ -109,9 +141,104 @@ export default class SharePointService {
   }
 
   public static async loadVisitorDetails(from: Date, to: Date): Promise<IVisitorDetail[]> {
-  const items = await sp.web.lists
-    .getByTitle("VisitorDetails")
-    .items.select(
+    const items = await sp.web.lists
+      .getByTitle("VisitorDetails")
+      .items.select(
+        "ID",
+        "Title",
+        "FirstName",
+        "CompanyName",
+        "PlateNo",
+        "DateFrom",
+        "DateTo",
+        "ParentId",
+        "RefNo",
+        "DeptId",
+        "StatusId",
+        "AuthorId",
+        "Modified",
+        "Status/Title",
+        "Dept/Title",
+        "Author/Title",
+        "Author/EMail"
+      )
+      .expand("Dept", "Status", "Author")
+      .top(5000)
+      .filter(`DateTo ge '${from.toISOString()}'`)
+      .get();
+
+    return items
+      .filter((item: any) => {
+        if (!item.DateFrom) return false;
+        return new Date(item.DateFrom) <= to;
+      })
+      .sort((a: any, b: any) => {
+        return new Date(b.Modified).getTime() - new Date(a.Modified).getTime();
+      }) as IVisitorDetail[];
+  }
+
+  public static async loadVisitorDetailsByParentIds(parentIds: number[]): Promise<IVisitorDetail[]> {
+    if (!parentIds || parentIds.length === 0) return [];
+
+    const cleanParentIds = parentIds
+      .map((id) => Number(id))
+      .filter((id) => !isNaN(id) && id > 0);
+
+    if (cleanParentIds.length === 0) return [];
+
+    const uniqueParentIds = cleanParentIds.filter((id, index, array) => {
+      return array.indexOf(id) === index;
+    });
+
+    const results: IVisitorDetail[] = [];
+    const batchSize = 20;
+
+    for (let i = 0; i < uniqueParentIds.length; i += batchSize) {
+      const batchIds = uniqueParentIds.slice(i, i + batchSize);
+      const filter = batchIds.map((id) => `ParentId eq ${id}`).join(" or ");
+
+      const items = await sp.web.lists
+        .getByTitle("VisitorDetails")
+        .items.select(
+          "ID",
+          "Title",
+          "FirstName",
+          "CompanyName",
+          "PlateNo",
+          "DateFrom",
+          "DateTo",
+          "ParentId",
+          "RefNo",
+          "DeptId",
+          "StatusId",
+          "AuthorId",
+          "Modified",
+          "Status/Title",
+          "Dept/Title",
+          "Author/Title",
+          "Author/EMail"
+        )
+        .expand("Dept", "Status", "Author")
+        .filter(filter)
+        .top(5000)
+        .get();
+
+      results.push(...items as IVisitorDetail[]);
+    }
+
+    return results.sort((a: any, b: any) => {
+      return new Date(b.Modified).getTime() - new Date(a.Modified).getTime();
+    });
+  }
+
+  public static async searchVisitorsByName(searchText: string): Promise<IVisitorDetail[]> {
+    const rawSearch = String(searchText || "").trim();
+
+    if (!rawSearch) {
+      return [];
+    }
+
+    const selectFields = [
       "ID",
       "Title",
       "FirstName",
@@ -129,81 +256,41 @@ export default class SharePointService {
       "Dept/Title",
       "Author/Title",
       "Author/EMail"
-    )
-    .expand("Dept", "Status", "Author")
-    .top(5000)
-    .filter(`DateTo ge '${from.toISOString()}'`)
-    .get();
+    ].join(",");
 
-  return items
-    .filter((item: any) => {
-      if (!item.DateFrom) return false;
-      return new Date(item.DateFrom) <= to;
-    })
-    .sort((a: any, b: any) => {
-      return new Date(b.Modified).getTime() - new Date(a.Modified).getTime();
+    const tokens = rawSearch
+      .replace(/[.,]/g, " ")
+      .split(/\s+/)
+      .filter((x) => x);
+
+    const searchTokens = tokens.map((x) => x.toLowerCase());
+    const firstToken = odataEscape(tokens[0]);
+    const lastToken = odataEscape(tokens[tokens.length - 1]);
+
+    const filter = firstToken === lastToken
+      ? `startswith(Title,'${lastToken}') or startswith(FirstName,'${firstToken}')`
+      : `startswith(Title,'${lastToken}') or startswith(Title,'${firstToken}') or startswith(FirstName,'${firstToken}')`;
+
+    const items = await sp.web.lists
+      .getByTitle("VisitorDetails")
+      .items.select(selectFields)
+      .expand("Dept", "Status", "Author")
+      .filter(filter)
+      .top(500)
+      .get();
+
+    return items.filter((item: any) => {
+      const name = splitLegacyVisitorName(item.Title, item.FirstName);
+      const nameText = `${name.FirstName || ""} ${name.LastName || ""} ${name.FullName || ""}`
+        .toLowerCase()
+        .replace(/[.,]/g, " ");
+
+      return searchTokens.every((token) => {
+        if (token.length === 1) return true;
+        return nameText.indexOf(token) >= 0;
+      });
     }) as IVisitorDetail[];
-}
-
-public static async searchVisitorsByName(searchText: string): Promise<IVisitorDetail[]> {
-  const rawSearch = String(searchText || "").trim();
-
-  if (!rawSearch) {
-    return [];
   }
-
-  const selectFields = [
-    "ID",
-    "Title",
-    "FirstName",
-    "CompanyName",
-    "PlateNo",
-    "DateFrom",
-    "DateTo",
-    "ParentId",
-    "RefNo",
-    "DeptId",
-    "StatusId",
-    "AuthorId",
-    "Modified",
-    "Status/Title",
-    "Dept/Title",
-    "Author/Title",
-    "Author/EMail"
-  ].join(",");
-
-  const tokens = rawSearch
-    .replace(/[.,]/g, " ")
-    .split(/\s+/)
-    .filter((x) => x);
-
-  const searchTokens = tokens.map((x) => x.toLowerCase());
-
-  // For full name search, use the last token as surname.
-  // Example: "Djerson R. Estrella" -> "Estrella"
-  const surnameToken = tokens[tokens.length - 1];
-  const q = odataEscape(surnameToken);
-
-  const items = await sp.web.lists
-    .getByTitle("VisitorDetails")
-    .items.select(selectFields)
-    .expand("Dept", "Status", "Author")
-    .filter(`startswith(Title,'${q}')`)
-    .top(500)
-    .get();
-
-  return items.filter((item: any) => {
-    const nameText = `${item.FirstName || ""} ${item.Title || ""}`
-      .toLowerCase()
-      .replace(/[.,]/g, " ");
-
-    return searchTokens.every((token) => {
-      // Ignore middle initials like R
-      if (token.length === 1) return true;
-      return nameText.indexOf(token) >= 0;
-    });
-  }) as IVisitorDetail[];
-}
 
   public static async getVisitorEntryCounts(
     from: Date,
@@ -240,8 +327,9 @@ public static async searchVisitorsByName(searchText: string): Promise<IVisitorDe
       const add = inclusiveDaysInRange(d.DateFrom, d.DateTo, from, to);
       if (add <= 0) continue;
 
-      const lastName = d.Title || "";
-      const firstName = d.FirstName || "";
+      const name = splitLegacyVisitorName(d.Title, d.FirstName);
+      const lastName = name.LastName || "";
+      const firstName = name.FirstName || "";
       const key = (firstName + "__" + lastName).toLowerCase();
 
       if (!map[key]) {
@@ -274,6 +362,7 @@ public static async searchVisitorsByName(searchText: string): Promise<IVisitorDe
   ): Promise<IVisitorDetailExtended[]> {
     const fn = odataEscape(firstName || "");
     const ln = odataEscape(lastName || "");
+    const legacyFullName = odataEscape(`${lastName || ""} ${firstName || ""}`.trim());
 
     const statusFilter =
       approvedOnly
@@ -285,17 +374,21 @@ public static async searchVisitorsByName(searchText: string): Promise<IVisitorDe
     const VT = "VisitorType";
     const vtFilter = " and (" + buildVisitorTypeFilter(VT, ["Service Provider", "Project Contractor"]) + ")";
 
+    const nameFilter = legacyFullName
+      ? `((Title eq '${ln}' and FirstName eq '${fn}') or (Title eq '${legacyFullName}' and (FirstName eq null or FirstName eq '')))`
+      : `(Title eq '${ln}' and FirstName eq '${fn}')`;
+
     const visitorDetails = await sp.web.lists
       .getByTitle("VisitorDetails")
       .items.select(
         "ID,Title,FirstName,DateFrom,DateTo,CompanyName,Status/Title,Dept/Title,ParentId," +
         "VisitorTypeId,VisitorType/Title," +
-        "AccessCardId,AccessCards/Title"
+        "AccessCardsId,AccessCards/Title"
       )
       .expand("Status", "Dept", "VisitorType", "AccessCards")
       .top(5000)
       .filter(
-        `(Title eq '${ln}' and FirstName eq '${fn}')` +
+        nameFilter +
         ` and (DateTo ge '${from.toISOString()}' and DateFrom le '${to.toISOString()}')` +
         statusFilter +
         vtFilter
@@ -306,21 +399,37 @@ public static async searchVisitorsByName(searchText: string): Promise<IVisitorDe
 
     let infoById: { [key: number]: any } = {};
     if (parentIds.length > 0) {
-      const filterString = parentIds.map((id) => `ID eq ${id}`).join(" or ");
-      const visitorInfo = await sp.web.lists
-        .getByTitle("Visitors")
-        .items.select("ID,VisContactNo,Author/Title,DateTimeArrival,DateTimeVisit,Bldg")
-        .expand("Author")
-        .top(5000)
-        .filter(filterString)
-        .get();
-      visitorInfo.forEach((v: any) => (infoById[v.ID] = v));
+      const uniqueParentIds = parentIds.filter((id: any, index: number, array: any[]) => {
+        return array.indexOf(id) === index;
+      });
+
+      const batchSize = 20;
+
+      for (let i = 0; i < uniqueParentIds.length; i += batchSize) {
+        const batchIds = uniqueParentIds.slice(i, i + batchSize);
+        const filterString = batchIds.map((id: any) => `ID eq ${id}`).join(" or ");
+
+        const visitorInfo = await sp.web.lists
+          .getByTitle("Visitors")
+          .items.select("ID,VisContactNo,Author/Title,DateTimeArrival,DateTimeVisit,Bldg")
+          .expand("Author")
+          .top(5000)
+          .filter(filterString)
+          .get();
+
+        visitorInfo.forEach((v: any) => (infoById[v.ID] = v));
+      }
     }
 
     return visitorDetails.map((detail: any) => {
       const parent = infoById[detail.ParentId] || {};
+      const name = splitLegacyVisitorName(detail.Title, detail.FirstName);
+
       return {
         ...detail,
+        Title: name.LastName,
+        FirstName: name.FirstName,
+        FullName: name.FullName,
         VisContactNo: parent.VisContactNo || "",
         CreatedBy: parent.Author && parent.Author.Title ? parent.Author.Title : "",
         DateTimeArrival: parent.DateTimeArrival || null,
@@ -335,7 +444,7 @@ public static async searchVisitorsByName(searchText: string): Promise<IVisitorDe
       .getByTitle("VisitorDetails")
       .items.getById(id)
       .update({
-        AccessCardId: accessCardId
+        AccessCardsId: accessCardId
       });
   }
 

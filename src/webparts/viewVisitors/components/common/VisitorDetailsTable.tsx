@@ -87,7 +87,7 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = ({ data, onView
         { title: "Building", field: "Bldg", editable: 'never' },
         {
           title: "Access Card",
-          field: "AccessCardId",
+          field: "AccessCardsId",
           editable: canEditAccessCard ? 'always' : 'never',
           editComponent: props => {
             // Normalize and split the buildings string
@@ -119,8 +119,8 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = ({ data, onView
             );
           },
           render: (rowData: any) =>
-            accessCardLookup[rowData.AccessCardId]
-              ? accessCardLookup[rowData.AccessCardId].title
+            accessCardLookup[rowData.AccessCardsId]
+              ? accessCardLookup[rowData.AccessCardsId].title
               : ''
         },
         {
@@ -160,7 +160,7 @@ const VisitorDetailsTable: React.FC<IVisitorDetailsTableProps> = ({ data, onView
               onRowUpdate: async (newData: any, oldData: any) => {
                 try {
                   if (!oldData) return;
-                  await SharePointService.updateAccessCard(oldData.ID, newData.AccessCardId);
+                  await SharePointService.updateAccessCard(oldData.ID, newData.AccessCardsId);
                 } catch (e) {
                   console.error("Access Card update failed:", e);
                 }

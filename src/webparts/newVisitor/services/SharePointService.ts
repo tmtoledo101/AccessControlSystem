@@ -309,7 +309,7 @@ export class SharePointService {
           PlateNo: (visitorDetail as any).PlateNo,
           GateNo: (visitorDetail as any).GateNo,
           IDPresented: (visitorDetail as any).IDPresented,
-          AccessCardId:
+          AccessCardsId:
             (visitorDetail as any).AccessCards && typeof (visitorDetail as any).AccessCards === "number"
               ? (visitorDetail as any).AccessCards
               : null,

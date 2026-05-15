@@ -51,7 +51,7 @@ export interface IVisitorDetail {
   CompanyName: string;
   Car: boolean;
   //AccessCards: string;
-  AccessCardId?: number; // 👈 Lookup ID from SharePoint
+  AccessCardsId?: number; // 👈 Lookup ID from SharePoint
   AccessCards?: {
     Title: string;       // 👈 Actual title of the selected item
   };
@@ -71,7 +71,7 @@ export interface IVisitorDetailExtended extends IVisitorDetail {
   DateTimeArrival?: Date | string | null;
   DateTimeVisit?: Date | string | null;
   Bldg?: string;
-  AccessCardId?: number;
+  AccessCardsId?: number;
   AccessCards?: { Title: string };
 }
 

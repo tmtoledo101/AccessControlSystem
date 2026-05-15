@@ -442,15 +442,15 @@ const VisitorDetailsDialog: React.FC<IVisitorDetailsDialogProps> = (props) => {
                       <InputLabel id="accessCardLabel">Access Card</InputLabel>
                       <Select
                         labelId="accessCardLabel"
-                        id="AccessCardId"
+                        id="AccessCardsId"
                         value={
-                          (visitorDetails as any).AccessCardId !== undefined &&
-                          (visitorDetails as any).AccessCardId !== null
-                            ? (visitorDetails as any).AccessCardId
+                          (visitorDetails as any).AccessCardsId !== undefined &&
+                          (visitorDetails as any).AccessCardsId !== null
+                            ? (visitorDetails as any).AccessCardsId
                             : ""
                         }
                         onChange={onChangeCbo as any}
-                        name="AccessCardId"
+                        name="AccessCardsId"
                       >
                         <MenuItem value="">
                           -- Select Access Card --

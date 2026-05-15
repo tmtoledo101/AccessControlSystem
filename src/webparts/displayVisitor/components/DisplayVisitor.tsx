@@ -153,7 +153,7 @@ const initialVisitorDetail: IVisitorDetails = {
   FirstName: "",
   Car: false,
   AccessCards: undefined,
-  AccessCardId: undefined,
+  AccessCardsId: undefined,
   AccessCardNo: "",
   PlateNo: "",
   TypeofVehicle: "",
@@ -170,7 +170,7 @@ const initialVisitorDetailError: IVisitorDetailsError = {
   Title: "",
   FirstName: "",
   Car: "",
-  AccessCardId: "",
+  AccessCardsId: "",
   PlateNo: "",
   Color: "",
   DriverName: "",
@@ -626,7 +626,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         const hasFiles =
           (row.Files && row.Files.length > 0) || (row.initFiles && row.initFiles.length > 0);
 
-        if (!hasFiles || !(row as any).AccessCardId || !(row as any).IDPresented) {
+        if (!hasFiles || !(row as any).AccessCardsId || !(row as any).IDPresented) {
           tempErrors.Details = `Please complete Visitor Details of ${
             row.Title || `Visitor ${i + 1}`
           } on row ${i + 1} before saving!`;
@@ -656,7 +656,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
       requiredDetailFields.push("Title");
       if (visitorDetails.Car) requiredDetailFields.push("PlateNo", "Color", "DriverName");
     } else if (isReceptionist && (inputFields.StatusId === 4 || inputFields.StatusId === 9)) {
-      requiredDetailFields.push("Title", "AccessCardId", "IDPresented");
+      requiredDetailFields.push("Title", "AccessCardsId", "IDPresented");
       if (visitorDetails.Car) requiredDetailFields.push("PlateNo", "Color", "DriverName");
       if (!visitorDetails.Files || visitorDetails.Files.length === 0) {
         tempErrors.Files = "Please upload a file.";
