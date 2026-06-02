@@ -157,12 +157,14 @@ export default class SharePointService {
         "StatusId",
         "AuthorId",
         "Modified",
+        "AccessCardsId",
+        "AccessCards/Title",
         "Status/Title",
         "Dept/Title",
         "Author/Title",
         "Author/EMail"
       )
-      .expand("Dept", "Status", "Author")
+      .expand("Dept", "Status", "Author", "AccessCards")
       .top(5000)
       .filter(`DateTo ge '${from.toISOString()}'`)
       .get();
@@ -218,7 +220,7 @@ export default class SharePointService {
           "Author/Title",
           "Author/EMail"
         )
-        .expand("Dept", "Status", "Author")
+        .expand("Dept", "Status", "Author", "AccessCards")
         .filter(filter)
         .top(5000)
         .get();
@@ -252,6 +254,8 @@ export default class SharePointService {
       "StatusId",
       "AuthorId",
       "Modified",
+      "AccessCardsId",
+      "AccessCards/Title",
       "Status/Title",
       "Dept/Title",
       "Author/Title",
@@ -274,7 +278,7 @@ export default class SharePointService {
     const items = await sp.web.lists
       .getByTitle("VisitorDetails")
       .items.select(selectFields)
-      .expand("Dept", "Status", "Author")
+      .expand("Dept", "Status", "Author", "AccessCards")
       .filter(filter)
       .top(500)
       .get();

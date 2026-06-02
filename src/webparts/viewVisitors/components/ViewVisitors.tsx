@@ -56,6 +56,7 @@ const useStyles = makeStyles((theme: Theme) =>
 // Constants
 const Receptionist_Group = 'Receptionist';
 const SSD_Group_v2 = 'SSD';
+//const SSD_Group_v2 ='SSD_V2';
 
 // Status labels
 const STATUS_FOR_APPROVAL = 'For Approval';

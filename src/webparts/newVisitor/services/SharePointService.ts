@@ -61,28 +61,26 @@ export class SharePointService {
   }
 
   public async getBuildingList(): Promise<any[]> {
-  const items = await sp.web.lists
-    .getByTitle("Building")
-    .items.select("*")
-    .top(5000)
-    .get();
+    const items = await sp.web.lists
+      .getByTitle("Building")
+      .items.select("*")
+      .top(5000)
+      .get();
 
-  return (items || []).sort((a: any, b: any) => {
-    const at = ((a && a.Title) ? String(a.Title) : "").trim();
-    const bt = ((b && b.Title) ? String(b.Title) : "").trim();
+    return (items || []).sort((a: any, b: any) => {
+      const at = ((a && a.Title) ? String(a.Title) : "").trim();
+      const bt = ((b && b.Title) ? String(b.Title) : "").trim();
 
-    const aFirstChar = at.charAt(5); // after "(HO) "
-    const bFirstChar = bt.charAt(5);
+      const aFirstChar = at.charAt(5);
+      const bFirstChar = bt.charAt(5);
 
-    const aIsNumber = !isNaN(Number(aFirstChar));
-    const bIsNumber = !isNaN(Number(bFirstChar));
+      const aIsNumber = !isNaN(Number(aFirstChar));
+      const bIsNumber = !isNaN(Number(bFirstChar));
 
-    // Letters first, numbers after
-    if (aIsNumber && !bIsNumber) return 1;
-    if (!aIsNumber && bIsNumber) return -1;
+      if (aIsNumber && !bIsNumber) return 1;
+      if (!aIsNumber && bIsNumber) return -1;
 
-    return at.localeCompare(bt, undefined, { sensitivity: "base" });
-    
+      return at.localeCompare(bt, undefined, { sensitivity: "base" });
     });
   }
 
@@ -134,29 +132,61 @@ export class SharePointService {
     return { email: "", name: "" };
   }
 
-  public async findUsersByName(searchQuery: string, deptName: string): Promise<any[]> {
-    const filterParts: string[] = [];
-    const safeQuery = (searchQuery || "").replace(/'/g, "''");
+  private sanitizeODataValue(value: string): string {
+    return (value || "").toString().trim().replace(/'/g, "''");
+  }
 
-    filterParts.push(`substringof('${safeQuery}', Name)`);
+  private async findUserByEmpNo(empNo: string, deptName?: string): Promise<any | null> {
+    const safeEmpNo = this.sanitizeODataValue(empNo);
 
-    if (/^\d+$/.test(searchQuery)) {
-      filterParts.push(`EmpNo eq '${safeQuery}'`);
-    }
+    if (!safeEmpNo) return null;
 
-    const combinedSearchFilter = filterParts.join(" or ");
-    let finalFilterString = combinedSearchFilter;
+    let filterString = `EmpNo eq '${safeEmpNo}'`;
 
     if (deptName) {
-      const safeDept = deptName.replace(/'/g, "''");
-      finalFilterString = `(${combinedSearchFilter}) and Dept eq '${safeDept}'`;
+      const safeDept = this.sanitizeODataValue(deptName);
+
+      if (safeDept) {
+        filterString = `${filterString} and Dept eq '${safeDept}'`;
+      }
+    }
+
+    const items = await sp.web.lists
+      .getByTitle("Employees")
+      .items.select("Id", "Name", "EmpNo", "Dept")
+      .top(1)
+      .filter(filterString)
+      .get();
+
+    return items.length > 0 ? items[0] : null;
+  }
+
+  public async findUsersByName(searchQuery: string, deptName: string): Promise<any[]> {
+    const safeQuery = this.sanitizeODataValue(searchQuery);
+
+    if (!safeQuery) return [];
+
+    let filterString = "";
+
+    if (/^\d+$/.test(safeQuery)) {
+      filterString = `EmpNo eq '${safeQuery}'`;
+    } else {
+      filterString = `startswith(Name, '${safeQuery}')`;
+    }
+
+    if (deptName) {
+      const safeDept = this.sanitizeODataValue(deptName);
+
+      if (safeDept) {
+        filterString = `(${filterString}) and Dept eq '${safeDept}'`;
+      }
     }
 
     return await sp.web.lists
       .getByTitle("Employees")
-      .items.select("*")
-      .top(5000)
-      .filter(finalFilterString)
+      .items.select("Id", "Name", "EmpNo", "Dept")
+      .top(20)
+      .filter(filterString)
       .get();
   }
 
@@ -196,6 +226,7 @@ export class SharePointService {
 
     const lastRefNo = "" + last;
     const pad = "000";
+
     return (
       locationCode +
       "-" +
@@ -213,20 +244,17 @@ export class SharePointService {
     refNo: string,
     actualDeptName: string,
   ): Promise<number> {
-    // Request-level values
     const requestVisitorType = ((visitor as any).VisitorType || "").toString().trim();
     const requestOtherVisitorType = ((visitor as any).OtherVisitorType || "").toString().trim();
 
-    // Contact name lookup
     let contactName = "";
     if (visitor.EmpNo) {
-      const contacts = await this.findUsersByName(visitor.EmpNo, actualDeptName);
-      if (contacts.length > 0) contactName = contacts[0].Name;
+      const contact = await this.findUserByEmpNo(visitor.EmpNo, actualDeptName);
+      if (contact) contactName = contact.Name;
     }
 
     const requestDate = submitType === 2 ? moment().toISOString() : null;
 
-    // Do NOT write VisitorType to Visitors list (your list doesn't have that column)
     const visitorsPayload: any = {
       Title: refNo,
       ContactName: contactName,
@@ -255,7 +283,6 @@ export class SharePointService {
     const iar: IItemAddResult = await sp.web.lists.getByTitle("Visitors").items.add(visitorsPayload);
     const itemId = iar.data.ID;
 
-    // Create folder + upload request attachments
     const folderPath = this.siteRelativeUrl + "/VisitorsLib/" + itemId;
     await sp.web.lists.getByTitle("VisitorsLib").rootFolder.folders.add(itemId.toString());
 
@@ -274,12 +301,10 @@ export class SharePointService {
       }),
     );
 
-    // Pre-fetch the lookup id for "Others" once (must exist in VisitorType list)
     const othersVisitorTypeId = await this.getVisitorTypeIdByTitle("Others");
 
     await Promise.all(
       (visitorDetailsList || []).map(async (visitorDetail) => {
-        // Detail-level type, but we intentionally do NOT use the typed free text as a lookup title
         const detailVisitorType = ((visitorDetail as any).VisitorType || requestVisitorType || "").toString().trim();
 
         let visitorTypeLookupTitle = detailVisitorType;
@@ -287,11 +312,11 @@ export class SharePointService {
 
         if (detailVisitorType === "Others") {
           visitorTypeLookupTitle = "Others";
-          otherVisitorTypeToSave = requestOtherVisitorType; // comes from request textbox
+          otherVisitorTypeToSave = requestOtherVisitorType;
         }
 
-        // IMPORTANT: do not create new VisitorType list items
         let visitorTypeId: number | null = null;
+
         if (visitorTypeLookupTitle === "Others") {
           visitorTypeId = othersVisitorTypeId;
         } else {
@@ -320,11 +345,7 @@ export class SharePointService {
           DateTo: moment(visitor.DateTimeArrival).toISOString(),
           CompanyName: visitor.CompanyName,
           StatusId: submitType,
-
-          // Lookup: internal field name "VisitorType" => use "VisitorTypeId"
           VisitorTypeId: visitorTypeId,
-
-          // NEW text column (Option 1)
           OtherVisitorType: otherVisitorTypeToSave,
         };
 
@@ -340,7 +361,7 @@ export class SharePointService {
   public async updatePrivacyConsentRefNo(userEmail: string, newRefNo: string): Promise<void> {
     try {
       const list = sp.web.lists.getByTitle("PrivacyConsents");
-      const safeEmail = (userEmail || "").replace(/'/g, "''");
+      const safeEmail = this.sanitizeODataValue(userEmail);
 
       const items = await list.items
         .filter(`UserEmail eq '${safeEmail}'`)
@@ -360,9 +381,10 @@ export class SharePointService {
 
   private async getVisitorTypeIdByTitle(title: string): Promise<number | null> {
     const clean = (title || "").toString().trim();
+
     if (!clean) return null;
 
-    const safeTitle = clean.replace(/'/g, "''");
+    const safeTitle = this.sanitizeODataValue(clean);
 
     const items = await sp.web.lists
       .getByTitle("VisitorType")

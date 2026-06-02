@@ -310,7 +310,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
   const printRef = useRef<HTMLDivElement>(null);
 
   //const Receptionist_Group = "Receptionist_V2";
-  //const SSD_Group = "SSD_v2";
+  //const SSD_Group = "SSD_V2";
   const Receptionist_Group = "Receptionist";
   const SSD_Group = "SSD";
   //const SSD_Notify_Group = "SSD_EmailNotif";
