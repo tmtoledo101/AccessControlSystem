@@ -56,7 +56,7 @@ const useStyles = makeStyles((theme: Theme) =>
 // Constants
 const Receptionist_Group = 'Receptionist';
 const SSD_Group_v2 = 'SSD';
-//const SSD_Group_v2 ='SSD_V2';
+// const SSD_Group_v2 = 'SSD_V2';
 
 // Status labels
 const STATUS_FOR_APPROVAL = 'For Approval';
@@ -108,14 +108,17 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     window.open(props.siteUrl, '_self');
   };
 
-  // Reference filter handler
   const handleRefFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value as any; // 'ALL' | 'HO' | 'SPC'
+    const value = event.target.value as any;
     setState((prev) => ({ ...prev, refFilter: value }));
   };
 
   const normalizeText = (value: any): string => {
     return String(value || '').trim().toUpperCase();
+  };
+
+  const normalizeGroupName = (value: any): string => {
+    return normalizeText(value);
   };
 
   const normalizeRefText = (value: any): string => {
@@ -185,6 +188,83 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     RefNo: (row && row.RefNo) || (row && row.ReferenceNo) || (row && row.Title) || '',
     ReferenceNo: (row && row.ReferenceNo) || (row && row.RefNo) || (row && row.Title) || '',
   });
+
+  const getNumber = (value: any): number => {
+    const n = Number(value);
+    return isNaN(n) ? 0 : n;
+  };
+
+  const getRowDeptId = (row: any): number => {
+    return getNumber(
+      (row && row.DeptId) ||
+      (row && row.Dept && row.Dept.Id) ||
+      (row && row.Dept && row.Dept.ID) ||
+      0,
+    );
+  };
+
+  const getAllowedDeptIdsForCurrentUser = (currentState: any): number[] => {
+    const deptIds: number[] = [];
+
+    if (currentState && currentState.isEncoder) {
+      usersPerDept.forEach((item: any) => {
+        const deptId = getNumber(item.DeptId);
+        if (deptId) deptIds.push(deptId);
+      });
+    }
+
+    if (currentState && currentState.isApprover) {
+      approversPerDept.forEach((item: any) => {
+        const deptId = getNumber(item.DeptId);
+        if (deptId) deptIds.push(deptId);
+      });
+    }
+
+    if (currentState && currentState.isWalkinApprover) {
+      walkinapprovers.forEach((item: any) => {
+        const deptId = getNumber(item.DeptId);
+        if (deptId) deptIds.push(deptId);
+      });
+    }
+
+    return Array.from(new Set(deptIds));
+  };
+
+  const canSeeAllDepartments = (currentState: any): boolean => {
+    if (currentState && currentState.isSSDUser) return true;
+
+    const hasDeptBasedRole =
+      currentState &&
+      (currentState.isEncoder || currentState.isApprover || currentState.isWalkinApprover);
+
+    // Keep receptionist-only behavior. If the user is only receptionist, they can still see all.
+    // If the user also has UsersPerDept or approver mapping, the department filter is applied.
+    if (currentState && currentState.isReceptionist && !hasDeptBasedRole) return true;
+
+    // Keep HO/SPC behavior.
+    if (isHOUser || isSPCUser) return true;
+
+    return false;
+  };
+
+  const filterRowsByCurrentUserDept = (rows: any[], currentState: any): any[] => {
+    if (!rows || rows.length === 0) return [];
+
+    if (canSeeAllDepartments(currentState)) {
+      return rows;
+    }
+
+    const allowedDeptIds = getAllowedDeptIdsForCurrentUser(currentState);
+
+    if (allowedDeptIds.length === 0) {
+      return [];
+    }
+
+    return rows.filter((row: any) => {
+      const rowDeptId = getRowDeptId(row);
+      return allowedDeptIds.indexOf(rowDeptId) > -1;
+    });
+  };
 
   const splitLegacyVisitorName = (title: any, firstName: any) => {
     const titleText = String(title || '').trim();
@@ -336,8 +416,14 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     }
   };
 
-  const handleTabChange = (event: React.ChangeEvent<{}>, newValue: number) => {
+  const handleTabChange = (
+    event: React.ChangeEvent<{}>,
+    newValue: number,
+    stateOverride?: any,
+  ) => {
     const tabContent = (event.target as any).textContent;
+    const baseState: any = stateOverride || state;
+
     let from = moment(new Date()).subtract(15, 'days');
     let to = moment(new Date()).endOf('day');
 
@@ -393,30 +479,43 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     setState((prev) => ({ ...prev, dirListItems: [] }));
 
     setTimeout(() => {
-      const currentStateForMapUser: any = { ...state, tabvalue: newValue };
+      const currentStateForMapUser: any = {
+        ...baseState,
+        tabvalue: newValue,
+        selectedFromDate: from,
+        selectedToDate: to,
+      };
 
       if (tabContent === 'By Request') {
-        if (currentStateForMapUser.isEncoder || currentStateForMapUser.isApprover || currentStateForMapUser.isWalkinApprover) {
-          mapUser(from.toDate(), to.toDate(), 1);
+        if (
+          currentStateForMapUser.isEncoder ||
+          currentStateForMapUser.isApprover ||
+          currentStateForMapUser.isWalkinApprover
+        ) {
+          mapUser(from.toDate(), to.toDate(), 1, currentStateForMapUser.reportView as any, currentStateForMapUser);
         } else if (currentStateForMapUser.isReceptionist || currentStateForMapUser.isSSDUser) {
-          mapUser(from.toDate(), to.toDate(), 2);
+          mapUser(from.toDate(), to.toDate(), 2, currentStateForMapUser.reportView as any, currentStateForMapUser);
         }
       } else if (tabContent === 'By Visitor Details') {
-        if (currentStateForMapUser.isEncoder || currentStateForMapUser.isApprover || currentStateForMapUser.isWalkinApprover) {
-          mapUser(from.toDate(), to.toDate(), 3);
+        if (
+          currentStateForMapUser.isEncoder ||
+          currentStateForMapUser.isApprover ||
+          currentStateForMapUser.isWalkinApprover
+        ) {
+          mapUser(from.toDate(), to.toDate(), 3, currentStateForMapUser.reportView as any, currentStateForMapUser);
         } else if (currentStateForMapUser.isReceptionist || currentStateForMapUser.isSSDUser) {
-          mapUser(from.toDate(), to.toDate(), 4);
+          mapUser(from.toDate(), to.toDate(), 4, currentStateForMapUser.reportView as any, currentStateForMapUser);
         }
       } else if (tabContent === 'Dept. Approver') {
         if (currentStateForMapUser.isApprover) {
-          mapUser(from.toDate(), to.toDate(), 5);
+          mapUser(from.toDate(), to.toDate(), 5, currentStateForMapUser.reportView as any, currentStateForMapUser);
         } else if (currentStateForMapUser.isWalkinApprover) {
-          mapUser(from.toDate(), to.toDate(), 7);
+          mapUser(from.toDate(), to.toDate(), 7, currentStateForMapUser.reportView as any, currentStateForMapUser);
         }
       } else if (tabContent === 'SSD' && currentStateForMapUser.isSSDUser) {
-        mapUser(from.toDate(), to.toDate(), 6);
+        mapUser(from.toDate(), to.toDate(), 6, currentStateForMapUser.reportView as any, currentStateForMapUser);
       } else if (tabContent === 'Limit Entry' && currentStateForMapUser.isSSDUser) {
-        mapUser(from.toDate(), to.toDate(), 11);
+        mapUser(from.toDate(), to.toDate(), 11, currentStateForMapUser.reportView as any, currentStateForMapUser);
       } else if (tabContent === 'Reports') {
         if (
           currentStateForMapUser.isEncoder ||
@@ -427,7 +526,13 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           isHOUser ||
           isSPCUser
         ) {
-          mapUser(from.toDate(), to.toDate(), 10, (currentStateForMapUser.reportView as any) || 'Daily');
+          mapUser(
+            from.toDate(),
+            to.toDate(),
+            10,
+            (currentStateForMapUser.reportView as any) || 'Daily',
+            currentStateForMapUser,
+          );
         }
       }
     }, 0);
@@ -441,13 +546,43 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     if ((state.reportView as any) === 'Monthly') {
       const newFromDate = momentDate.startOf('month');
       const newToDate = momentDate.endOf('month');
-      setState((prevState) => ({ ...prevState, selectedFromDate: newFromDate, selectedToDate: newToDate }));
-      setTimeout(() => mapUser(newFromDate.toDate(), newToDate.toDate(), 10, 'Monthly'), 0);
+
+      setState((prevState) => ({
+        ...prevState,
+        selectedFromDate: newFromDate,
+        selectedToDate: newToDate,
+      }));
+
+      setTimeout(() => {
+        const nextState = {
+          ...state,
+          selectedFromDate: newFromDate,
+          selectedToDate: newToDate,
+          reportView: 'Monthly',
+        };
+
+        mapUser(newFromDate.toDate(), newToDate.toDate(), 10, 'Monthly', nextState);
+      }, 0);
     } else if ((state.reportView as any) === 'Daily') {
       const newFromDate = momentDate.startOf('day');
       const newToDate = momentDate.endOf('day');
-      setState((prevState) => ({ ...prevState, selectedFromDate: newFromDate, selectedToDate: newToDate }));
-      setTimeout(() => mapUser(newFromDate.toDate(), newToDate.toDate(), 10, 'Daily'), 0);
+
+      setState((prevState) => ({
+        ...prevState,
+        selectedFromDate: newFromDate,
+        selectedToDate: newToDate,
+      }));
+
+      setTimeout(() => {
+        const nextState = {
+          ...state,
+          selectedFromDate: newFromDate,
+          selectedToDate: newToDate,
+          reportView: 'Daily',
+        };
+
+        mapUser(newFromDate.toDate(), newToDate.toDate(), 10, 'Daily', nextState);
+      }, 0);
     }
   };
 
@@ -458,7 +593,16 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     setState((prevState) => {
       const newState: any = { ...prevState, selectedFromDate: newFromDate };
       setTimeout(() => {
-        mapUser(newFromDate.toDate(), prevState.selectedToDate.toDate(), prevState.vwid, prevState.reportView as any);
+        mapUser(
+          newFromDate.toDate(),
+          prevState.selectedToDate.toDate(),
+          prevState.vwid,
+          prevState.reportView as any,
+          {
+            ...prevState,
+            selectedFromDate: newFromDate,
+          },
+        );
       }, 0);
       return newState;
     });
@@ -471,7 +615,16 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     setState((prevState) => {
       const newState: any = { ...prevState, selectedToDate: newToDate };
       setTimeout(() => {
-        mapUser(prevState.selectedFromDate.toDate(), newToDate.toDate(), prevState.vwid, prevState.reportView as any);
+        mapUser(
+          prevState.selectedFromDate.toDate(),
+          newToDate.toDate(),
+          prevState.vwid,
+          prevState.reportView as any,
+          {
+            ...prevState,
+            selectedToDate: newToDate,
+          },
+        );
       }, 0);
       return newState;
     });
@@ -491,6 +644,13 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       newToDate = moment().endOf('month');
     }
 
+    const nextState = {
+      ...state,
+      reportView: newReportView,
+      selectedFromDate: newFromDate,
+      selectedToDate: newToDate,
+    };
+
     setState((prevState) => ({
       ...prevState,
       reportView: newReportView,
@@ -499,7 +659,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     }));
 
     setTimeout(() => {
-      mapUser(newFromDate.toDate(), newToDate.toDate(), 10, newReportView);
+      mapUser(newFromDate.toDate(), newToDate.toDate(), 10, newReportView, nextState);
     }, 0);
   };
 
@@ -546,28 +706,14 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         };
       });
 
-      if (currentState.isReceptionist || currentState.isSSDUser) {
+      if (canSeeAllDepartments(currentState)) {
         setState((prevState) => ({
           ...prevState,
           dirListItems: enrichedDetails,
           isProgress: false,
         }));
       } else if (currentState.isEncoder || currentState.isApprover || currentState.isWalkinApprover) {
-        const mappedrows: any[] = [];
-
-        enrichedDetails.forEach((row: any) => {
-          let filtered: any[] = [];
-
-          if (currentState.isEncoder) {
-            filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
-          } else if (currentState.isApprover) {
-            filtered = approversPerDept.filter((item) => item.DeptId === row.DeptId);
-          } else if (currentState.isWalkinApprover) {
-            filtered = walkinapprovers.filter((item) => item.DeptId === row.DeptId);
-          }
-
-          if (filtered.length > 0) mappedrows.push(row);
-        });
+        const mappedrows = filterRowsByCurrentUserDept(enrichedDetails, currentState);
 
         setState((prevState) => ({
           ...prevState,
@@ -591,16 +737,28 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     }
   };
 
-  async function mapUser(from: Date, to: Date, action: number, reportView: 'Daily' | 'Monthly' | 'Custom' = 'Daily') {
-    const currentState: any = { ...state };
+  async function mapUser(
+    from: Date,
+    to: Date,
+    action: number,
+    reportView: 'Daily' | 'Monthly' | 'Custom' = 'Daily',
+    stateOverride?: any,
+  ) {
+    const currentState: any = stateOverride || state;
     let fetchedData: any[] = [];
 
     if (action === 1) {
-      // By Request must keep the full request list so the Reference Filter can work.
-      // The old code filtered by the user's department first. That removed SPC rows
-      // before the SPC reference filter was applied.
       const visitors = await SharePointService.loadVisitorRequests(from, to);
-      fetchedData = visitors.map(normalizeRequestRow);
+
+      let filteredVisitors: any[] = filterRowsByCurrentUserDept(visitors, currentState);
+
+      if (isHOUser || isSPCUser) {
+        filteredVisitors = filteredVisitors.filter((row: any) => {
+          return isAllowedForCurrentUserBuilding(row);
+        });
+      }
+
+      fetchedData = filteredVisitors.map(normalizeRequestRow);
     } else if (action === 2) {
       const visitors = await SharePointService.loadVisitorRequests(from, to);
       let filteredVisitors: any[] = visitors;
@@ -626,6 +784,11 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       });
 
       let filteredDetails: any[] = visitorDetails;
+
+      if (action === 3) {
+        filteredDetails = filterRowsByCurrentUserDept(filteredDetails, currentState);
+      }
+
       if (isHOUser || isSPCUser) {
         filteredDetails = filteredDetails.filter((detail: any) => {
           const parentBldg = visitorBldgMap[detail.ParentId];
@@ -649,10 +812,6 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
       if (action === 4) {
         fetchedData = enriched;
       } else {
-        // By Visitor Details must keep the full enriched detail list so the
-        // Reference Filter can check the parent RefNo + parent Bldg.
-        // The old code filtered by the user's department first. That removed
-        // SPC visitor detail rows before the SPC reference filter was applied.
         fetchedData = enriched.map(normalizeRequestRow);
       }
     } else if (action === 5) {
@@ -724,9 +883,10 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         reportRequests = await SharePointService.loadVisitorRequests(from, to);
       }
 
-      let filteredRequests: any[] = reportRequests;
+      let filteredRequests: any[] = filterRowsByCurrentUserDept(reportRequests, currentState);
+
       if (isHOUser || isSPCUser) {
-        filteredRequests = reportRequests.filter((row: any) => {
+        filteredRequests = filteredRequests.filter((row: any) => {
           return isAllowedForCurrentUserBuilding(row);
         });
       }
@@ -897,14 +1057,18 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         let isSSDUser = false;
 
         for (let i = 0; i < groups.length; i++) {
-          if (groups[i].LoginName === Receptionist_Group) {
+          const groupName = normalizeGroupName(groups[i].Title || groups[i].LoginName);
+
+          if (groupName === normalizeGroupName(Receptionist_Group)) {
             isReceptionist = true;
             break;
           }
         }
 
         for (let j = 0; j < groups.length; j++) {
-          if (groups[j].LoginName === SSD_Group_v2) {
+          const groupName = normalizeGroupName(groups[j].Title || groups[j].LoginName);
+
+          if (groupName === normalizeGroupName(SSD_Group_v2)) {
             isSSDUser = true;
             break;
           }
@@ -921,6 +1085,18 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
           temptabs.push('Reports');
         }
 
+        const initializedState: any = {
+          ...state,
+          viewName: 'Visitor Views',
+          isEncoder: isEncoder,
+          isApprover: isApprover,
+          isReceptionist: isReceptionist,
+          isSSDUser: isSSDUser,
+          isWalkinApprover: isWalkinApprover,
+          WalkinApprovers: isWalkinApprover ? walkinapprovers : [],
+          menuTabs: temptabs,
+        };
+
         setState((prevState) => ({
           ...prevState,
           viewName: 'Visitor Views',
@@ -934,14 +1110,23 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         }));
 
         const cookietab = getCookie('ViewVisitorTab');
-        if (cookietab) {
-          const index = temptabs.indexOf(cookietab);
+        let tabToOpen = '';
+
+        if (cookietab && temptabs.indexOf(cookietab) > -1) {
+          tabToOpen = cookietab;
+        } else if (temptabs.length > 0) {
+          tabToOpen = temptabs[0];
+        }
+
+        if (tabToOpen) {
+          const index = temptabs.indexOf(tabToOpen);
+
           setTimeout(() => {
             setState((prevState) => ({ ...prevState, tabvalue: index }));
 
             const syntheticEvent: any = {
-              target: { textContent: cookietab },
-              currentTarget: { textContent: cookietab },
+              target: { textContent: tabToOpen },
+              currentTarget: { textContent: tabToOpen },
               nativeEvent: new Event('change'),
               bubbles: false,
               cancelable: false,
@@ -957,31 +1142,8 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
               type: 'change',
             };
 
-            handleTabChange(syntheticEvent, index);
+            handleTabChange(syntheticEvent, index, initializedState);
           }, 0);
-        } else if (temptabs.length > 0) {
-          const defaultTabContent = temptabs[0];
-          const defaultIndex = 0;
-
-          const syntheticEvent2: any = {
-            target: { textContent: defaultTabContent },
-            currentTarget: { textContent: defaultTabContent },
-            nativeEvent: new Event('change'),
-            bubbles: false,
-            cancelable: false,
-            defaultPrevented: false,
-            eventPhase: 2,
-            isTrusted: false,
-            preventDefault: () => {},
-            isDefaultPrevented: () => false,
-            stopPropagation: () => {},
-            isPropagationStopped: () => false,
-            persist: () => {},
-            timeStamp: Date.now(),
-            type: 'change',
-          };
-
-          handleTabChange(syntheticEvent2, defaultIndex);
         }
       } catch (e) {
         // eslint-disable-next-line no-console
