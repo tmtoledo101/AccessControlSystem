@@ -930,7 +930,7 @@ const DisplayVisitor: React.FC<IDisplayVisitorProps> = (props) => {
         const pid = parseInt(pidRaw || "", 10);
 
         // production behavior
-        itemIdRef.current = Number.isFinite(pid) && pid > 0 ? pid : 0;
+        itemIdRef.current = Number.isFinite(pid) && pid > 0 ? pid : 64592;
 
         if (!itemIdRef.current) {
           alert("Missing or invalid pid in the URL.");

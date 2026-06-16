@@ -153,9 +153,9 @@ const ApprovalSection: React.FC<IApprovalSectionProps> = (props) => {
       case 'remarks2disp':
         return !!visitor.Remarks2 && (!isEdit || (isEdit && !forSSD));
       case 'ssdapproverdisp':
-        return !!visitor.SSDApproverId && (!isEdit || isEdit);
+        return !!visitor.SSDApproverId || !!(visitor.SSDApprover && visitor.SSDApprover.Title);
       case 'ssddatedisp':
-        return !!visitor.SSDDate && (!isEdit || isEdit);
+        return !!visitor.SSDDate;
       case 'deptdatedisp':
         return !!visitor.DeptApproverDate && (!isEdit || isEdit);
       case 'markcompletedatedisp':

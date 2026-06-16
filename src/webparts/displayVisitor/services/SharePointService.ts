@@ -115,9 +115,31 @@ export class SharePointService {
     const visitors = await sp.web.lists
       .getByTitle("Visitors")
       .items.select(
-        "*,Receptionist/Title, Approver/Title,Approver/EMail,Approver/ID, Status/Title,Dept/Title,SSDApprover/Title,Author/Title,Author/EMail"
-      )
-      .expand("Receptionist,Approver,Dept,Status,SSDApprover,Author")
+          "*",
+          "Receptionist/Id",
+          "Receptionist/Title",
+          "Approver/Id",
+          "Approver/Title",
+          "Approver/EMail",
+          "Status/Id",
+          "Status/Title",
+          "Dept/Id",
+          "Dept/Title",
+          "SSDApprover/Id",
+          "SSDApprover/Title",
+          "SSDApprover/EMail",
+          "Author/Id",
+          "Author/Title",
+          "Author/EMail"
+        )
+        .expand(
+          "Receptionist",
+          "Approver",
+          "Dept",
+          "Status",
+          "SSDApprover",
+          "Author"
+        )
       .top(5000)
       .filter(`ID eq ${id}`)
       .get();
@@ -480,7 +502,7 @@ export class SharePointService {
       } else if (visitor.StatusId === 2 && visitor.ExternalType === "Walk-in") {
         statusId = 9;
         deptApproveDate = new Date();
-      } else if (visitor.StatusId === 3) {
+      } else if (visitor.StatusId === 3 || visitor.StatusId === 4) {
         statusId = 4;
         ssdApproverId = currentUser.Id;
         ssdDate = new Date();
@@ -490,8 +512,10 @@ export class SharePointService {
         statusId = 6;
       } else if (visitor.StatusId === 2 && visitor.ExternalType === "Walk-in") {
         statusId = 8;
-      } else if (visitor.StatusId === 3) {
+      } else if (visitor.StatusId === 3 || visitor.StatusId === 7) {
         statusId = 7;
+        ssdApproverId = currentUser.Id;
+        ssdDate = new Date();
       }
     }
 
