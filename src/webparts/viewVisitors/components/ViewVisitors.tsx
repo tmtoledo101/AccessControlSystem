@@ -5,6 +5,7 @@ import { makeStyles, createStyles, Theme } from '@material-ui/core/styles';
 import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
 import Button from '@material-ui/core/Button';
+import CircularProgress from '@material-ui/core/CircularProgress';
 import moment from 'moment';
 import { sp } from '@pnp/sp';
 
@@ -41,7 +42,6 @@ import { IVisitor, IUserDept, IViewState, IVisitorCount, IVisitorDetailExtended 
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
-// ✅ ADD THIS
 import PrivacyGate from '../../../common/PrivacyGate';
 
 const useStyles = makeStyles((theme: Theme) =>
@@ -100,7 +100,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     tabvalue: 6,
     reportView: 'Daily' as any,
 
-    // Reference filter applies to ALL tabs (except vwid 0 and 11)
+    // Reference filter applies to ALL tabs except vwid 0 and 11
     refFilter: 'ALL' as any,
   });
 
@@ -314,7 +314,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     });
   };
 
-  // Apply ref filter to ALL tabs (except vwid 0 and 11)
+  // Apply ref filter to ALL tabs except vwid 0 and 11
   const displayedItems = React.useMemo(() => {
     const rows = (state.dirListItems as any[]) || [];
     if (state.vwid === 0 || state.vwid === 11) return rows;
@@ -368,6 +368,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         ) {
           newState.dirListItems = [];
           newState.vwid = 9;
+          newState.isProgress = false;
         }
       }
 
@@ -502,89 +503,91 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     }, 0);
   };
 
-  const handleChangeTxt = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeTxt = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const searchText = e.target.value;
+    const cleanSearchText = normalizeText(searchText);
+
+    setState((prevState) => ({
+      ...prevState,
+      txtSearch: searchText,
+      dirListItems: cleanSearchText.length < 3 ? [] : prevState.dirListItems,
+    }));
+  };
+
+  const handleVisitorNameSearch = async () => {
     try {
-      const searchText = e.target.value;
-      const cleanSearchText = normalizeText(searchText);
+      const cleanSearchText = normalizeText(state.txtSearch);
 
-      setState((prevState) => {
-        const newState: any = { ...prevState, txtSearch: searchText };
-        if (cleanSearchText.length < 3) newState.dirListItems = [];
-        return newState;
-      });
-
-      if (cleanSearchText.length < 3) return;
-
-      const currentState: any = { ...state };
-
-      // Load parent requests first by date range.
-      // This avoids scanning the whole VisitorDetails list and helps prevent list view threshold errors.
-      const visitorRequests = await SharePointService.loadVisitorRequests(
-        state.selectedFromDate.toDate(),
-        state.selectedToDate.toDate(),
-      );
-
-      const visitorBldgMap: { [key: number]: string } = {};
-      const visitorRefMap: { [key: number]: string } = {};
-      const parentIds: number[] = [];
-
-      visitorRequests.forEach((v: any) => {
-        visitorBldgMap[v.ID] = v.Bldg;
-        visitorRefMap[v.ID] = v.Title;
-        parentIds.push(v.ID);
-      });
-
-      if (parentIds.length === 0) {
-        setState((prevState) => ({ ...prevState, dirListItems: [] }));
+      if (cleanSearchText.length < 3) {
+        setState((prevState) => ({
+          ...prevState,
+          dirListItems: [],
+        }));
         return;
       }
 
-      // Required in SharePointService.ts:
-      // loadVisitorDetailsByParentIds(parentIds)
-      const visitorDetails = await SharePointService.loadVisitorDetailsByParentIds(parentIds);
+      setState((prevState) => ({
+        ...prevState,
+        isProgress: true,
+        dirListItems: [],
+      }));
 
-      let filteredDetails: any[] = visitorDetails.filter((detail: any) => {
-        return isVisitorNameMatch(detail, cleanSearchText);
-      });
+      const currentState: any = { ...state };
 
-      if (isHOUser || isSPCUser) {
-        filteredDetails = filteredDetails.filter((detail: any) => {
-          const parentBldg = visitorBldgMap[detail.ParentId];
-          if (isHOUser) return isBldgMatch({ Bldg: parentBldg }, 'HO');
-          if (isSPCUser) return isBldgMatch({ Bldg: parentBldg }, 'SPC');
-          return true;
-        });
-      }
+      const visitorDetails = await SharePointService.searchVisitorsByName(state.txtSearch);
 
-      const enrichedDetails: any[] = filteredDetails.map((d: any) => {
+      const enrichedDetails: any[] = visitorDetails.map((d: any) => {
         const normalized = normalizeVisitorDetailName(d);
 
         return {
           ...normalized,
-          Bldg: visitorBldgMap[d.ParentId] || '',
-          RefNo: visitorRefMap[d.ParentId] || d.RefNo || d.ReferenceNo || '',
-          ReferenceNo: visitorRefMap[d.ParentId] || d.ReferenceNo || d.RefNo || '',
+          RefNo: d.RefNo || d.ReferenceNo || '',
+          ReferenceNo: d.ReferenceNo || d.RefNo || '',
         };
       });
 
       if (currentState.isReceptionist || currentState.isSSDUser) {
-        setState((prevState) => ({ ...prevState, dirListItems: enrichedDetails }));
+        setState((prevState) => ({
+          ...prevState,
+          dirListItems: enrichedDetails,
+          isProgress: false,
+        }));
       } else if (currentState.isEncoder || currentState.isApprover || currentState.isWalkinApprover) {
         const mappedrows: any[] = [];
 
         enrichedDetails.forEach((row: any) => {
           let filtered: any[] = [];
-          if (currentState.isEncoder) filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
-          else if (currentState.isApprover) filtered = approversPerDept.filter((item) => item.DeptId === row.DeptId);
-          else if (currentState.isWalkinApprover) filtered = walkinapprovers.filter((item) => item.DeptId === row.DeptId);
+
+          if (currentState.isEncoder) {
+            filtered = usersPerDept.filter((item) => item.DeptId === row.DeptId);
+          } else if (currentState.isApprover) {
+            filtered = approversPerDept.filter((item) => item.DeptId === row.DeptId);
+          } else if (currentState.isWalkinApprover) {
+            filtered = walkinapprovers.filter((item) => item.DeptId === row.DeptId);
+          }
+
           if (filtered.length > 0) mappedrows.push(row);
         });
 
-        setState((prevState) => ({ ...prevState, dirListItems: mappedrows }));
+        setState((prevState) => ({
+          ...prevState,
+          dirListItems: mappedrows,
+          isProgress: false,
+        }));
+      } else {
+        setState((prevState) => ({
+          ...prevState,
+          dirListItems: [],
+          isProgress: false,
+        }));
       }
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.log('Search by visitor name error:', err);
+
+      setState((prevState) => ({
+        ...prevState,
+        isProgress: false,
+      }));
     }
   };
 
@@ -653,7 +656,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
         fetchedData = enriched.map(normalizeRequestRow);
       }
     } else if (action === 5) {
-      // Dept. Approver (Pre-arranged) - only For Approval
+      // Dept. Approver Pre-arranged: only For Approval
       const visitors = await SharePointService.loadVisitorRequests(from, to);
       const mappedrows: any[] = [];
 
@@ -672,7 +675,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
       fetchedData = mappedrows.map(normalizeRequestRow);
     } else if (action === 6) {
-      // SSD tab - only Approved by Dept Head
+      // SSD tab: only Approved by Dept Head
       const visitors = await SharePointService.loadVisitorRequests(from, to);
       let filteredVisitors: any[] = visitors;
 
@@ -688,7 +691,7 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
       fetchedData = filteredVisitors.map(normalizeRequestRow);
     } else if (action === 7) {
-      // Dept. Approver (Walk-in) - only For Approval
+      // Dept. Approver Walk-in: only For Approval
       const visitors = await SharePointService.loadVisitorRequests(from, to);
       const mappedrows: any[] = [];
 
@@ -987,7 +990,6 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
     })();
   }, []);
 
-  // ✅ WRAP YOUR EXISTING UI WITH PrivacyGate
   return (
     <PrivacyGate context={props.context} siteUrl={props.siteUrl} refNo={''}>
       <form noValidate autoComplete="off">
@@ -1015,7 +1017,28 @@ export default function ViewVisitors(props: IViewVisitorsProps) {
 
             {state.vwid === 9 && (
               <Grid item xs={12} sm={12}>
-                <SearchBox searchText={state.txtSearch} onSearchChange={handleChangeTxt} />
+                <Grid container spacing={1} alignItems="flex-end">
+                  <Grid item>
+                    <SearchBox searchText={state.txtSearch} onSearchChange={handleChangeTxt} />
+                  </Grid>
+
+                  <Grid item>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={handleVisitorNameSearch}
+                      disabled={state.isProgress || normalizeText(state.txtSearch).length < 3}
+                    >
+                      Search
+                    </Button>
+                  </Grid>
+
+                  {state.isProgress && (
+                    <Grid item>
+                      <CircularProgress size={24} />
+                    </Grid>
+                  )}
+                </Grid>
               </Grid>
             )}
 

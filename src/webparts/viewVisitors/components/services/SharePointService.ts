@@ -215,6 +215,9 @@ export default class SharePointService {
           "StatusId",
           "AuthorId",
           "Modified",
+          "AccessCardsId",
+          "AccessCards/Id",
+          "AccessCards/Title",
           "Status/Title",
           "Dept/Title",
           "Author/Title",
@@ -255,6 +258,7 @@ export default class SharePointService {
       "AuthorId",
       "Modified",
       "AccessCardsId",
+      "AccessCards/Id",
       "AccessCards/Title",
       "Status/Title",
       "Dept/Title",
@@ -267,25 +271,62 @@ export default class SharePointService {
       .split(/\s+/)
       .filter((x) => x);
 
-    const searchTokens = tokens.map((x) => x.toLowerCase());
+    if (tokens.length === 0) {
+      return [];
+    }
+
     const firstToken = odataEscape(tokens[0]);
     const lastToken = odataEscape(tokens[tokens.length - 1]);
+    const fullName = odataEscape(tokens.join(" "));
 
-    const filter = firstToken === lastToken
-      ? `startswith(Title,'${lastToken}') or startswith(FirstName,'${firstToken}')`
-      : `startswith(Title,'${lastToken}') or startswith(Title,'${firstToken}') or startswith(FirstName,'${firstToken}')`;
+    const filters: string[] = [];
 
-    const items = await sp.web.lists
-      .getByTitle("VisitorDetails")
-      .items.select(selectFields)
-      .expand("Dept", "Status", "Author", "AccessCards")
-      .filter(filter)
-      .top(500)
-      .get();
+    // New format:
+    // Title = Last Name
+    // FirstName = First Name
+    if (tokens.length === 1) {
+      filters.push(`FirstName eq '${firstToken}'`);
+      filters.push(`Title eq '${firstToken}'`);
+    } else {
+      filters.push(`FirstName eq '${firstToken}'`);
+      filters.push(`Title eq '${lastToken}'`);
+      filters.push(`Title eq '${lastToken}' and FirstName eq '${firstToken}'`);
 
-    return items.filter((item: any) => {
+      // Legacy format:
+      // Title = Full Name
+      // FirstName = blank
+      filters.push(`Title eq '${fullName}'`);
+    }
+
+    const resultsMap: { [key: number]: any } = {};
+
+    for (const filter of filters) {
+      try {
+        const items = await sp.web.lists
+          .getByTitle("VisitorDetails")
+          .items.select(selectFields)
+          .expand("Dept", "Status", "Author", "AccessCards")
+          .filter(filter)
+          .orderBy("Modified", false)
+          .top(500)
+          .get();
+
+        items.forEach((item: any) => {
+          if (item && item.ID) {
+            resultsMap[item.ID] = item;
+          }
+        });
+      } catch (err) {
+        console.log("Visitor name search filter failed:", filter, err);
+      }
+    }
+
+    const searchTokens = tokens.map((x) => x.toLowerCase());
+
+    const results = Object.values(resultsMap).filter((item: any) => {
       const name = splitLegacyVisitorName(item.Title, item.FirstName);
-      const nameText = `${name.FirstName || ""} ${name.LastName || ""} ${name.FullName || ""}`
+
+      const nameText = `${item.Title || ""} ${item.FirstName || ""} ${name.FirstName || ""} ${name.LastName || ""} ${name.FullName || ""}`
         .toLowerCase()
         .replace(/[.,]/g, " ");
 
@@ -293,6 +334,10 @@ export default class SharePointService {
         if (token.length === 1) return true;
         return nameText.indexOf(token) >= 0;
       });
+    });
+
+    return results.sort((a: any, b: any) => {
+      return new Date(b.Modified).getTime() - new Date(a.Modified).getTime();
     }) as IVisitorDetail[];
   }
 
