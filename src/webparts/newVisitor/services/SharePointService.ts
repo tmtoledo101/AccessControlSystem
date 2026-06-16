@@ -152,11 +152,20 @@ export class SharePointService {
     }
 
     const items = await sp.web.lists
-      .getByTitle("Employees")
-      .items.select("Id", "Name", "EmpNo", "Dept")
-      .top(1)
-      .filter(filterString)
-      .get();
+    .getByTitle("Employees")
+    .items.select(
+      "Id",
+      "Title",
+      "Name",
+      "EmpNo",
+      "Dept",
+      "Position",
+      "DirectNo",
+      "LocalNo"
+    )
+    .top(1)
+    .filter(filterString)
+    .get();
 
     return items.length > 0 ? items[0] : null;
   }
@@ -183,11 +192,20 @@ export class SharePointService {
     }
 
     return await sp.web.lists
-      .getByTitle("Employees")
-      .items.select("Id", "Name", "EmpNo", "Dept")
-      .top(20)
-      .filter(filterString)
-      .get();
+    .getByTitle("Employees")
+    .items.select(
+      "Id",
+      "Title",
+      "Name",
+      "EmpNo",
+      "Dept",
+      "Position",
+      "DirectNo",
+      "LocalNo"
+    )
+    .top(20)
+    .filter(filterString)
+    .get();
   }
 
   public async getVisitorTypeList(): Promise<any[]> {

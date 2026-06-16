@@ -249,18 +249,28 @@ const NewVisitor: React.FC<INewVisitorProps> = (props) => {
     }
   };
 
-  const handleContactSelect = (contact: any) => {
-    if (contact) {
+    const handleContactSelect = (contact: any) => {
+    if (contact && typeof contact === 'object') {
       setVisitor((prev: any) => ({
         ...prev,
-        EmpNo: contact.EmpNo,
-        DirectNo: contact.DirectNo,
-        LocalNo: contact.LocalNo,
-        Position: contact.Position,
+        EmpNo: contact.EmpNo || '',
+        ContactName: contact.Name || contact.Title || '',
+        DirectNo: contact.DirectNo || '',
+        LocalNo: contact.LocalNo || '',
+        Position: contact.Position || '',
       }));
+
       setErrors((prev: any) => ({ ...prev, EmpNo: '' }));
     } else {
-      setVisitor((prev: any) => ({ ...prev, EmpNo: '', DirectNo: '', LocalNo: '', Position: '' }));
+      setVisitor((prev: any) => ({
+        ...prev,
+        EmpNo: '',
+        ContactName: '',
+        DirectNo: '',
+        LocalNo: '',
+        Position: '',
+      }));
+
       setContactList([]);
     }
   };
