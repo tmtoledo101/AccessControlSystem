@@ -395,41 +395,39 @@ const VisitorInformationSection: React.FC<IVisitorInformationSectionProps> = (pr
         </Paper>
       </Grid>
 
-      {!(isApproverUser || isSSDUser) && (
-        <Grid item xs={12} sm={12}>
-          <Paper variant="outlined" className={classes.paper}>
-            {checkVisibility('cedit') ? (
-              <DropzoneArea
-                acceptedFiles={['.docx', '.xlsx', '.xls', 'doc', '.mov', 'image/*', 'video/*', ' application/*']}
-                showFileNames
-                showPreviews
-                maxFileSize={70000000}
-                onChange={onChangeDropZone}
-                filesLimit={10}
-                showPreviewsInDropzone={false}
-                useChipsForPreview
-                previewGridProps={{ container: { spacing: 1, direction: 'row' } }}
-                previewChipProps={{ classes: { root: classes.previewChip } }}
-                previewText="Selected files"
-                dropzoneText="Add an attachment"
-                initialFiles={visitor.initFiles}
+          <Grid item xs={12} sm={12}>
+      <Paper variant="outlined" className={classes.paper}>
+        {checkVisibility('cedit') ? (
+          <DropzoneArea
+            acceptedFiles={['.docx', '.xlsx', '.xls', '.doc', '.mov', 'image/*', 'video/*', 'application/*']}
+            showFileNames
+            showPreviews
+            maxFileSize={70000000}
+            onChange={onChangeDropZone}
+            filesLimit={10}
+            showPreviewsInDropzone={false}
+            useChipsForPreview
+            previewGridProps={{ container: { spacing: 1, direction: 'row' } }}
+            previewChipProps={{ classes: { root: classes.previewChip } }}
+            previewText="Selected files"
+            dropzoneText="Add an attachment"
+            initialFiles={visitor.initFiles || []}
+          />
+        ) : (visitor.initFiles || []).length > 0 ? (
+          <div className={classes.rootChip}>
+            {(visitor.initFiles || []).map((row) => (
+              <Chip
+                key={row}
+                icon={<AttachFileIcon />}
+                label={row}
+                onClick={(e) => onChipClick(e, row, 'inputFields')}
+                variant="outlined"
               />
-            ) : (
-              <div className={classes.rootChip}>
-                {visitor.initFiles.map((row) => (
-                  <Chip
-                    key={row}
-                    icon={<AttachFileIcon />}
-                    label={row}
-                    onClick={(e) => onChipClick(e, row, 'inputFields')}
-                    variant="outlined"
-                  />
-                ))}
-              </div>
-            )}
-          </Paper>
-        </Grid>
-      )}
+            ))}
+          </div>
+        ) : null}
+      </Paper>
+    </Grid>
 
       <Grid item xs={12}>
         <Paper variant="outlined" className={classes.paper}>

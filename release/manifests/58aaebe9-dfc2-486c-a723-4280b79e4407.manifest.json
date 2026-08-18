@@ -37,7 +37,7 @@
     "scriptResources": {
       "displayinternal-web-part": {
         "type": "path",
-        "path": "displayinternal-web-part_26ced1e2e174fc8b9983.js"
+        "path": "displayinternal-web-part_69acc7b29f6ef7206ac4.js"
       },
       "@microsoft/sp-property-pane": {
         "type": "component",
